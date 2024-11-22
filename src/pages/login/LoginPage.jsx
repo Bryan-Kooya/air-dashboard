@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import "./Login.css"
+import "./LoginPage.css"
 import { useNavigate } from "react-router-dom";
 import { observeAuthState, loginUser, registerUser } from "../../authService";
 import { Apple, Facebook, Google, TopCorner, BottomCorner } from "../../assets/images";
 
-const Login = () => {
+const LoginPage = () => {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,6 +17,7 @@ const Login = () => {
     try {
       setError("");
       await loginUser(email, password);
+      navigate("/dashboard")
     } catch (error) {
       setError("Incorrect email or password");
     }
@@ -70,4 +71,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default LoginPage;

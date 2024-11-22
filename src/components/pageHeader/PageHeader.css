@@ -1,0 +1,50 @@
+.header-container {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-family: Inter;
+  height: 71px;
+}
+
+.header-title {
+  color: #002041;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.header-subtitle {
+  color: #929292;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.user-card {
+  display: flex;
+  justify-content: space-between;
+  min-width: 266px;
+  height: 36px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #FFFFFF;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: right;
+}
+
+.user-name {
+  color: #002041;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.subscription {
+  color: #0A66C2;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}

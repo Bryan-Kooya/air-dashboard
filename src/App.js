@@ -1,36 +1,65 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "./App.css";
 import { BrowserRouter as Router, Route, Routes, useNavigate } from "react-router-dom";
 import { observeAuthState } from "./authService";
-import Login from "./pages/login/Login";
-import Dashboard from "./pages/dashboard/Dashboard";
+import NavMenu from "./components/navMenu/NavMenu";
+import PageHeader from "./components/pageHeader/PageHeader";
+import LoginPage from "./pages/login/LoginPage";
+import DashboardPage from "./pages/dashboard/DashboardPage";
+import MessagesPage from "./pages/messages/MessagesPage";
+import JobPostingsPage from "./pages/jobPostings/JobPostingsPage";
+import MatchCandidatesPage from "./pages/matchCandidates/MatchCandidatesPage";
+import BillingPage from "./pages/billing/BillingPage";
+import HelpPage from "./pages/help/HelpPage";
 
-const AuthObserver = () => {
+const AuthObserver = ({ setAuthenticated }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = observeAuthState((user) => {
       if (user) {
-        navigate('/dashboard');
+        setAuthenticated(true);
+        // navigate('/dashboard');
       } else {
+        setAuthenticated(false);
         navigate('/');
       }
     });
     return () => unsubscribe();
-  }, [navigate]);
+  }, [navigate, setAuthenticated]);
 
   return null;
 };
 
 const App = () => {
+  const [isAuthenticated, setAuthenticated] = useState(false);
+
   return (
-    <Router>
-      <AuthObserver />
-      <Routes>
-        <Route path="/" element={<Login/>} />
-        <Route path="/dashboard" element={<Dashboard/>} />
-      </Routes>
-    </Router>
+    <div className="page-container">
+      <Router>
+        <AuthObserver setAuthenticated={setAuthenticated} />
+        {!isAuthenticated ? (
+          <Routes>
+            <Route path="/" element={<LoginPage />} />
+          </Routes>
+        ) : (
+          <>
+            <NavMenu />
+            <div className="view-section">
+              <PageHeader />
+              <Routes>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/messages" element={<MessagesPage />} />
+                <Route path="/job-postings" element={<JobPostingsPage />} />
+                <Route path="/match-candidates" element={<MatchCandidatesPage />} />
+                <Route path="/billing" element={<BillingPage />} />
+                <Route path="/help" element={<HelpPage />} />
+              </Routes>
+            </div>
+          </>
+        )}
+      </Router>
+    </div>
   );
 };
 

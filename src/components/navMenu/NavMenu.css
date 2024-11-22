@@ -1,0 +1,49 @@
+.nav-menu-container {
+  min-width: 290px;
+  height: 100%;
+  background: #FFFFFF;
+  font-family: Inter;
+}
+
+.air-section {
+  display: flex;
+  gap: 16px;
+  padding: 20px 24px;
+}
+
+.nav-container {
+  display: grid;
+  gap: 12px;
+  padding-top: 24px;
+  
+}
+
+.menu-container {
+  display: flex;
+  gap: 12px;
+  padding: 12px 24px 12px 36px;
+  align-items: center;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 500;
+  color: #454B5B;
+}
+
+.menu-container:hover {
+  color: #0A66C2;
+
+  .menu-icon {
+    filter: brightness(0) saturate(100%) invert(26%) sepia(94%) saturate(1427%) hue-rotate(193deg) brightness(94%) contrast(98%);
+  }
+}
+
+.message-count {
+  color: #FFFFFF;
+  width: 25px;
+  height: 16px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 20px;
+  background: #0A66C2;
+  font-size: 14px;
+  margin-left: auto;
+}
