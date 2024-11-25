@@ -4,6 +4,7 @@
   justify-content: space-between;
   font-family: Inter;
   height: 71px;
+  align-items: center;
 }
 
 .header-title {

@@ -1,0 +1,89 @@
+.analyzer-container {
+  display: grid;
+  gap: 14px;
+}
+
+.upload-container {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px dashed #CECECE;
+  background: #FFFFFF;
+  font-family: Inter;
+  text-align: center;
+}
+
+.upload-icon {
+  cursor: pointer;
+}
+
+.upload-row {
+  display: grid;
+  gap: 20px;
+  justify-items: center;
+}
+
+.label-container {
+  display: grid;
+  gap: 8px;
+}
+
+.row1-label {
+  color: #002041;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.row2-label {
+  color: #929292;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.button-container {
+  display: flex;
+  gap: 16px;
+}
+
+.browse-button {
+  color: #0A66C2;
+  border-radius: 6px;
+  border: 1px solid #0A66C2;
+  background: none;
+}
+
+.import-button {
+  color: #FFFFFF;
+  border-radius: 6px;
+  background:  #0A66C2;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  padding: 8px 12px;
+  height: 36px;
+}
+
+#input-description {
+  height: 100px !important; 
+} & .MuiTextfield-root {
+  width: 100%;
+} .MuiFormLabel-root {
+  font-family: Inter !important;
+  color: #929292 !important;
+  font-size: 14px !important;
+} & .MuiInputBase-multiline {
+  background: #FFFFFF;
+  border-radius: 12px !important;
+  width: 100% !important;
+  padding: 12px 16px !important;
+  font-family: Inter !important;
+} & .MuiInputBase-input {
+  font-size: 14px !important;
+}

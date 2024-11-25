@@ -5,6 +5,7 @@ import TopCorner from "./TopCorner.png";
 import BottomCorner from "./BottomCorner.png";
 import AIRIcon from "./AIR-Icon.svg";
 import AIRLogo from "./AIR-Logo.svg";
+import AIAnalyzerIcon from "./AIAnalyzerIcon.svg";
 import DashboardIcon from "./DashboardIcon.svg";
 import MessageIcon from "./MessageIcon.svg";
 import JobPostIcon from "./JobPostIcon.svg";
@@ -13,6 +14,7 @@ import BillingIcon from "./BillingIcon.svg";
 import HelpIcon from "./HelpIcon.svg";
 import Bell from "./Bell.svg";
 import Avatar from "./Avatar.png";
+import UploadIcon from "./UploadIcon.svg";
 
 export {
   Apple,
@@ -30,4 +32,6 @@ export {
   HelpIcon,
   Bell,
   Avatar,
+  AIAnalyzerIcon,
+  UploadIcon,
 };

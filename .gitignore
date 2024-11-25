@@ -1,23 +1,30 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
+# Dependency directories
+node_modules/
 /.pnp
 .pnp.js
 
 # testing
 /coverage
 
-# production
-/build
+# Production build folder
+build/
 
-# misc
+# Local environment files
 .DS_Store
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+firebase-debug.log
+
+# Firebase cache and debug files
+.firebase/
+
+# Firebase generated files
+apphosting.yaml

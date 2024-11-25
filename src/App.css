@@ -12,6 +12,9 @@
 }
 
 .view-section {
+  display: flex;
+  gap: 30px;
+  flex-direction: column;
   padding: 25px 50px 35px 35px;
   width: 100%;
 }

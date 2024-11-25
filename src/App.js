@@ -5,6 +5,7 @@ import { observeAuthState } from "./authService";
 import NavMenu from "./components/navMenu/NavMenu";
 import PageHeader from "./components/pageHeader/PageHeader";
 import LoginPage from "./pages/login/LoginPage";
+import AIResumeAnalyzerPage from "./pages/aiResumeAnalyzer/AIResumeAnalyzerPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import MessagesPage from "./pages/messages/MessagesPage";
 import JobPostingsPage from "./pages/jobPostings/JobPostingsPage";
@@ -32,7 +33,17 @@ const AuthObserver = ({ setAuthenticated }) => {
 };
 
 const App = () => {
+  const [headerTitle, setHeaderTitle] = useState("");
+  const [headerSubtitle, setHeaderSubtitle] = useState("");
   const [isAuthenticated, setAuthenticated] = useState(false);
+
+  const getHeaderTitle = (value) => {
+    setHeaderTitle(value);
+  };
+
+  const getHeaderSubtitle = (value) => {
+    setHeaderSubtitle(value);
+  };
 
   return (
     <div className="page-container">
@@ -44,16 +55,17 @@ const App = () => {
           </Routes>
         ) : (
           <>
-            <NavMenu />
+            <NavMenu/>
             <div className="view-section">
-              <PageHeader />
+              <PageHeader title={headerTitle} subtitle={headerSubtitle} />
               <Routes>
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/messages" element={<MessagesPage />} />
-                <Route path="/job-postings" element={<JobPostingsPage />} />
-                <Route path="/match-candidates" element={<MatchCandidatesPage />} />
-                <Route path="/billing" element={<BillingPage />} />
-                <Route path="/help" element={<HelpPage />} />
+              <Route path="/ai-resume-analyzer" element={<AIResumeAnalyzerPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
+                <Route path="/dashboard" element={<DashboardPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
+                <Route path="/messages" element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
+                <Route path="/job-postings" element={<JobPostingsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
+                <Route path="/match-candidates" element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
+                <Route path="/billing" element={<BillingPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
+                <Route path="/help" element={<HelpPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
               </Routes>
             </div>
           </>

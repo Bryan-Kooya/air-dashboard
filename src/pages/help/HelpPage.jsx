@@ -4,13 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
 
-const HelpPage = () => {
+const HelpPage = (props) => {
   const navigate = useNavigate();
+
+  const setHeaderTitle = () => {
+    props.title("Help");
+    props.subtitle("Choose the job title and paste tags below to find the best candidates.");
+  };
 
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/");
   };
+
+  setHeaderTitle();
 
   return (
     <div className="help-container">

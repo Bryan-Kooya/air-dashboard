@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import "./NavMenu.css"
 import { useNavigate } from "react-router-dom";
 import { AIRIcon, AIRLogo } from "../../assets/images";
 import { Divider } from "@mui/material";
-import { DashboardIcon, MessageIcon, JobPostIcon, CandidateIcon, BillingIcon, HelpIcon } from "../../assets/images";
+import { AIAnalyzerIcon, DashboardIcon, MessageIcon, JobPostIcon, CandidateIcon, BillingIcon, HelpIcon } from "../../assets/images";
 
 const menuList = [
+  {name: "AI Resume Analyzer", icon: AIAnalyzerIcon, path: "/ai-resume-analyzer"},
   {name: "Dashboard", icon: DashboardIcon, path: "/dashboard" },
   {name: "Messages", icon: MessageIcon, path: "/messages" },
   {name: "Job Postings", icon: JobPostIcon, path: "/job-postings" },
@@ -16,9 +17,11 @@ const menuList = [
 
 const NavMenu = () => {
   const navigate = useNavigate();
+  const [activeMenu, setActiveMenu] = useState("/dashboard");
 
   const handlePageNavigate = (path) => {
     navigate(path);
+    setActiveMenu(path);
   };
 
   return (
@@ -29,11 +32,12 @@ const NavMenu = () => {
       </div>
       <Divider/>
       <div className="nav-container">
-        {menuList.map(menu => (
-          <div key={menu.name} onClick={() => handlePageNavigate(menu.path)} className="menu-container">
+        {menuList.map((menu, index) => (
+          <div key={menu.name} onClick={() => handlePageNavigate(menu.path)} className={`menu-container${activeMenu === menu.path ? " active" : ""}`}>
             <img className="menu-icon" src={menu.icon} alt="logo"/>
             <div>{menu.name}</div>
             {menu.name === 'Messages' && <div className="message-count">+16</div>}
+            {activeMenu === menu.path && <div className="active-indicator"></div>}
           </div>
         ))}
       </div>
