@@ -3,6 +3,7 @@ import "./JobPostingsPage.css"
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
+import { TextField } from "@mui/material";
 
 const JobPostingsPage = (props) => {
   const navigate = useNavigate();
@@ -21,8 +22,25 @@ const JobPostingsPage = (props) => {
 
   return (
     <div className="job-postings-container">
-      <h2>Job Postings</h2>
-      <button onClick={handleLogout}>Logout</button>
+      <div className="add-job-card">
+        <div className="job-card-title">Add a New Job</div>
+        <div className="card-row">
+          <div className="row-title">Job Title:</div>
+          <input 
+            placeholder="e.g., Frontend Developer"
+            className="job-title-input"
+          />
+        </div>
+        <div className="card-row">
+          <div className="row-title">Job Description</div>
+          <TextField
+            id="job-description"
+            placeholder="Paste job description here (optional) - Adding a job description will provide matching analysis"
+            multiline
+          />
+        </div>
+        <button className="add-job-button">Add Job</button>
+      </div>
     </div>
   );
 };
