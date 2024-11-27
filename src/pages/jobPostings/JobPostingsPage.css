@@ -1,28 +1,40 @@
 .job-postings-container{
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
   width: 100%;
   font-family: Inter;
   color: #002041;
 }
 
-.add-job-card {
+.card {
   display: flex;
   flex-direction: column;
-  width: 50%;
-  padding: 20px 28px 28px 28px;
+  padding: 20px 28px;
   gap: 16px;
   border-radius: 12px;
   background: #FFFFFF;
 }
 
-.job-card-title {
+.add-job {
+  width: 50%;
+}
+
+.card-title {
   font-size: 20px;
   font-weight: 600;
+}
+
+.input-row {
+  display: flex;
+  gap: 28px;
 }
 
 .card-row {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .row-title {
@@ -40,22 +52,16 @@
   box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.04);
 }
 
-#job-description {
-  height: 100px !important; 
-} & .MuiTextfield-root {
+.job-description {
+  resize: none;
+  border-radius: 12px;
   width: 100%;
-} .MuiFormLabel-root {
-  font-family: Inter !important;
-  color: #929292 !important;
-  font-size: 14px !important;
-} & .MuiInputBase-multiline {
-  background: #FFFFFF;
-  border-radius: 12px !important;
-  width: 100% !important;
-  padding: 12px 16px !important;
-  font-family: Inter !important;
-} & .MuiInputBase-input {
-  font-size: 14px !important;
+  padding: 12px 16px;
+  font-family: Inter;
+  height: 100px;
+  border: 1px solid #EAEBF0;
+  box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.04);
+  font-size: 14px;
 }
 
 .add-job-button {
@@ -64,4 +70,65 @@
   border-radius: 6px;
   background: #0A66C2;
   color: #FFFFFF;
+  width: 110px;
+}
+
+.jobs {
+  width: -webkit-fill-available;
+}
+
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.jobs-table th {
+  background: #ECF4FC;
+  height: 24px;
+  padding: 8px 16px;
+  font-weight: 600;
+}
+
+.jobs-table th:first-child {
+  border-radius: 8px 0px 0px 8px;
+}
+
+.jobs-table th:last-child {
+  border-radius: 0px 8px 8px 0px;
+}
+
+.jobs-table td {
+  padding: 8px 16px;
+  border-bottom: 1px solid #EEE;
+  font-weight: 500;
+}
+
+.jobs-table td:last-child {
+  width: 252px;
+}
+
+/* .jobs-table tbody tr:hover {
+  background-color: #eef7ff;
+} */
+
+.edit-button,
+.delete-button {
+  width: 120px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #0A66C2;
+}
+
+.edit-button {
+  background-color: #0A66C2;
+  color: white;
+  margin-right: 12px;
+}
+
+.delete-button {
+  color: #0A66C2;
+  background: none;
 }
