@@ -52,20 +52,6 @@ a:hover {
   margin-bottom: 12px;
 }
 
-.input-field input {
-  width: -webkit-fill-available;
-  padding: 12px 15px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.3s;
-}
-
-.input-field input:focus {
-  border-color: var(--primary-color);
-}
-
 .label {
   color: #0A66C2;
   font-size: 14px;

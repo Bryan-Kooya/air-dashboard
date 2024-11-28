@@ -1,0 +1,65 @@
+.modal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 28px;
+  border-radius: 12px;
+  border: 1px solid #E9E9E9;
+  background: #FFFFFF;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  font-family: Inter !important;
+}
+
+.card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.row-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.generated-description {
+  resize: none;
+  border-radius: 12px;
+  width: 100%;
+  padding: 16px;
+  font-family: Inter;
+  height: 200px;
+  border: 1px solid #EAEBF0;
+  font-size: 14px;
+  overflow-y: auto;
+}
+
+.generated-description::-webkit-scrollbar {
+  width: 0px;
+}
+
+.button-container {
+  justify-content: flex-end;
+}
+
+.save-button,
+.cancel-button {
+  width: 140px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.save-button {
+  background-color: #0A66C2;
+  color: white;
+}
+
+.cancel-button {
+  color: #0A66C2;
+  background: none;
+  border: 1px solid #0A66C2;
+}

@@ -7,34 +7,8 @@
   color: #002041;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  padding: 20px 28px;
-  gap: 16px;
-  border-radius: 12px;
-  background: #FFFFFF;
-}
-
 .add-job {
   width: 50%;
-}
-
-.card-title {
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.input-row {
-  display: flex;
-  gap: 28px;
-}
-
-.card-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
 }
 
 .row-title {
@@ -42,14 +16,13 @@
   font-weight: 500;
 }
 
-.job-title-input {
+.job-info-input {
   height: 40px;
   width: 100%;
   padding: 9px 12px;
   border-radius: 6px;
   font-size: 14px;
   border: 1px solid #EAEBF0;
-  box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.04);
 }
 
 .job-description {
@@ -60,14 +33,11 @@
   font-family: Inter;
   height: 100px;
   border: 1px solid #EAEBF0;
-  box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.04);
   font-size: 14px;
 }
 
 .add-job-button {
   width: fit-content;
-  padding: 8px 12px;
-  border-radius: 6px;
   background: #0A66C2;
   color: #FFFFFF;
   width: 110px;
@@ -118,8 +88,6 @@
   width: 120px;
   font-size: 14px;
   font-weight: 600;
-  border-radius: 6px;
-  border: 1px solid #0A66C2;
 }
 
 .edit-button {
@@ -131,4 +99,9 @@
 .delete-button {
   color: #0A66C2;
   background: none;
+  border: 1px solid #0A66C2;
+}
+
+.job-description::-webkit-scrollbar {
+  width: 0px;
 }

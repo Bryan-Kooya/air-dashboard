@@ -1,13 +1,6 @@
 import React from 'react';
-import {
-  Modal,
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Chip,
-  CircularProgress,
-} from '@mui/material';
+import "./AIGeneratedJobModal.css";
+import { Modal, Chip, CircularProgress } from '@mui/material';
 
 const AIGeneratedJobModal = ({
   open,
@@ -18,51 +11,27 @@ const AIGeneratedJobModal = ({
   loading,
 }) => {
   return (
-    <Modal open={open} onClose={onClose} aria-labelledby="generated-description-modal">
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          bgcolor: 'background.paper',
-          borderRadius: 2,
-          boxShadow: 24,
-          p: 4,
-          maxWidth: 600,
-          width: '100%',
-        }}
-      >
-        <Typography id="generated-description-modal" variant="h6" gutterBottom>
-          Generated Description
-        </Typography>
-        <TextField
-          value={generatedDescription}
-          multiline
-          rows={8}
-          sx={{ mb: 3, width: '100%' }}
-          InputProps={{ readOnly: true }}
-        />
-
-        <Typography variant="h6" gutterBottom>
-          Tags
-        </Typography>
-        <Box sx={{ mb: 3 }}>
-          {tags.map((tag, index) => (
-            <Chip key={index} label={tag} sx={{ mr: 1, mb: 1 }} />
-          ))}
-        </Box>
-
-        <Button
-          variant="contained"
-          color="success"
-          onClick={handleSave}
-          disabled={loading}
-          fullWidth
-        >
-          {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Save Description'}
-        </Button>
-      </Box>
+    <Modal open={open} onClose={onClose}>
+      <div className='modal-container'>
+        <div className='card-row'>
+          <div className='row-title'>Generated Description:</div>
+          <textarea className='generated-description' value={generatedDescription}/>
+        </div>
+        <div className='card-row'>
+          <div className='row-title'>Tags:</div>
+          <div>
+            {tags.map((tag, index) => (
+              <Chip id='tags' key={index} label={tag}/>
+            ))}
+          </div>
+        </div>
+        <div className='button-container'>
+          <button className='cancel-button' onClick={onClose}>Cancel</button>
+          <button className='save-button' onClick={handleSave} disabled={loading}>
+            {loading ? <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} /> : 'Save Description'}
+          </button>
+        </div>
+      </div>
     </Modal>
   );
 };
