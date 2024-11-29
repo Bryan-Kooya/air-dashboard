@@ -81,7 +81,8 @@ input:focus {
   font-size: 14px;
   font-weight: 500;
   font-family: Inter !important;
-  margin: 0px 5px 5px 0px;
+  margin: 4px;
   border-radius: 6px;
   background: #ECF4FC;
+  width: fit-content;
 }

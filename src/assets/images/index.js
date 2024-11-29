@@ -15,6 +15,7 @@ import HelpIcon from "./HelpIcon.svg";
 import Bell from "./Bell.svg";
 import Avatar from "./Avatar.png";
 import UploadIcon from "./UploadIcon.svg";
+import Bookmark from "./Bookmark.svg";
 
 export {
   Apple,
@@ -34,4 +35,5 @@ export {
   Avatar,
   AIAnalyzerIcon,
   UploadIcon,
+  Bookmark,
 };
