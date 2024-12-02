@@ -1,17 +1,13 @@
 const express = require('express');
-// const cors = require('cors');
 const bodyParser = require("body-parser");
 const { json } = require('body-parser');
 const { OpenAI } = require('openai');
-// const { Pool } = require('pg');
 require('dotenv').config();
 
 const app = express();
 app.use(bodyParser.json());
 const port = 5000;
 
-// Middleware
-// app.use(cors());
 app.use(json());
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -21,29 +17,14 @@ const openai = new OpenAI({
   apiKey: openaiApiKey,
 });
 
-// PostgreSQL connection
-// const pool = new Pool({
-//   connectionString: process.env.DATABASE_URL
-// });
-
 // Error handling middleware
 const errorHandler = (err, _req, res, _next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal server error' });
 };
 
-// Routes
-// app.get('/api/jobs', async (_req, res) => {
-//   try {
-//     const result = await pool.query('SELECT * FROM job_description ORDER BY created_at DESC');
-//     res.json(result.rows);
-//   } catch (error) {
-//     console.error('Error fetching jobs:', error);
-//     res.status(500).json({ error: 'Failed to fetch jobs' });
-//   }
-// });
 
-app.post('/api/generate', async (req, res) => {
+app.post('/generate', async (req, res) => {
   try {
     const { job_title, company_name, industry, location, description } = req.body;
     
@@ -92,111 +73,133 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-// app.post('/jobs', async (req, res) => {
-//   try {
-//     const { job_title, company_name, industry, location, description, tags } = req.body;
-//     const result = await pool.query(
-//       'INSERT INTO job_description (job_title, company_name, industry, location, description, tags) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-//       [job_title, company_name, industry, location, description, tags]
-//     );
-//     res.json({ message: 'Job saved successfully', id: result.rows[0].id });
-//   } catch (error) {
-//     console.error('Error creating job:', error);
-//     res.status(500).json({ error: 'Failed to create job' });
-//   }
-// });
+app.post("/process-resume", async (req, res) => {
+  const { resumeText, tags } = req.body;
 
-// app.get('/jobs/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const jobResult = await pool.query('SELECT * FROM job_description WHERE id = $1', [id]);
-//     const historyResult = await pool.query(
-//       'SELECT * FROM job_description_history WHERE job_id = $1 ORDER BY modified_at DESC',
-//       [id]
-//     );
-    
-//     if (jobResult.rows.length === 0) {
-//       return res.status(404).json({ error: 'Job not found' });
-//     }
-    
-//     const job = {
-//       ...jobResult.rows[0],
-//       history: historyResult.rows
-//     };
-    
-//     res.json(job);
-//   } catch (error) {
-//     console.error('Error fetching job:', error);
-//     res.status(500).json({ error: 'Failed to fetch job' });
-//   }
-// });
+  if (!resumeText || !tags || !Array.isArray(tags)) {
+    return res.status(400).json({ error: "Invalid input. Ensure resumeText and requiredTags are provided." });
+  }
 
-// app.put('/jobs/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { job_title, company_name, industry, location, description, tags } = req.body;
-    
-//     // Start a transaction
-//     const client = await pool.connect();
-//     try {
-//       await client.query('BEGIN');
-      
-//       // Get current description
-//       const currentJob = await client.query(
-//         'SELECT description FROM job_description WHERE id = $1',
-//         [id]
-//       );
-      
-//       if (currentJob.rows.length === 0) {
-//         throw new Error('Job not found');
-//       }
-      
-//       // If description changed, save to history
-//       if (description && description !== currentJob.rows[0].description) {
-//         await client.query(
-//           'INSERT INTO job_description_history (job_id, description) VALUES ($1, $2)',
-//           [id, currentJob.rows[0].description]
-//         );
-//       }
-      
-//       // Update job
-//       const result = await client.query(
-//         `UPDATE job_description 
-//          SET job_title = COALESCE($1, job_title),
-//              company_name = COALESCE($2, company_name),
-//              industry = COALESCE($3, industry),
-//              location = COALESCE($4, location),
-//              description = COALESCE($5, description),
-//              tags = COALESCE($6, tags)
-//          WHERE id = $7 
-//          RETURNING *`,
-//         [job_title, company_name, industry, location, description, tags, id]
-//       );
-      
-//       await client.query('COMMIT');
-//       res.json(result.rows[0]);
-//     } catch (error) {
-//       await client.query('ROLLBACK');
-//       throw error;
-//     } finally {
-//       client.release();
-//     }
-//   } catch (error) {
-//     console.error('Error updating job:', error);
-//     res.status(500).json({ error: 'Failed to update job' });
-//   }
-// });
+  const systemMessage = `
+  You are a resume parser and scorer. Extract the following information from the resume:
+  - Contact information (name, email, phone, location, LinkedIn).
+  - Total years of work experience.
+  - Key details such as professional summary, skills, education, work experience, projects, and certifications.
+  - Provide numerical scores (0-100) for overall quality, experience, education, skills, projects, and presentation.
 
-// app.delete('/jobs/:id', async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     await pool.query('DELETE FROM job_description WHERE id = $1', [id]);
-//     res.json({ message: 'Job deleted successfully' });
-//   } catch (error) {
-//     console.error('Error deleting job:', error);
-//     res.status(500).json({ error: 'Failed to delete job' });
-//   }
-// });
+  Analyze the following required skills: ${tags.join(", ")}.
+  - Skill Match Score (0-100): How well the resume matches the required skills.
+  - Matching Skills: List of skills that match the requirements.
+  - Missing Skills: List of required skills that are missing from the resume.
+
+  Respond with ONLY valid JSON, no markdown, no explanations.
+  Format:
+  {
+      "contact": {
+          "name": "John Doe",
+          "email": "johndoe@example.com",
+          "phone": "123-456-7890",
+          "location": "New York, NY",
+          "linkedin": "linkedin.com/in/johndoe"
+      },
+      "summary": "2-3 sentence professional summary",
+      "total_experience_years": 5,
+      "skills": ["skill1", "skill2"],
+      "experience_level": "junior/mid/senior",
+      "education": [{"degree": "degree name", "institution": "school name", "year": "year", "gpa": "gpa"}],
+      "work_experience": [{"title": "title", "company": "company", "duration": "duration", "highlights": ["achievement1"]}],
+      "projects": [{"name": "name", "description": "description", "technologies": ["tech1"]}],
+      "scores": {
+          "overall": 85,
+          "experience": {"score": 80, "feedback": "Good experience but could use more quantifiable achievements"},
+          "education": {"score": 90, "feedback": "Strong educational background"},
+          "skills": {"score": 85, "feedback": "Good mix of technical and soft skills"},
+          "projects": {"score": 80, "feedback": "Projects demonstrate practical experience"},
+          "presentation": {"score": 85, "feedback": "Well-structured resume with clear sections"}
+      },
+      "skill_match": {
+          "score": 75,
+          "matching_skills": ["skill1", "skill2"],
+          "missing_skills": ["skill3"]
+      },
+      "improvement_suggestions": [
+          "Add more quantifiable achievements",
+          "Include relevant certifications",
+          "Expand on technical project details"
+      ]
+  }`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: `Resume Text:\n${resumeText}` },
+      ],
+    });
+
+    let rawContent = response.choices[0].message.content;
+    console.log("Raw AI Response:", rawContent);
+
+    // Clean the response to ensure valid JSON
+    rawContent = rawContent.trim();
+
+    if (rawContent.startsWith("```")) {
+      const start = rawContent.indexOf("{");
+      const end = rawContent.lastIndexOf("}");
+      if (start !== -1 && end !== -1) {
+        rawContent = rawContent.substring(start, end + 1);
+      } else {
+        throw new Error("Invalid JSON structure in AI response.");
+      }
+    }
+
+    const parsedContent = JSON.parse(rawContent);
+
+    // Ensure required fields exist and set defaults if missing
+    const requiredKeys = [
+      "contact",
+      "summary",
+      "total_experience_years",
+      "skills",
+      "experience_level",
+      "education",
+      "work_experience",
+      "projects",
+      "scores",
+      "skill_match",
+      "improvement_suggestions",
+    ];
+
+    for (const key of requiredKeys) {
+      if (!(key in parsedContent)) {
+        parsedContent[key] = key === "scores" ? {} : [];
+      }
+    }
+
+    // Validate scores and provide defaults
+    const requiredScores = ["overall", "experience", "education", "skills", "projects", "presentation"];
+    for (const category of requiredScores) {
+      if (!(category in parsedContent.scores)) {
+        parsedContent.scores[category] = {
+          score: 70,
+          feedback: `Basic ${category} information provided`,
+        };
+      }
+    }
+
+    // Provide default total experience if missing
+    if (!("total_experience_years" in parsedContent)) {
+      parsedContent.total_experience_years = 0; // Default to 0 if not found
+    }
+
+    // Send parsed response to the client
+    res.status(200).json(parsedContent);
+  } catch (error) {
+    console.error("Error processing resume:", error.message);
+    res.status(500).json({ error: "Failed to process the resume.", details: error.message });
+  }
+});
 
 // Apply error handling middleware
 app.use(errorHandler);

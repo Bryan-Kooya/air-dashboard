@@ -74,6 +74,7 @@
 .candidate-card-row4 {
   display: flex;
   justify-content: space-between;
+  margin-top: auto;
 }
 
 .send-button,
@@ -81,6 +82,7 @@
   width: 160px;
   font-size: 14px;
   font-weight: 600;
+  height: 40px;
 }
 
 .view-button {

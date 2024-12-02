@@ -52,7 +52,7 @@ const JobPostingsPage = (props) => {
 
     try {
       console.log('Submitting form data:', formData);
-      const response = await fetch('/api/generate', {
+      const response = await fetch('/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

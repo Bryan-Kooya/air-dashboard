@@ -4,13 +4,13 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBRXbMjXTJSNjrOlARnZsqHeB0IsyB9tGc",
-  authDomain: "air-dashboard-6ac37.firebaseapp.com",
-  projectId: "air-dashboard-6ac37",
-  storageBucket: "air-dashboard-6ac37.firebasestorage.app",
-  messagingSenderId: "102658305342",
-  appId: "1:102658305342:web:58603da5c7ed662a4d506f",
-  measurementId: "G-944B52G19W"
+  apiKey: "AIzaSyBpiGRjYvgayUj1sOg7XGj010vZanq6ZO8",
+  authDomain: "message-scanner-extension.firebaseapp.com",
+  projectId: "message-scanner-extension",
+  storageBucket: "message-scanner-extension.firebasestorage.app",
+  messagingSenderId: "437677363924",
+  appId: "1:437677363924:web:89917f9c56b3cfe5692141",
+  measurementId: "G-FES0QBEDGM"
 };
 
 const app = initializeApp(firebaseConfig);

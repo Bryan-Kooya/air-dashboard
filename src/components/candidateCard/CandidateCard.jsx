@@ -19,14 +19,14 @@ const CandidateCard = (props) => {
           <div className='candidate-rank'>#{rank}</div>
           <div className='candidate-name'>{name}</div>
         </div>
-        <div className='candidate-score'>Score: {score}</div>
+        <div className='candidate-score'>Score: {score}/10</div>
       </div>
       <div className='candidate-card-row2'>
-        <div className='candidate-location'>Location: {location}</div>
-        <div className='candidate-years'>Experience: {experience}</div>
+        <div className='candidate-location'>Location: <span style={{fontWeight: 600}}>{location}</span></div>
+        <div className='candidate-years'>Experience: <span style={{fontWeight: 600}}>{experience} years</span></div>
       </div>
       <div className='candidate-card-row3'>
-        <div>Matched Job: {matchedJob}</div>
+        <div>Matched Job: <span style={{fontWeight: 600}}>{matchedJob}</span></div>
         <div style={{display: 'flex', flexWrap: 'wrap'}}>
           {tags.map((tag, index) => (
             <Chip key={index} style={{ marginLeft: 0}} id='tags' label={tag} />
