@@ -5,12 +5,41 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
     ]
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ],
+  "emulators": {
+    "functions": {
+      "host": "127.0.0.1",
+      "port": 5005
+    },
+    "hosting": {
+      "port": 5007
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4005
+    },
+    "hub": {
+      "port": 4405
+    },
+    "logging": {
+      "port": 4505
+    }
   }
 }

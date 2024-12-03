@@ -35,6 +35,8 @@ const JobPostingsPage = (props) => {
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const navigate = useNavigate();
 
+  console.log('Jobs:', jobs)
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));

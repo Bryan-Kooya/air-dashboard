@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "air-dashboard-6ac37"
-  }
+    "default": "air-dashboard-6ac37",
+    "staging": "message-scanner-extension"
+  },
+  "targets": {},
+  "etags": {}
 }

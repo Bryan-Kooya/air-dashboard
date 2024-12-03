@@ -7,42 +7,13 @@ import { MenuItem, Select, Box, Chip, TextField, CircularProgress } from '@mui/m
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
 import CandidateCard from "../../components/candidateCard/CandidateCard";
+import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import mammoth from "mammoth";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
+import matchCandidates from "../../utils/matchCandidates.json";
 
 // Set the worker source to the local file
 GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-
-const candidates = [
-  {
-    name: "Alice Norman",
-    score: "9.5/10",
-    location: "New York",
-    experience: "5 years",
-    tags: ["ReactJS", "JavaScript", "HTML", "CSS", "Redux", "VueJS"],
-  },
-  {
-    name: "Bob Smith",
-    score: "8.8/10",
-    location: "San Francisco",
-    experience: "7 years",
-    tags: ["NodeJS", "Express", "MongoDB", "REST APIs", "GraphQL"],
-  },
-  {
-    name: "Clara Johnson",
-    score: "9.2/10",
-    location: "Austin",
-    experience: "6 years",
-    tags: ["ReactJS", "NodeJS", "TypeScript", "PostgreSQL", "Docker"],
-  },
-  {
-    name: "Daniel Brown",
-    score: "8.5/10",
-    location: "Chicago",
-    experience: "4 years",
-    tags: ["Figma", "Sketch", "Adobe XD", "User Research", "Wireframing"],
-  },
-];
 
 const MatchCandidatesPage = (props) => {
   const navigate = useNavigate();
@@ -54,7 +25,9 @@ const MatchCandidatesPage = (props) => {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [showCandidates, setShowCandidate] = useState(false);
+  const [viewDetails, setViewDetails] = useState(false);
   const [candidates, setCandidates] = useState([]);
+  const [selectedCandidate, setSelectedCandidate] = useState([]);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -190,6 +163,7 @@ const MatchCandidatesPage = (props) => {
   
       // Filter out null results caused by fetch or processing errors
       const validCandidates = candidatesData.filter((candidate) => candidate !== null);
+      // const validCandidates = matchCandidates;
 
       // Sort candidates by score in descending order
       const sortedCandidates = validCandidates.sort((a, b) => b.scores.overall - a.scores.overall);
@@ -204,6 +178,11 @@ const MatchCandidatesPage = (props) => {
       console.log("Candidate matching process complete.");
     }
   };
+
+  const handleViewDetails = (candidate) => {
+    setSelectedCandidate(candidate);
+    setViewDetails(true);
+  }
   
   const handleLogout = async () => {
     await signOut(auth);
@@ -259,15 +238,17 @@ const MatchCandidatesPage = (props) => {
           <CandidateCard
             key={index}
             rank={index + 1}
-            name={candidate.contact.name}
-            score={(candidate.scores.overall/10)}
-            location={candidate.location}
-            experience={candidate.total_experience_years}
+            candidate={candidate}
             matchedJob={selectedJobTitle}
-            tags={candidate.skill_match.matching_skills}
+            handleViewDetails={() => handleViewDetails(candidate)}
           />
         ))}
       </div>}
+      <CandidateDetailsModal 
+        open={viewDetails} 
+        close={() => setViewDetails(false)}
+        candidate={selectedCandidate}
+      />
     </div>
   );
 };

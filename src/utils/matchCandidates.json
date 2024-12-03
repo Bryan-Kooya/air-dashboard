@@ -1,0 +1,377 @@
+[
+	{
+	    "contact": {
+	        "name": "Jamielyn Joy Santos",
+	        "email": "santosjamie16@gmail.com",
+	        "phone": "+63 955 077 7640",
+	        "location": "Bulacan, Philippines",
+	        "linkedin": "linkedin.com/in/jamielynsantos"
+	    },
+	    "summary": "Mid-level WordPress Developer with a rich experience in web development, website and email troubleshooting, SEO optimization, and customer support.",
+	    "total_experience_years": 3,
+	    "skills": [
+	        "C#",
+	        "MySQL",
+	        "Assembly",
+	        "HTML5",
+	        "SCSS",
+	        "Bootstrap",
+	        "Java",
+	        "PHP",
+	        "JavaScript",
+	        "jQuery",
+	        "ReactJS",
+	        "WordPress",
+	        "Shopify",
+	        "GTMetrix",
+	        "Google Search Console",
+	        "Lighthouse",
+	        "Screaming Frog",
+	        "Yoast SEO",
+	        "Hosting: AWS, A2hosting, Kinsta, GoDaddy, Bluehost",
+	        "Hubspot",
+	        "Mailchimp",
+	        "Contact Form",
+	        "Google Analytics",
+	        "Clicky",
+	        "SEMRUSH",
+	        "Cpanel",
+	        "PHPMyAdmin",
+	        "Browserstack",
+	        "LambdaTest",
+	        "Adobe Photoshop"
+	    ],
+	    "experience_level": "mid",
+	    "education": [
+	        {
+	            "degree": "Bachelor of Science in Computer Science",
+	            "institution": "STI College Balagtas",
+	            "year": "2014 - 2018"
+	        }
+	    ],
+	    "work_experience": [
+	        {
+	            "title": "Web Administrator",
+	            "company": "RT Lawrence Corporation",
+	            "duration": "November 2019 - April 2020",
+	            "highlights": [
+	                "Website design, development, maintenance and optimization",
+	                "SEO plan implementation",
+	                "Creating email templates and landing pages for marketing campaigns"
+	            ]
+	        },
+	        {
+	            "title": "Web Developer",
+	            "company": "Evervue Philippines, Inc.",
+	            "duration": "April 2018 - October 2019",
+	            "highlights": [
+	                "E-commerce website development and maintenance",
+	                "WordPress websites and databases management",
+	                "Providing technical support"
+	            ]
+	        },
+	        {
+	            "title": "Mid-Level WordPress Developer",
+	            "company": "Boss Media Ltd",
+	            "duration": "November 2020 - Present",
+	            "highlights": [
+	                "Website and App troubleshooting",
+	                "Handling customer support and tech concerns",
+	                "Authoring client-facing documentation"
+	            ]
+	        }
+	    ],
+	    "projects": [],
+	    "scores": {
+	        "overall": 85,
+	        "experience": {
+	            "score": 80,
+	            "feedback": "Good experience in the field of web development and maintenance, could show more initiatives or specific projects."
+	        },
+	        "education": {
+	            "score": 85,
+	            "feedback": "Good educational background in Computer Science, related to the field."
+	        },
+	        "skills": {
+	            "score": 95,
+	            "feedback": "Excellent range of hard and soft skills, include all necessary technologies and tools."
+	        },
+	        "projects": {
+	            "score": 70,
+	            "feedback": "Although covered in work experience, separate, specific projects would be good to include."
+	        },
+	        "presentation": {
+	            "score": 80,
+	            "feedback": "Resume is decently structured with necessary information included, could benefit from more specific sectionings."
+	        }
+	    },
+	    "skill_match": {
+	        "score": 90,
+	        "matching_skills": [
+	            "Web Development",
+	            "Website Maintenance",
+	            "Front-end Development",
+	            "Back-end Development",
+	            "HTML",
+	            "CSS",
+	            "JavaScript",
+	            "Web Design",
+	            "Content Management Systems",
+	            "SEO"
+	        ],
+	        "missing_skills": []
+	    },
+	    "improvement_suggestions": [
+	        "Include more specific projects you have worked on.",
+	        "Include any relevant certifications you might have.",
+	        "Include the 'Projects' section in your resume."
+	    ]
+	},
+
+	{
+	    "contact": {
+	        "name": "ROBIN CABALLERO",
+	        "email": "CABALLEROROBIN077@GMAIL.COM",
+	        "phone": "+63 (966) 254-3192",
+	        "location": "ALBUERA, PHILIPPINES 6542",
+	        "linkedin": "LINKEDIN.COM/IN/ROBIN-CABAL"
+	    },
+	    "summary": "Front End Software Engineer with extensive experience in frontend development technologies such as React, Angular, Vue.js and Next.js. Skilled in various programming languages including Javascript, Typescript, PHP, Python, Solidity, Rust and Go.",
+	    "total_experience_years": 7,
+	    "skills": [
+	        "Javascript",
+	        "Typescript",
+	        "PHP",
+	        "Python",
+	        "Solidity",
+	        "Rust",
+	        "Go",
+	        "HTML",
+	        "CSS",
+	        "jQuery",
+	        "React",
+	        "Next.js",
+	        "Vue.js",
+	        "Nuxt.js",
+	        "Angular",
+	        "React Native",
+	        "Bootstrap",
+	        "Tailwind CSS",
+	        "Ant Design",
+	        "Chakra UI",
+	        "Node.js(Express, Fastify)",
+	        "Django",
+	        "MongoDB",
+	        "MySQL",
+	        "PostgreSQL",
+	        "SQLite",
+	        "GitHub",
+	        "GitLab",
+	        "Bitbucket"
+	    ],
+	    "experience_level": "senior",
+	    "education": [
+	        {
+	            "degree": "BACHELOR OF COMPUTER SCIENCE",
+	            "institution": "UNIVERSITY OF THE PHILIPPINES LOS BAÑOS",
+	            "year": "2017",
+	            "gpa": ""
+	        }
+	    ],
+	    "work_experience": [
+	        {
+	            "title": "SENIOR FRONT END ENGINEER - CONTRACT",
+	            "company": "DIGITAL AIR STRIKE",
+	            "duration": "04/2022 - 06/2024",
+	            "highlights": [
+	                "Developed and deployed high-speed, responsive components for the company's project (Response Path) using React and Angular",
+	                "Innovated and built a sustainable CSS codebase, leading to a 30% reduction in style maintenance time"
+	            ]
+	        },
+	        {
+	            "title": "REACT FRONT END DEVELOPER - FULLTIME",
+	            "company": "LAND INSIGHTS",
+	            "duration": "08/2020 - 02/2022",
+	            "highlights": [
+	                "Prepared closely with UI/UX designers to translate design wireframes into high-quality code using React and Angular"
+	            ]
+	        },
+	        {
+	            "title": "JUNIOR FRONT END DEVELOPER - FULLTIME",
+	            "company": "REDDIT",
+	            "duration": "06/2018 - 05/2020",
+	            "highlights": [
+	                "Took ownership of a specific part of the frontend system, resolving bugs, adding new features, and enhancing maintenance effectiveness by 40%"
+	            ]
+	        },
+	        {
+	            "title": "NEXT FRONTEND DEVELOPER - INTERN",
+	            "company": "CLINKIT SOLUTIONS",
+	            "duration": "07/2017 - 04/2018",
+	            "highlights": [
+	                "Enhanced Next.js application accessibility by adhering to WCAG guidelines and implementing ARIA roles"
+	            ]
+	        }
+	    ],
+	    "projects": [],
+	    "scores": {
+	        "overall": 90,
+	        "experience": {
+	            "score": 88,
+	            "feedback": "Good experience with solid achievements and diverse knowledge in frontend frameworks"
+	        },
+	        "education": {
+	            "score": 80,
+	            "feedback": "Standard educational background"
+	        },
+	        "skills": {
+	            "score": 96,
+	            "feedback": "Comprehensive set of technical skills, particularly in frontend technologies"
+	        },
+	        "projects": {
+	            "score": 70,
+	            "feedback": "No specific projects mentioned"
+	        },
+	        "presentation": {
+	            "score": 86,
+	            "feedback": "The resume is well-structured and easy to parse"
+	        }
+	    },
+	    "skill_match": {
+	        "score": 100,
+	        "matching_skills": [
+	            "Web Development",
+	            "Website Maintenance",
+	            "Front-end Development",
+	            "Back-end Development",
+	            "HTML",
+	            "CSS",
+	            "JavaScript",
+	            "Web Design",
+	            "Content Management Systems",
+	            "SEO"
+	        ],
+	        "missing_skills": []
+	    },
+	    "improvement_suggestions": [
+	        "Include specific projects in the resume",
+	        "Provide more details on the software and tools for each technology used",
+	        "Add any relevant certifications"
+	    ]
+	},
+	{
+	    "contact": {
+	        "name": "Earvin Jonas S. Eukan",
+	        "email": "jonas.eukan@gmail.com",
+	        "phone": null,
+	        "location": "Ortigas Ave, Pasig, Metro Manila",
+	        "linkedin": null
+	    },
+	    "summary": null,
+	    "total_experience_years": 3,
+	    "skills": [
+	        "Python",
+	        "JavaScript",
+	        "TypeScript",
+	        "HTML",
+	        "CSS",
+	        "AWS",
+	        "Jenkins",
+	        "ReactJS",
+	        "NextJS",
+	        "MySQL",
+	        "PostgreSQL",
+	        "Git"
+	    ],
+	    "experience_level": "mid",
+	    "education": [],
+	    "work_experience": [
+	        {
+	            "title": "DevOps Engineer",
+	            "company": "Trend Micro Inc.",
+	            "duration": "September, 2019 – Current",
+	            "highlights": [
+	                "Created a web portal for internal services using ReactJS, Falcon Framework , and MySQL, with tag filtering, searching, and data management",
+	                "Implemented new pages for data visualization on a ReactJS dashboard integrating with multiple APIs to retrieve and parse data",
+	                "Developed and maintained several microservices using Python and AWS",
+	                "Designed a REST API to handle file data submissions, using Falcon Framework and MySQL",
+	                "Built and maintained a CICD pipeline using Jenkins, AWS CloudFormation, Sceptre, and Troposphere",
+	                "Co-lead a team to perform a full system deployment to another region"
+	            ]
+	        }
+	    ],
+	    "projects": [
+	        {
+	            "name": "OOParking System",
+	            "description": "Built a full stack web app parking system, created using ReactJS(frontend) and FastAPI(Backend)",
+	            "technologies": [
+	                "ReactJS",
+	                "FastAPI"
+	            ]
+	        },
+	        {
+	            "name": "TypeToast",
+	            "description": "Developed a minimalist typing test using NextJS and Typescript, which integrates with Cloud Firestore for data storage of user scores",
+	            "technologies": [
+	                "NextJS",
+	                "Typescript",
+	                "Cloud Firestore"
+	            ]
+	        },
+	        {
+	            "name": "Portfolio Website",
+	            "description": "Built a static portfolio website using HTML and CSS, using Javascript to implement element animations and a dark mode toggle",
+	            "technologies": [
+	                "HTML",
+	                "CSS",
+	                "Javascript"
+	            ]
+	        }
+	    ],
+	    "scores": {
+	        "overall": 85,
+	        "experience": {
+	            "score": 85,
+	            "feedback": "Strong experience in DevOps and full-stack development"
+	        },
+	        "education": {
+	            "score": 75,
+	            "feedback": "Lack of detailed educational background"
+	        },
+	        "skills": {
+	            "score": 90,
+	            "feedback": "Strong set of hard skills that cover a wide range of technologies"
+	        },
+	        "projects": {
+	            "score": 87,
+	            "feedback": "Impressive projects with clear technologies used"
+	        },
+	        "presentation": {
+	            "score": 85,
+	            "feedback": "Clear, well-structured resume with defined sections"
+	        }
+	    },
+	    "skill_match": {
+	        "score": 90,
+	        "matching_skills": [
+	            "Web Development",
+	            "Front-end Development",
+	            "Back-end Development",
+	            "HTML",
+	            "CSS",
+	            "JavaScript"
+	        ],
+	        "missing_skills": [
+	            "Website Maintenance",
+	            "Web Design",
+	            "Content Management Systems",
+	            "SEO"
+	        ]
+	    },
+	    "improvement_suggestions": [
+	        "Elaborate more on your role and responsibilities in your projects",
+	        "Expand on technical project details",
+	        "Include relevant certifications"
+	    ]
+	}
+]
