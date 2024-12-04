@@ -1,28 +1,35 @@
-/* eslint-disable */
-const functions = require("firebase-functions");
-const express = require("express");
+const functions = require('firebase-functions');
+const express = require('express');
 const bodyParser = require("body-parser");
-const { OpenAI } = require("openai");
+const { OpenAI } = require('openai');
+const cors = require('cors');
+require('dotenv').config();
 
-const app = express();
-app.use(bodyParser.json());
+async function getOpenAIApiKey() {
+  // Ensure the environment variable is properly set
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY environment variable is not set.");
+  }
+  return process.env.OPENAI_API_KEY;
+}
 
-// Load API Key from Firebase environment configuration
-const openaiApiKey = functions.config().openai.key;
-
-const openai = new OpenAI({
-  apiKey: openaiApiKey,
-});
-
-// Error handling middleware
-const errorHandler = (err, _req, res, _next) => {
-  console.error(err.stack);
-  res.status(500).json({error: "Internal server error"});
+// Allow requests from specific origins (update to match your frontend domain)
+const corsOptions = {
+  origin: ['https://message-scanner-extension.web.app'],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true, // If you need cookies or authentication headers
 };
 
-app.post("/generate", async (req, res) => {
+const app = express();
+app.use(cors(corsOptions));
+app.use(bodyParser.json()); 
+
+app.post('/generate', async (req, res) => {
   try {
-    const {job_title, company_name, industry, location, description} = req.body;
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+    const { job_title, company_name, industry, location, description } = req.body;
+    
     const context = `
       Job Title: ${job_title}
       Company: ${company_name}
@@ -37,10 +44,10 @@ app.post("/generate", async (req, res) => {
         messages: [
           {
             role: "system",
-            content: "You are a professional job description writer. Using the provided context (job title, company, industry, and location), enhance the given job description to be more professional, compelling, and well-structured. Include key responsibilities, requirements, and benefits in a clear format.",
+            content: "You are a professional job description writer. Using the provided context (job title, company, industry, and location), enhance the given job description to be more professional, compelling, and well-structured. Include key responsibilities, requirements, and benefits in a clear format."
           },
-          {role: "user", content: context},
-        ],
+          { role: "user", content: context }
+        ]
       }),
       openai.chat.completions.create({
         model: "gpt-4o",
@@ -49,30 +56,33 @@ app.post("/generate", async (req, res) => {
             role: "system",
             content: "Extract exactly 10 most relevant skill tags from the job description. Respond with JSON in this format: {'tags': [tag1, tag2, ...]}",
           },
-          {role: "user", content: description},
+          { role: "user", content: description }
         ],
-        response_format: {type: "json_object"},
-      }),
+        response_format: { type: "json_object" }
+      })
     ]);
 
-    const improvedDescription = descriptionResponse.choices[0].message.content || "";
-    const tags = tagsResponse.choices[0].message.content || "{}";
+    const improvedDescription = descriptionResponse.choices[0].message.content || '';
+    const tags = tagsResponse.choices[0].message.content || '{}';
 
     res.json({
       description: improvedDescription,
-      tags: tags,
+      tags: tags
     });
   } catch (error) {
-    console.error("Error generating description:", error);
-    res.status(500).json({error: "Failed to generate description"});
+    console.error('Error generating description:', error);
+    res.status(500).json({
+      error: 'Failed to generate description',
+      details: error.message, // Include error details for easier debugging
+    });
   }
 });
 
 app.post("/process-resume", async (req, res) => {
-  const {resumeText, tags} = req.body;
+  const { resumeText, tags } = req.body;
 
   if (!resumeText || !tags || !Array.isArray(tags)) {
-    return res.status(400).json({error: "Invalid input. Ensure resumeText and requiredTags are provided."});
+    return res.status(400).json({ error: "Invalid input. Ensure resumeText and requiredTags are provided." });
   }
 
   const systemMessage = `
@@ -126,11 +136,13 @@ app.post("/process-resume", async (req, res) => {
   }`;
 
   try {
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
     const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
-        {role: "system", content: systemMessage},
-        {role: "user", content: `Resume Text:\n${resumeText}`},
+        { role: "system", content: systemMessage },
+        { role: "user", content: `Resume Text:\n${resumeText}` },
       ],
     });
 
@@ -193,22 +205,8 @@ app.post("/process-resume", async (req, res) => {
     res.status(200).json(parsedContent);
   } catch (error) {
     console.error("Error processing resume:", error.message);
-    res.status(500).json({error: "Failed to process the resume.", details: error.message});
+    res.status(500).json({ error: "Failed to process the resume.", details: error.message });
   }
 });
 
-// Apply error handling middleware
-app.use(errorHandler);
-
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-// Export as a Firebase Cloud Function
-exports.api = functions
-  .runWith({
-    timeoutSeconds: 540, // Max timeout (9 minutes)
-    memory: "1GB", // Allocate sufficient memory
-  })
-  .https.onRequest(app);
+exports.api = functions.https.onRequest(app);

@@ -17,6 +17,7 @@ import AIGeneratedJobModal from "../../components/aiGeneratedJobModal/AIGenerate
 import EditJobModal from "../../components/editJobModal/EditJobModal";
 
 const JobPostingsPage = (props) => {
+  const apiBaseUrl = "https://api-3piee3qgbq-uc.a.run.app";
   const tableHeader = ["Job Title", "Company", "Industry", "Location", "Actions"];
   const [jobs, setJobs] = useState([]);
   const [job, setJob] = useState([]);
@@ -35,8 +36,6 @@ const JobPostingsPage = (props) => {
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const navigate = useNavigate();
 
-  console.log('Jobs:', jobs)
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -54,7 +53,7 @@ const JobPostingsPage = (props) => {
 
     try {
       console.log('Submitting form data:', formData);
-      const response = await fetch('/generate', {
+      const response = await fetch(`${apiBaseUrl}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

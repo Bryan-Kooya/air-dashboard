@@ -25,7 +25,7 @@ const CandidateDetailsModal = (props) => {
               <div className='section-label'>Phone: <span style={{fontWeight: 400}}>{candidate.contact?.phone}</span></div>
               <div className='section-label'>Location: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.location)}</span></div>
               <div className='section-label'>LinkedIn: <a 
-                  href={candidate.contact?.linkedin?.toLowerCase()} 
+                  href={handleRedirectToLinkedIn(candidate.contact?.linkedin?.toLowerCase())} 
                   className='linkedin-link' 
                   target="_blank" 
                   rel="noopener noreferrer"

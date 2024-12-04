@@ -16,6 +16,7 @@ import matchCandidates from "../../utils/matchCandidates.json";
 GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 const MatchCandidatesPage = (props) => {
+  const apiBaseUrl = "https://api-3piee3qgbq-uc.a.run.app";
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]); // List of jobs
   const [selectedJob, setSelectedJob] = useState(''); // Currently selected job
@@ -140,7 +141,7 @@ const MatchCandidatesPage = (props) => {
               resumeText = await response.text(); // Fallback for text files
             }
 
-            const res = await fetch("/process-resume", {
+            const res = await fetch(`${apiBaseUrl}/process-resume`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ resumeText, tags }),

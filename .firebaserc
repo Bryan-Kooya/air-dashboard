@@ -1,6 +1,6 @@
 {
   "projects": {
-    "default": "air-dashboard-6ac37",
+    "default": "message-scanner-extension",
     "staging": "message-scanner-extension"
   },
   "targets": {},

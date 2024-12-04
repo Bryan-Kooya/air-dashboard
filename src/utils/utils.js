@@ -7,11 +7,16 @@ export const capitalizeFirstLetter = (input) => {
 }
 
 export const handleRedirectToLinkedIn = (link) => {
-  const linkedinUrl = link;
-
-  if (linkedinUrl) {
-    window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
-  } else {
+  if (!link) {
     alert('LinkedIn profile is not available for this candidate.');
+    return;
   }
+
+  // Ensure the link starts with "http://" or "https://"
+  const linkedinUrl = link.startsWith('http://') || link.startsWith('https://') 
+    ? link 
+    : `https://${link}`;
+
+  // Open the URL in a new tab
+  window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
 };
