@@ -1,0 +1,26 @@
+.messages-container {
+  font-family: Inter;
+}
+
+.messages {
+  width: -webkit-fill-available;
+}
+
+.cv-link {
+  color: #0A66C2;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.cv-link:hover {
+  color: #004182;
+}
+
+.convo-row {
+  cursor: pointer;
+}
+
+.convo-row:hover {
+  background-color: #eef7ff;
+}

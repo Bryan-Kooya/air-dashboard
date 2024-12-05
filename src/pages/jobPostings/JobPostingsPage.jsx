@@ -7,7 +7,6 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
-import axios from "axios";
 import "./JobPostingsPage.css"
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
@@ -291,7 +290,7 @@ const JobPostingsPage = (props) => {
       />
       <div className="jobs card">
         <div className="card-title">Recently Added Jobs</div>
-        <table className="jobs-table">
+        <table className="data-table">
           <thead>
             <tr>
               {tableHeader.map(header => (
@@ -306,7 +305,7 @@ const JobPostingsPage = (props) => {
                 <td>{job.company_name}</td>
                 <td>{job.industry}</td>
                 <td>{job.location}</td>
-                <td>
+                <td style={{width: 252}}>
                   <button
                     className="edit-button"
                     onClick={() => handleEditJob(job.id)}

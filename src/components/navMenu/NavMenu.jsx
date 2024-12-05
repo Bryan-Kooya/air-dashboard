@@ -15,8 +15,9 @@ const menuList = [
   {name: "Help", icon: HelpIcon, path: "/help" },
 ];
 
-const NavMenu = () => {
+const NavMenu = (props) => {
   const navigate = useNavigate();
+  const count = props.messagesCount;
   const [activeMenu, setActiveMenu] = useState("/dashboard");
 
   const handlePageNavigate = (path) => {
@@ -36,7 +37,7 @@ const NavMenu = () => {
           <div key={menu.name} onClick={() => handlePageNavigate(menu.path)} className={`menu-container${activeMenu === menu.path ? " active" : ""}`}>
             <img className="menu-icon" src={menu.icon} alt="logo"/>
             <div>{menu.name}</div>
-            {menu.name === 'Messages' && <div className="message-count">+16</div>}
+            {menu.name === 'Messages' && <div className="message-count">{count}</div>}
             {activeMenu === menu.path && <div className="active-indicator"></div>}
           </div>
         ))}

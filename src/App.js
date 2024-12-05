@@ -36,6 +36,12 @@ const App = () => {
   const [headerTitle, setHeaderTitle] = useState("");
   const [headerSubtitle, setHeaderSubtitle] = useState("");
   const [isAuthenticated, setAuthenticated] = useState(false);
+  const [messagesCount, setMessagesCount] = useState("0");
+
+  const updateMessagesCount = (value) => {
+    if (value > 99) setMessagesCount("+99");
+    else setMessagesCount(value);
+  };
 
   const getHeaderTitle = (value) => {
     setHeaderTitle(value);
@@ -55,13 +61,13 @@ const App = () => {
           </Routes>
         ) : (
           <>
-            <NavMenu/>
+            <NavMenu messagesCount={messagesCount} />
             <div className="view-section">
               <PageHeader title={headerTitle} subtitle={headerSubtitle} />
               <Routes>
               <Route path="/ai-resume-analyzer" element={<AIResumeAnalyzerPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
                 <Route path="/dashboard" element={<DashboardPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
-                <Route path="/messages" element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
+                <Route path="/messages" element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} updateMessagesCount={updateMessagesCount} />} />
                 <Route path="/job-postings" element={<JobPostingsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
                 <Route path="/match-candidates" element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
                 <Route path="/billing" element={<BillingPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
