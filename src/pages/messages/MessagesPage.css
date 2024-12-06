@@ -16,11 +16,3 @@
 .cv-link:hover {
   color: #004182;
 }
-
-.convo-row {
-  cursor: pointer;
-}
-
-.convo-row:hover {
-  background-color: #eef7ff;
-}

@@ -1,0 +1,47 @@
+.name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.user {
+  color: #0A66C2;
+}
+
+.message-text {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.message-date {
+  color: #929292;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.message-time {
+  color: #929292;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.conversation-container {
+  max-height: 400px;
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+}
+
+.conversation-container::-webkit-scrollbar {
+  width: 0px;
+}
+
+.message-container {
+  display: grid;
+  gap: 12px;
+}
+
+.message-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

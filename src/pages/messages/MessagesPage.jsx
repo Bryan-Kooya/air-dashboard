@@ -11,10 +11,13 @@ import {
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../../firebaseConfig";
+import MessageModal from "../../components/messageModal/MessageModal";
 
 const MessagesPage = (props) => {
   const tableHeader = ["Sender", "Message Preview", "Date & Time", "Attachments"];
   const [conversations, setConversations] = useState([]);
+  const [selectedConvo, setSelectedConvo] = useState([]);
+  const [showMessage, setShowMessage] =  useState(false);
   const navigate = useNavigate();
 
   // Fetch conversations from Firebase Firestore
@@ -65,6 +68,11 @@ const MessagesPage = (props) => {
     props.subtitle("Add new job postings and manage existing ones, streamlining the recruitment process.");
   };
 
+  const handleShowMessage = (convo) => {
+    setSelectedConvo(convo);
+    setShowMessage(true);
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/");
@@ -85,7 +93,7 @@ const MessagesPage = (props) => {
           </thead>
           <tbody>
             {conversations.map(conversation => (
-              <tr className="convo-row" key={conversation.id}>
+              <tr onClick={() => handleShowMessage(conversation)} key={conversation.id}>
                 <td>{conversation.connection}</td>
                 <td>{getLatestMessage(conversation).messageText}</td>
                 <td>{getLatestMessage(conversation).date}</td>
@@ -95,6 +103,11 @@ const MessagesPage = (props) => {
           </tbody>
         </table>
       </div>
+      <MessageModal 
+        open={showMessage}
+        close={() => setShowMessage(false)}
+        conversation={selectedConvo}
+      />
     </div>
   );
 };
