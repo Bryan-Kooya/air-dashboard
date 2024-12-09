@@ -21,3 +21,13 @@ export const handleRedirectToLinkedIn = (link) => {
   // Open the URL in a new tab
   window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
 };
+
+export const formatDate = (dateString) => {
+  const date = new Date(dateString);
+
+  const options = date.getFullYear() === new Date().getFullYear()
+    ? { month: 'short', day: '2-digit' } // Format as 'Oct 27'
+    : { month: 'short', day: '2-digit', year: 'numeric' }; // Format as 'Dec 03, 2023'
+
+  return new Intl.DateTimeFormat('en-US', options).format(date);
+}

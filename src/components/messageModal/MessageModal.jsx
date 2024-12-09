@@ -2,7 +2,7 @@ import React from 'react';
 import "./MessageModal.css";
 import { Modal, Divider } from '@mui/material';
 import { Bookmark } from '../../assets/images';
-import { handleRedirectToLinkedIn } from '../../utils/utils';
+import { formatDate } from '../../utils/utils';
 
 const MessageModal = (props) => {
   const isOpen = props.open;
@@ -32,11 +32,11 @@ const MessageModal = (props) => {
         <div className='conversation-container'>
           {sortedDates.map((date) => (
             <div key={date} className="message-container">
-              <Divider className="message-date">&nbsp;{date}&nbsp;</Divider>
+              <Divider className="message-date">&nbsp;{formatDate(date)}&nbsp;</Divider>
               {conversation.messagesByDate[date].map((message, index) => (
                 <div key={index} className="message-row">
                   <div className={`${conversation.connection !== message.sender ? `user` : ``} name`}>
-                    {message.sender} <span className="message-time">• 10:21</span>
+                    {message.sender} <span className="message-time">• {message.messageTime}</span>
                   </div>
                   {message.messageText && (
                     <div className="message-text">{message.messageText}</div>
