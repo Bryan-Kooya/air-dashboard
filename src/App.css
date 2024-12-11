@@ -132,7 +132,7 @@ img {
   width: 252px;
 } */
 
-.data-table td:first-child {
+.data-table td:not(:nth-child(2)){
   white-space: nowrap;
 }
 

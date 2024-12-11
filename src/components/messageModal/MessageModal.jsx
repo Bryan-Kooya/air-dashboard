@@ -39,7 +39,12 @@ const MessageModal = (props) => {
                     {message.sender} <span className="message-time">• {message.messageTime}</span>
                   </div>
                   {message.messageText && (
-                    <div className="message-text">{message.messageText}</div>
+                    <div
+                      className="message-text"
+                      dangerouslySetInnerHTML={{
+                        __html: message.messageText.replace(/\n/g, "<br/>"),
+                      }}
+                    />
                   )}
                   {message.attachments &&
                     message.attachments.map((attachment, attachmentIndex) => (

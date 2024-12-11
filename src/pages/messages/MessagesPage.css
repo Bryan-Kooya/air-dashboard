@@ -16,3 +16,8 @@
 .cv-link:hover {
   color: #004182;
 }
+
+.search-bar{
+  width: 300px;
+  margin-left: auto;
+}

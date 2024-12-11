@@ -22,6 +22,11 @@ export const handleRedirectToLinkedIn = (link) => {
   window.open(linkedinUrl, '_blank', 'noopener,noreferrer');
 };
 
+export const convertDateFormat = (dateString) => {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(date);
+};
+
 export const formatDate = (dateString) => {
   const date = new Date(dateString);
 
@@ -31,3 +36,8 @@ export const formatDate = (dateString) => {
 
   return new Intl.DateTimeFormat('en-US', options).format(date);
 }
+
+export const truncateText = (text, maxLength) => {
+  if (!text) return "";
+  return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+};

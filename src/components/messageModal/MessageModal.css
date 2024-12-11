@@ -26,9 +26,10 @@
 
 .conversation-container {
   max-height: 400px;
-  overflow: auto;
+  overflow-y: auto;
   display: grid;
   gap: 16px;
+  word-break: break-word;
 }
 
 .conversation-container::-webkit-scrollbar {

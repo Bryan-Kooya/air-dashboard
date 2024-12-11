@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./NavMenu.css"
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AIRIcon, AIRLogo } from "../../assets/images";
 import { Divider } from "@mui/material";
 import { AIAnalyzerIcon, DashboardIcon, MessageIcon, JobPostIcon, CandidateIcon, BillingIcon, HelpIcon } from "../../assets/images";
@@ -17,8 +17,13 @@ const menuList = [
 
 const NavMenu = (props) => {
   const navigate = useNavigate();
+  const location = useLocation(); // Get current path
   const count = props.messagesCount;
-  const [activeMenu, setActiveMenu] = useState("/dashboard");
+  const [activeMenu, setActiveMenu] = useState(location.pathname);
+
+  useEffect(() => {
+    setActiveMenu(location.pathname);
+  }, [location]);
 
   const handlePageNavigate = (path) => {
     navigate(path);

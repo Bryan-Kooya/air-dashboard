@@ -12,22 +12,27 @@ import JobPostingsPage from "./pages/jobPostings/JobPostingsPage";
 import MatchCandidatesPage from "./pages/matchCandidates/MatchCandidatesPage";
 import BillingPage from "./pages/billing/BillingPage";
 import HelpPage from "./pages/help/HelpPage";
+import { getConversationCount } from "./utils/firebaseService";
 
-const AuthObserver = ({ setAuthenticated }) => {
+const AuthObserver = ({ setAuthenticated, onLogin }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = observeAuthState((user) => {
+    const unsubscribe = observeAuthState(async (user) => {
       if (user) {
         setAuthenticated(true);
-        // navigate('/dashboard');
+        try {
+          await onLogin();
+        } catch (error) {
+          console.error("Error during login process:", error);
+        }
       } else {
         setAuthenticated(false);
-        navigate('/');
+        navigate("/");
       }
     });
     return () => unsubscribe();
-  }, [navigate, setAuthenticated]);
+  }, [navigate, setAuthenticated, onLogin]);
 
   return null;
 };
@@ -38,23 +43,26 @@ const App = () => {
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [messagesCount, setMessagesCount] = useState("0");
 
-  const updateMessagesCount = (value) => {
-    if (value > 99) setMessagesCount("+99");
-    else setMessagesCount(value);
+  const updateMessagesCount = (count) => {
+    setMessagesCount(count > 99 ? "+99" : count.toString());
   };
 
-  const getHeaderTitle = (value) => {
-    setHeaderTitle(value);
+  const fetchAndSetMessageCount = async () => {
+    try {
+      const count = await getConversationCount(); // Fetch count only
+      updateMessagesCount(count);
+    } catch (error) {
+      console.error("Error fetching conversation count:", error);
+    }
   };
 
-  const getHeaderSubtitle = (value) => {
-    setHeaderSubtitle(value);
-  };
+  const getHeaderTitle = (value) => setHeaderTitle(value);
+  const getHeaderSubtitle = (value) => setHeaderSubtitle(value);
 
   return (
     <div className="page-container">
       <Router>
-        <AuthObserver setAuthenticated={setAuthenticated} />
+        <AuthObserver setAuthenticated={setAuthenticated} onLogin={fetchAndSetMessageCount} />
         {!isAuthenticated ? (
           <Routes>
             <Route path="/" element={<LoginPage />} />
@@ -65,13 +73,34 @@ const App = () => {
             <div className="view-section">
               <PageHeader title={headerTitle} subtitle={headerSubtitle} />
               <Routes>
-              <Route path="/ai-resume-analyzer" element={<AIResumeAnalyzerPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
-                <Route path="/dashboard" element={<DashboardPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
-                <Route path="/messages" element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} updateMessagesCount={updateMessagesCount} />} />
-                <Route path="/job-postings" element={<JobPostingsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
-                <Route path="/match-candidates" element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
-                <Route path="/billing" element={<BillingPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
-                <Route path="/help" element={<HelpPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />} />
+                <Route
+                  path="/ai-resume-analyzer"
+                  element={<AIResumeAnalyzerPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
+                <Route
+                  path="/dashboard"
+                  element={<DashboardPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
+                <Route
+                  path="/messages"
+                  element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
+                <Route
+                  path="/job-postings"
+                  element={<JobPostingsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
+                <Route
+                  path="/match-candidates"
+                  element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
+                <Route
+                  path="/billing"
+                  element={<BillingPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
+                <Route
+                  path="/help"
+                  element={<HelpPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
               </Routes>
             </div>
           </>
