@@ -249,6 +249,7 @@ const MatchCandidatesPage = (props) => {
         open={viewDetails} 
         close={() => setViewDetails(false)}
         candidate={selectedCandidate}
+        isEditable={false}
       />
     </div>
   );

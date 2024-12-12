@@ -3,14 +3,15 @@ import "./NavMenu.css"
 import { useNavigate, useLocation } from "react-router-dom";
 import { AIRIcon, AIRLogo } from "../../assets/images";
 import { Divider } from "@mui/material";
-import { AIAnalyzerIcon, DashboardIcon, MessageIcon, JobPostIcon, CandidateIcon, BillingIcon, HelpIcon } from "../../assets/images";
+import { AIAnalyzerIcon, DashboardIcon, MessageIcon, JobPostIcon, MatchIcon, BillingIcon, HelpIcon, CandidatesIcon } from "../../assets/images";
 
 const menuList = [
   {name: "AI Resume Analyzer", icon: AIAnalyzerIcon, path: "/ai-resume-analyzer"},
   {name: "Dashboard", icon: DashboardIcon, path: "/dashboard" },
   {name: "Messages", icon: MessageIcon, path: "/messages" },
+  {name: "Candidates", icon: CandidatesIcon, path: "/candidates" },
   {name: "Job Postings", icon: JobPostIcon, path: "/job-postings" },
-  {name: "Match Candidates", icon: CandidateIcon, path: "/match-candidates" },
+  {name: "Match Candidates", icon: MatchIcon, path: "/match-candidates" },
   {name: "Billing", icon: BillingIcon, path: "/billing" },
   {name: "Help", icon: HelpIcon, path: "/help" },
 ];

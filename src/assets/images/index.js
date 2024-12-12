@@ -8,8 +8,9 @@ import AIRLogo from "./AIR-Logo.svg";
 import AIAnalyzerIcon from "./AIAnalyzerIcon.svg";
 import DashboardIcon from "./DashboardIcon.svg";
 import MessageIcon from "./MessageIcon.svg";
+import CandidatesIcon from "./CandidatesIcon.svg";
 import JobPostIcon from "./JobPostIcon.svg";
-import CandidateIcon from "./CandidateIcon.svg";
+import MatchIcon from "./MatchIcon.svg";
 import BillingIcon from "./BillingIcon.svg";
 import HelpIcon from "./HelpIcon.svg";
 import Bell from "./Bell.svg";
@@ -28,8 +29,9 @@ export {
   AIRLogo,
   DashboardIcon,
   MessageIcon,
+  CandidatesIcon,
   JobPostIcon,
-  CandidateIcon,
+  MatchIcon,
   BillingIcon,
   HelpIcon,
   Bell,

@@ -1,5 +1,6 @@
 [
 	{
+			"status": "Waiting for approval",
 	    "contact": {
 	        "name": "Jamielyn Joy Santos",
 	        "email": "santosjamie16@gmail.com",
@@ -127,8 +128,8 @@
 	        "Include the 'Projects' section in your resume."
 	    ]
 	},
-
 	{
+			"status": "Selected",
 	    "contact": {
 	        "name": "ROBIN CABALLERO",
 	        "email": "CABALLEROROBIN077@GMAIL.COM",
@@ -260,6 +261,239 @@
 	    ]
 	},
 	{
+			"status": "Interviewed",
+	    "contact": {
+	        "name": "Earvin Jonas S. Eukan",
+	        "email": "jonas.eukan@gmail.com",
+	        "phone": null,
+	        "location": "Ortigas Ave, Pasig, Metro Manila",
+	        "linkedin": null
+	    },
+	    "summary": null,
+	    "total_experience_years": 3,
+	    "skills": [
+	        "Python",
+	        "JavaScript",
+	        "TypeScript",
+	        "HTML",
+	        "CSS",
+	        "AWS",
+	        "Jenkins",
+	        "ReactJS",
+	        "NextJS",
+	        "MySQL",
+	        "PostgreSQL",
+	        "Git"
+	    ],
+	    "experience_level": "mid",
+	    "education": [],
+	    "work_experience": [
+	        {
+	            "title": "DevOps Engineer",
+	            "company": "Trend Micro Inc.",
+	            "duration": "September, 2019 – Current",
+	            "highlights": [
+	                "Created a web portal for internal services using ReactJS, Falcon Framework , and MySQL, with tag filtering, searching, and data management",
+	                "Implemented new pages for data visualization on a ReactJS dashboard integrating with multiple APIs to retrieve and parse data",
+	                "Developed and maintained several microservices using Python and AWS",
+	                "Designed a REST API to handle file data submissions, using Falcon Framework and MySQL",
+	                "Built and maintained a CICD pipeline using Jenkins, AWS CloudFormation, Sceptre, and Troposphere",
+	                "Co-lead a team to perform a full system deployment to another region"
+	            ]
+	        }
+	    ],
+	    "projects": [
+	        {
+	            "name": "OOParking System",
+	            "description": "Built a full stack web app parking system, created using ReactJS(frontend) and FastAPI(Backend)",
+	            "technologies": [
+	                "ReactJS",
+	                "FastAPI"
+	            ]
+	        },
+	        {
+	            "name": "TypeToast",
+	            "description": "Developed a minimalist typing test using NextJS and Typescript, which integrates with Cloud Firestore for data storage of user scores",
+	            "technologies": [
+	                "NextJS",
+	                "Typescript",
+	                "Cloud Firestore"
+	            ]
+	        },
+	        {
+	            "name": "Portfolio Website",
+	            "description": "Built a static portfolio website using HTML and CSS, using Javascript to implement element animations and a dark mode toggle",
+	            "technologies": [
+	                "HTML",
+	                "CSS",
+	                "Javascript"
+	            ]
+	        }
+	    ],
+	    "scores": {
+	        "overall": 85,
+	        "experience": {
+	            "score": 85,
+	            "feedback": "Strong experience in DevOps and full-stack development"
+	        },
+	        "education": {
+	            "score": 75,
+	            "feedback": "Lack of detailed educational background"
+	        },
+	        "skills": {
+	            "score": 90,
+	            "feedback": "Strong set of hard skills that cover a wide range of technologies"
+	        },
+	        "projects": {
+	            "score": 87,
+	            "feedback": "Impressive projects with clear technologies used"
+	        },
+	        "presentation": {
+	            "score": 85,
+	            "feedback": "Clear, well-structured resume with defined sections"
+	        }
+	    },
+	    "skill_match": {
+	        "score": 90,
+	        "matching_skills": [
+	            "Web Development",
+	            "Front-end Development",
+	            "Back-end Development",
+	            "HTML",
+	            "CSS",
+	            "JavaScript"
+	        ],
+	        "missing_skills": [
+	            "Website Maintenance",
+	            "Web Design",
+	            "Content Management Systems",
+	            "SEO"
+	        ]
+	    },
+	    "improvement_suggestions": [
+	        "Elaborate more on your role and responsibilities in your projects",
+	        "Expand on technical project details",
+	        "Include relevant certifications"
+	    ]
+	},
+	{
+			"status": "Salary draft",
+	    "contact": {
+	        "name": "Earvin Jonas S. Eukan",
+	        "email": "jonas.eukan@gmail.com",
+	        "phone": null,
+	        "location": "Ortigas Ave, Pasig, Metro Manila",
+	        "linkedin": null
+	    },
+	    "summary": null,
+	    "total_experience_years": 3,
+	    "skills": [
+	        "Python",
+	        "JavaScript",
+	        "TypeScript",
+	        "HTML",
+	        "CSS",
+	        "AWS",
+	        "Jenkins",
+	        "ReactJS",
+	        "NextJS",
+	        "MySQL",
+	        "PostgreSQL",
+	        "Git"
+	    ],
+	    "experience_level": "mid",
+	    "education": [],
+	    "work_experience": [
+	        {
+	            "title": "DevOps Engineer",
+	            "company": "Trend Micro Inc.",
+	            "duration": "September, 2019 – Current",
+	            "highlights": [
+	                "Created a web portal for internal services using ReactJS, Falcon Framework , and MySQL, with tag filtering, searching, and data management",
+	                "Implemented new pages for data visualization on a ReactJS dashboard integrating with multiple APIs to retrieve and parse data",
+	                "Developed and maintained several microservices using Python and AWS",
+	                "Designed a REST API to handle file data submissions, using Falcon Framework and MySQL",
+	                "Built and maintained a CICD pipeline using Jenkins, AWS CloudFormation, Sceptre, and Troposphere",
+	                "Co-lead a team to perform a full system deployment to another region"
+	            ]
+	        }
+	    ],
+	    "projects": [
+	        {
+	            "name": "OOParking System",
+	            "description": "Built a full stack web app parking system, created using ReactJS(frontend) and FastAPI(Backend)",
+	            "technologies": [
+	                "ReactJS",
+	                "FastAPI"
+	            ]
+	        },
+	        {
+	            "name": "TypeToast",
+	            "description": "Developed a minimalist typing test using NextJS and Typescript, which integrates with Cloud Firestore for data storage of user scores",
+	            "technologies": [
+	                "NextJS",
+	                "Typescript",
+	                "Cloud Firestore"
+	            ]
+	        },
+	        {
+	            "name": "Portfolio Website",
+	            "description": "Built a static portfolio website using HTML and CSS, using Javascript to implement element animations and a dark mode toggle",
+	            "technologies": [
+	                "HTML",
+	                "CSS",
+	                "Javascript"
+	            ]
+	        }
+	    ],
+	    "scores": {
+	        "overall": 85,
+	        "experience": {
+	            "score": 85,
+	            "feedback": "Strong experience in DevOps and full-stack development"
+	        },
+	        "education": {
+	            "score": 75,
+	            "feedback": "Lack of detailed educational background"
+	        },
+	        "skills": {
+	            "score": 90,
+	            "feedback": "Strong set of hard skills that cover a wide range of technologies"
+	        },
+	        "projects": {
+	            "score": 87,
+	            "feedback": "Impressive projects with clear technologies used"
+	        },
+	        "presentation": {
+	            "score": 85,
+	            "feedback": "Clear, well-structured resume with defined sections"
+	        }
+	    },
+	    "skill_match": {
+	        "score": 90,
+	        "matching_skills": [
+	            "Web Development",
+	            "Front-end Development",
+	            "Back-end Development",
+	            "HTML",
+	            "CSS",
+	            "JavaScript"
+	        ],
+	        "missing_skills": [
+	            "Website Maintenance",
+	            "Web Design",
+	            "Content Management Systems",
+	            "SEO"
+	        ]
+	    },
+	    "improvement_suggestions": [
+	        "Elaborate more on your role and responsibilities in your projects",
+	        "Expand on technical project details",
+	        "Include relevant certifications"
+	    ]
+	},
+	{
+			"status": "Selected",
 	    "contact": {
 	        "name": "Earvin Jonas S. Eukan",
 	        "email": "jonas.eukan@gmail.com",

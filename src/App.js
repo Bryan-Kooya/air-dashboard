@@ -8,6 +8,7 @@ import LoginPage from "./pages/login/LoginPage";
 import AIResumeAnalyzerPage from "./pages/aiResumeAnalyzer/AIResumeAnalyzerPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import MessagesPage from "./pages/messages/MessagesPage";
+import CandidatesPage from "./pages/candidates/CandidatesPage";
 import JobPostingsPage from "./pages/jobPostings/JobPostingsPage";
 import MatchCandidatesPage from "./pages/matchCandidates/MatchCandidatesPage";
 import BillingPage from "./pages/billing/BillingPage";
@@ -84,6 +85,10 @@ const App = () => {
                 <Route
                   path="/messages"
                   element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
+                <Route
+                  path="/candidates"
+                  element={<CandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
                 />
                 <Route
                   path="/job-postings"

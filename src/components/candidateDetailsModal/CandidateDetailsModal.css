@@ -9,6 +9,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   width: 760px;
+  height: 75%;
 }
 
 .candidate-modal-row1 {
@@ -24,13 +25,30 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+  height: calc(100% - 176px);
+}
+
+.candidate-modal-row2::-webkit-scrollbar {
+  /* width: 6px; */
+  width: 0px;
+}
+
+.candidate-modal-row2::-webkit-scrollbar-track {
+  background: #F1F1F1;
+  margin-right: 16px;
+}
+
+.candidate-modal-row2::-webkit-scrollbar-thumb {
+  background: #C3C3C3; 
+  border-radius: 5px;
 }
 
 .contact-section {
   display: flex;
   flex-direction: column;
   padding: 20px;
-  gap: 12px;
+  gap: 16px;
   border-radius: 12px;
   border: 1px solid #EEE;
   background: #FFF;

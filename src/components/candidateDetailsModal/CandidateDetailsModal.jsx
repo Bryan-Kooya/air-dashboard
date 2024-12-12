@@ -8,6 +8,7 @@ const CandidateDetailsModal = (props) => {
   const open = props.open;
   const close = props.close;
   const candidate = props.candidate;
+  const isEditable = props.isEditable;
 
   return (
     <Modal open={open} onClose={close}>
@@ -17,6 +18,13 @@ const CandidateDetailsModal = (props) => {
           <img onClick={close} src={Close} alt='Close'/>
         </div>
         <div className='candidate-modal-row2'>
+          {isEditable &&
+          <div className='contact-section'>
+            <div className='section-title'>Status</div>
+            <div>
+              <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>{candidate.status}
+            </div>
+          </div>}
           <div className='contact-section'>
             <div className='section-title'>Contact Information</div>
             <div className='section-info'>
@@ -73,10 +81,27 @@ const CandidateDetailsModal = (props) => {
           <div className='contact-section'>
             <div className='section-title'>Experience ({candidate.scores?.experience.score}%)</div>
             <div>{candidate.scores?.experience.feedback}</div>
+            {candidate.work_experience?.map((experience) => (
+              <div className='section-label'>
+                <div>{experience.title}</div>
+                <div style={{fontWeight: 400, marginTop: 8}}>{experience.company}</div>
+                <div style={{fontWeight: 400, color: '#929292'}}>{experience.duration}</div>
+                {experience.highlights.map((highlight) => (
+                  <ul style={{fontWeight: 400, margin: 6, paddingLeft: 20}}>
+                    <li>{highlight}</li>
+                  </ul>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
         <div className='candidate-modal-row1'>
-          <button className='send-button' onClick={() => handleRedirectToLinkedIn(candidate.contact?.linkedin)}>Send message</button>
+          <button 
+            className='send-button' 
+            onClick={() => handleRedirectToLinkedIn(candidate.contact?.linkedin)}
+          >
+            {isEditable ? 'Edit Candidate' : 'Reject Candidate'}
+          </button>
           <button className='view-button' onClick={() => handleRedirectToLinkedIn(candidate.contact?.linkedin)}>View Profile</button>
           <img src={Bookmark} alt="Bookmark" />
         </div>

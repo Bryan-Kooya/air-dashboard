@@ -1,0 +1,89 @@
+.candidates-container {
+  display: grid;
+  gap: 24px;
+}
+
+.candidates {
+  width: -webkit-fill-available;
+}
+
+.candidates-row {
+  border-radius: 12px;
+  border: 1px solid #EEE;
+  padding: 8px 16px;
+}
+
+.candidates-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.candidates-table th {
+  background: #ECF4FC;
+  height: 24px;
+  padding: 8px 16px;
+  font-weight: 600;
+}
+
+.candidates-table th:first-child {
+  border-radius: 8px 0px 0px 8px;
+}
+
+.candidates-table th:last-child {
+  border-radius: 0px 8px 8px 0px;
+}
+
+.candidates-table tbody tr td:first-child {
+  border-left: 1px solid #EEE;
+  border-top-left-radius: 12px; /* Round the top-left corner */
+  border-bottom-left-radius: 12px; /* Round the bottom-left corner */
+}
+
+.candidates-table tbody tr td:last-child {
+  border-right: 1px solid #EEE;
+  border-top-right-radius: 12px; /* Round the top-right corner */
+  border-bottom-right-radius: 12px; /* Round the bottom-right corner */
+}
+
+.candidates-table td {
+  padding: 19px 16px;
+  border-top: 1px solid #EEE;
+  border-bottom: 1px solid #EEE;
+  font-weight: 500;
+}
+
+.candidates-table td:not(:nth-child(2)){
+  white-space: nowrap;
+}
+
+.candidates-table tbody tr:hover {
+  cursor: pointer;
+  background-color: #F5FAFF;
+}
+
+.status-badge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-badge.waiting-for-approval {
+  background-color: red;
+}
+
+.status-badge.selected {
+  background-color: green;
+}
+
+.status-badge.interviewed {
+  background-color: orange;
+}
+
+.status-badge.salary-draft {
+  background-color: purple;
+}
