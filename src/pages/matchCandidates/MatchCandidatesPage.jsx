@@ -167,7 +167,7 @@ const MatchCandidatesPage = (props) => {
       // const validCandidates = matchCandidates;
 
       // Sort candidates by score in descending order
-      const sortedCandidates = validCandidates.sort((a, b) => b.scores.overall - a.scores.overall);
+      const sortedCandidates = validCandidates.sort((a, b) => b.skill_match.score - a.skill_match.score);
 
       console.log(`Successfully processed and sorted ${sortedCandidates.length} candidates.`);
       setCandidates(sortedCandidates);
@@ -184,11 +184,6 @@ const MatchCandidatesPage = (props) => {
     setSelectedCandidate(candidate);
     setViewDetails(true);
   }
-  
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/");
-  };
   
   setHeaderTitle();
 

@@ -4,6 +4,7 @@
 
 .messages {
   width: -webkit-fill-available;
+  min-height: 80px;
 }
 
 .cv-link {

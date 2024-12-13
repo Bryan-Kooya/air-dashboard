@@ -5,6 +5,7 @@
 
 .candidates {
   width: -webkit-fill-available;
+  min-height: 100px;
 }
 
 .candidates-row {
@@ -19,6 +20,7 @@
   border-spacing: 0 12px;
   text-align: left;
   font-size: 14px;
+  position: relative;
 }
 
 .candidates-table th {
@@ -49,7 +51,7 @@
 }
 
 .candidates-table td {
-  padding: 19px 16px;
+  padding: 20px 16px;
   border-top: 1px solid #EEE;
   border-bottom: 1px solid #EEE;
   font-weight: 500;
@@ -62,28 +64,4 @@
 .candidates-table tbody tr:hover {
   cursor: pointer;
   background-color: #F5FAFF;
-}
-
-.status-badge {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 8px;
-}
-
-.status-badge.waiting-for-approval {
-  background-color: red;
-}
-
-.status-badge.selected {
-  background-color: green;
-}
-
-.status-badge.interviewed {
-  background-color: orange;
-}
-
-.status-badge.salary-draft {
-  background-color: purple;
 }

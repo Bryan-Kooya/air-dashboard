@@ -1,35 +1,111 @@
-import React from 'react';
+import React, { useState } from 'react';
 import "./CandidateDetailsModal.css";
-import { Modal, Chip, CircularProgress, LinearProgress } from '@mui/material';
-import { Close, Bookmark } from '../../assets/images';
+import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem } from '@mui/material';
+import { Close, Bookmark, DeleteIcon } from '../../assets/images';
 import { capitalizeFirstLetter, handleRedirectToLinkedIn } from '../../utils/utils';
+import ConfirmModal from '../confirmModal/ConfirmModal';
+import { db } from '../../firebaseConfig';
+import { doc, setDoc } from "firebase/firestore";
+
+const statusList = ['Waiting for approval', 'Selected', 'Interviewed', 'Salary draft'];
 
 const CandidateDetailsModal = (props) => {
   const open = props.open;
   const close = props.close;
   const candidate = props.candidate;
   const isEditable = props.isEditable;
+  const email = candidate.contact?.email?.toLowerCase();
+  const [showSelectStatus, setShowSelectStatus] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState(candidate.status);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleIconClick = () => {
+    if (isEditable) setShowConfirm(true);
+    else console.log('Save Candidate');
+  };
+
+  const handleClose = () => {
+    close();
+    setShowSelectStatus(false);
+  };
+
+  const handleEditOrReject = () => {
+    if (isEditable && !showSelectStatus) {
+      setShowSelectStatus(true);
+      setSelectedStatus(candidate.status);
+    } else if (showSelectStatus) {
+      setSelectedStatus(false);
+    } else {
+      handleUpdateChanges(true);
+    }
+  };
+
+  const handleSelectStatus = (value) => {
+    setSelectedStatus(value);
+  };
+
+  const handleViewOrSaveChanges = () => {
+    if (isEditable) {
+      handleUpdateChanges(false);
+    } else {
+      handleRedirectToLinkedIn(candidate.contact?.linkedin);
+    }
+  };
+
+  const handleUpdateChanges = async (isRejected) => {
+    try {
+      if (!email) {
+        alert("Candidate email is missing. Unable to update status.");
+        return;
+      }
+  
+      const candidateRef = doc(db, "candidates", email);
+      await setDoc(candidateRef, { status: isRejected ? 'Rejected' : selectedStatus }, { merge: true });
+      alert("Candidate status updated successfully!");
+      close();
+      props.loadCandidates();
+    } catch (error) {
+      console.error("Error updating candidate status:", error);
+      alert("An error occurred while updating candidate status.");
+    }
+  };  
 
   return (
-    <Modal open={open} onClose={close}>
+    <Modal open={open} onClose={handleClose}>
       <div className='candidate-modal-container'>
         <div className='candidate-modal-row1'>
           <div className='card-title'>{capitalizeFirstLetter(candidate.contact?.name)}</div>
-          <img onClick={close} src={Close} alt='Close'/>
+          <img onClick={handleClose} src={Close} alt='Close'/>
         </div>
         <div className='candidate-modal-row2'>
           {isEditable &&
           <div className='contact-section'>
             <div className='section-title'>Status</div>
-            <div>
+            {showSelectStatus ?
+            <Select 
+              id="match-candidates-input"
+              sx={{width: 210}}
+              displayEmpty
+              value={selectedStatus} 
+              onChange={(e) => handleSelectStatus(e.target.value)}
+            >
+              {statusList.map((status, index) => (
+                <MenuItem key={index} value={status}>
+                  <div className='status-container'>
+                    <div className={`status-badge ${status?.toLowerCase().replace(/\s/g, "-")}`}></div>{status}
+                  </div>
+                </MenuItem>
+              ))}
+            </Select> :
+            <div className='status-container'>
               <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>{candidate.status}
-            </div>
+            </div>}
           </div>}
           <div className='contact-section'>
             <div className='section-title'>Contact Information</div>
             <div className='section-info'>
               <div className='section-label'>Name: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.name)}</span></div>
-              <div className='section-label'>Email: <span style={{fontWeight: 400}}>{candidate.contact?.email?.toLowerCase()}</span></div>
+              <div className='section-label'>Email: <span style={{fontWeight: 400}}>{email}</span></div>
               <div className='section-label'>Phone: <span style={{fontWeight: 400}}>{candidate.contact?.phone}</span></div>
               <div className='section-label'>Location: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.location)}</span></div>
               <div className='section-label'>LinkedIn: <a 
@@ -98,13 +174,24 @@ const CandidateDetailsModal = (props) => {
         <div className='candidate-modal-row1'>
           <button 
             className='send-button' 
-            onClick={() => handleRedirectToLinkedIn(candidate.contact?.linkedin)}
+            onClick={handleEditOrReject}
           >
-            {isEditable ? 'Edit Candidate' : 'Reject Candidate'}
+            {(isEditable && !showSelectStatus) ? 'Edit Candidate' : showSelectStatus ? 'Cancel' : 'Reject Candidate'}
           </button>
-          <button className='view-button' onClick={() => handleRedirectToLinkedIn(candidate.contact?.linkedin)}>View Profile</button>
-          <img src={Bookmark} alt="Bookmark" />
+          <button 
+            className='view-button' 
+            onClick={handleViewOrSaveChanges}
+          >
+            {showSelectStatus ? 'Save All Changes' : 'View Profile' }
+          </button>
+          <Tooltip title={isEditable ? 'Delete' : 'Interested'} arrow placement='top'>
+            <img onClick={handleIconClick} src={isEditable ? DeleteIcon : Bookmark} alt="Bookmark" />
+          </Tooltip>
         </div>
+        <ConfirmModal
+          open={showConfirm}
+          close={() => setShowConfirm(false)}
+        />
       </div>
     </Modal>
   );

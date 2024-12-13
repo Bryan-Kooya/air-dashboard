@@ -105,6 +105,7 @@ img {
   border-collapse: collapse;
   text-align: left;
   font-size: 14px;
+  position: relative;
 }
 
 .data-table th {
@@ -161,4 +162,70 @@ img {
 .modal-button-container {
   display: flex;
   gap: 12px;
+}
+
+.button-container {
+  display: flex;
+  gap: 16px;
+}
+
+.primary-button,
+.secondary-button {
+  font-size: 14px;
+  font-weight: 600;
+  height: 40px;
+  width: 100%;
+}
+
+.primary-button {
+  background-color: #0A66C2;
+  color: white;
+}
+
+.secondary-button {
+  color: #0A66C2;
+  background: none;
+  border: 1px solid #0A66C2;
+}
+
+.status-badge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-container {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge.waiting-for-approval {
+  background-color: #F91E24;
+}
+
+.status-badge.selected {
+  background-color: #2AD324;
+}
+
+.status-badge.interviewed {
+  background-color: #FFB20D;
+}
+
+.status-badge.salary-draft {
+  background-color: #9461E6;
+}
+
+.status-badge.rejected{
+  background-color: #F91E24;
+}
+
+.no-data {
+  position: absolute;
+  width: -webkit-fill-available;
+  padding: 8px !important;
+  border: 1px solid #EEE;
+  border-radius: 12px;
+  text-align: center;
 }

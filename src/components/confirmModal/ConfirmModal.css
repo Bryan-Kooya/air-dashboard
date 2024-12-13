@@ -1,0 +1,22 @@
+.confirm-container {
+  width: 352px;
+  padding: 24px;
+  border-radius: 10px;
+  border: 1px solid #EEE;
+  display: grid;
+  gap: 24px;
+  font-family: Inter;
+  color: #002041;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #FFFFFF;
+}
+
+.confirm-message {
+  color: #929292;
+  font-size: 16px;
+  font-weight: 400;
+  margin-top: 8px;
+}

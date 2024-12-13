@@ -18,6 +18,8 @@ import Avatar from "./Avatar.png";
 import UploadIcon from "./UploadIcon.svg";
 import Bookmark from "./Bookmark.svg";
 import Close from "./Close.svg";
+import InfoIcon from "./InfoIcon.svg";
+import DeleteIcon from "./DeleteIcon.svg";
 
 export {
   Apple,
@@ -40,4 +42,6 @@ export {
   UploadIcon,
   Bookmark,
   Close,
+  InfoIcon,
+  DeleteIcon,
 };

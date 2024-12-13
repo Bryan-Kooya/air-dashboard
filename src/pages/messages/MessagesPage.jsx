@@ -110,8 +110,6 @@ const MessagesPage = (props) => {
 
   setHeaderTitle();
 
-  console.log('Conversations: ', conversations)
-
   return (
     <div className="messages-container">
       <form className="search-bar" onSubmit={handleSearchSubmit}>
@@ -133,7 +131,8 @@ const MessagesPage = (props) => {
             </tr>
           </thead>
           <tbody>
-            {conversations.map((conversation) => (
+            { conversations && conversations.length > 0 ?
+            (conversations.map((conversation) => (
               <tr onClick={() => handleShowMessage(conversation)} key={conversation.id}>
                 <td>{conversation.connection}</td>
                 <td>{truncateText(getLatestMessage(conversation).messageText, 120)}</td>
@@ -144,7 +143,13 @@ const MessagesPage = (props) => {
                 </td>
                 <td className="cv-link">CV_Frontend_Dev.pdf</td>
               </tr>
-            ))}
+            ))) : (
+              <tr>
+                <td style={{marginTop: 10}} className="no-data">
+                  No message available
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

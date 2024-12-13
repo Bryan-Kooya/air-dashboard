@@ -147,29 +147,6 @@ const JobPostingsPage = (props) => {
     fetchJobs();
   }, []);
 
-  // Create a new job
-  // const createJob = async () => {
-  //   try {
-  //     const response = await axios.post("/api/generate", newJob); // Call OpenAI API
-  //     const { description, tags } = response.data;
-
-  //     const jobData = { ...newJob, description, tags };
-
-  //     // Save to Firebase
-  //     const docRef = await addDoc(collection(db, "jobs"), jobData);
-  //     setJobs([...jobs, { id: docRef.id, ...jobData }]);
-  //     setNewJob({
-  //       job_title: "",
-  //       company_name: "",
-  //       industry: "",
-  //       location: "",
-  //       description: "",
-  //     });
-  //   } catch (error) {
-  //     console.error("Error creating job:", error);
-  //   }
-  // };
-
   // Update a job
   const updateJob = async (updatedJob) => {
     try {
@@ -203,11 +180,6 @@ const JobPostingsPage = (props) => {
   const setHeaderTitle = () => {
     props.title("Job Postings");
     props.subtitle("Add new job postings and manage existing ones, streamlining the recruitment process.");
-  };
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/");
   };
 
   setHeaderTitle();

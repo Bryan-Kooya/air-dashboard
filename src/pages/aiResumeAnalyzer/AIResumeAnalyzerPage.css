@@ -44,11 +44,6 @@
   line-height: 20px;
 }
 
-.button-container {
-  display: flex;
-  gap: 16px;
-}
-
 .browse-button {
   color: #0A66C2;
   border: 1px solid #0A66C2;
