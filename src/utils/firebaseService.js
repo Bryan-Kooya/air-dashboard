@@ -1,4 +1,4 @@
-import { collection, getDocs, query, orderBy, limit, startAfter, getCountFromServer, where } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit, startAfter, getCountFromServer, where, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
 export const getConversationCount = async () => {
@@ -109,4 +109,15 @@ export const searchCandidates = async (searchQuery) => {
   }));
 
   return data;
+};
+
+export const deleteConversation = async (conversationId) => {
+  try {
+    const conversationRef = doc(db, "linkedinConversations", conversationId);
+    await deleteDoc(conversationRef);
+    console.log("Conversation deleted:", conversationId);
+  } catch (error) {
+    console.error("Error deleting conversation:", error);
+    throw error;
+  }
 };

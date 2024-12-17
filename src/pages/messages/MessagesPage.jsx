@@ -3,19 +3,23 @@ import "./MessagesPage.css";
 import MessageModal from "../../components/messageModal/MessageModal";
 import Pagination from "../../components/pagination/Pagination";
 import { truncateText, convertDateFormat } from "../../utils/utils";
-import { fetchPaginatedConversations, searchConversations } from "../../utils/firebaseService";
+import { fetchPaginatedConversations, searchConversations, deleteConversation } from "../../utils/firebaseService";
+import { Delete } from "../../assets/images";
+import ConfirmModal from "../../components/confirmModal/ConfirmModal";
 
 const MessagesPage = (props) => {
-  const tableHeader = ["Sender", "Message Preview", "Date & Time", "Attachments"];
+  const tableHeader = ["Sender", "Message Preview", "Date & Time", "Attachments", 'Actions'];
   const [selectedConvo, setSelectedConvo] = useState([]);
   const [showMessage, setShowMessage] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastVisibleDocs, setLastVisibleDocs] = useState([]); // Track lastVisibleDoc for each page
   const [totalPages, setTotalPages] = useState(0);
   const pageSize = 10; // Number of conversations per page
   const [searchQuery, setSearchQuery] = useState(""); // Search query state
-
+  const [convoId, setConvoId] = useState("");
+  
   const loadConversations = async (page) => {
     try {
       const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
@@ -108,6 +112,30 @@ const MessagesPage = (props) => {
     await searchAndLoadConversations();
   };
 
+  const handleShowConfirmation = (id) => {
+    setShowConfirmation(true);
+    setConvoId(id);
+  };
+
+  const handleDeleteConversation = async () => {
+    try {
+      // Delete from Firestore
+      await deleteConversation(convoId);
+
+      // Update local state by removing the deleted conversation
+      setConversations((prevConversations) =>
+        prevConversations.filter((convo) => convo.id !== convoId)
+      );
+
+      console.log("Conversation deleted successfully");
+      alert("Conversation deleted successfully!");
+      setShowConfirmation(false)
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      alert("An error occurred while deleting conversation");
+    }
+  };
+
   setHeaderTitle();
 
   return (
@@ -133,15 +161,16 @@ const MessagesPage = (props) => {
           <tbody>
             { conversations && conversations.length > 0 ?
             (conversations.map((conversation) => (
-              <tr onClick={() => handleShowMessage(conversation)} key={conversation.id}>
-                <td>{conversation.connection}</td>
-                <td>{truncateText(getLatestMessage(conversation).messageText, 120)}</td>
+              <tr key={conversation.id}>
+                <td onClick={() => handleShowMessage(conversation)}>{conversation.connection}</td>
+                <td>{truncateText(getLatestMessage(conversation).messageText, 80)}</td>
                 <td>
                   {convertDateFormat(getLatestMessage(conversation).date) +
                     ` / ` +
                     getLatestMessage(conversation).messageTime}
                 </td>
                 <td className="cv-link">CV_Frontend_Dev.pdf</td>
+                <td onClick={() => handleShowConfirmation(conversation.id)} style={{textAlign: 'center'}}><img src={Delete}/></td>
               </tr>
             ))) : (
               <tr>
@@ -162,6 +191,11 @@ const MessagesPage = (props) => {
         open={showMessage}
         close={() => setShowMessage(false)}
         conversation={selectedConvo}
+      />
+      <ConfirmModal
+        open={showConfirmation}
+        close={() => setShowConfirmation(false)}
+        delete={handleDeleteConversation}
       />
     </div>
   );

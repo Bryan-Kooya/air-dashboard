@@ -20,6 +20,7 @@ import Bookmark from "./Bookmark.svg";
 import Close from "./Close.svg";
 import InfoIcon from "./InfoIcon.svg";
 import DeleteIcon from "./DeleteIcon.svg";
+import Delete from "./Delete.svg";
 
 export {
   Apple,
@@ -44,4 +45,5 @@ export {
   Close,
   InfoIcon,
   DeleteIcon,
+  Delete,
 };
