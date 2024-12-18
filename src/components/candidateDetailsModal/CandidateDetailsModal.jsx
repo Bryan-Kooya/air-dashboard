@@ -83,7 +83,7 @@ const CandidateDetailsModal = (props) => {
             <div className='section-title'>Status</div>
             {showSelectStatus ?
             <Select 
-              id="match-candidates-input"
+              id="select-input"
               sx={{width: 210}}
               displayEmpty
               value={selectedStatus} 

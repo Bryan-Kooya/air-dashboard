@@ -194,7 +194,7 @@ const MatchCandidatesPage = (props) => {
           <div style={{width: 360}} className="card-row">
             <div className="card-title">Job Title:</div>
             <Select 
-              id="match-candidates-input" 
+              id="select-input" 
               displayEmpty
               value={selectedJob} 
               onChange={(e) => handleJobSelect(e.target.value)}
@@ -203,7 +203,7 @@ const MatchCandidatesPage = (props) => {
               }
             >
               {jobs.map((job) => (
-                <MenuItem key={job.id} value={job.id}>
+                <MenuItem id="options" key={job.id} value={job.id}>
                   {job.job_title}
                 </MenuItem>
               ))}

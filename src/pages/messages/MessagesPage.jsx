@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
 import "./MessagesPage.css";
-import MessageModal from "../../components/messageModal/MessageModal";
-import Pagination from "../../components/pagination/Pagination";
+import { Select, MenuItem } from '@mui/material';
 import { truncateText, convertDateFormat } from "../../utils/utils";
 import { fetchPaginatedConversations, searchConversations, deleteConversation } from "../../utils/firebaseService";
-import { Delete } from "../../assets/images";
+import { Delete, SearchIcon } from "../../assets/images";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
+import MessageModal from "../../components/messageModal/MessageModal";
+import Pagination from "../../components/pagination/Pagination";
 
 const MessagesPage = (props) => {
   const tableHeader = ["Sender", "Message Preview", "Date & Time", "Attachments", 'Actions'];
+  const sortOptions = ["Newest", "Oldest"];
   const [selectedConvo, setSelectedConvo] = useState([]);
   const [showMessage, setShowMessage] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -19,7 +21,8 @@ const MessagesPage = (props) => {
   const pageSize = 10; // Number of conversations per page
   const [searchQuery, setSearchQuery] = useState(""); // Search query state
   const [convoId, setConvoId] = useState("");
-  
+  const [sortedBy, setSortedBy] = useState("");
+
   const loadConversations = async (page) => {
     try {
       const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
@@ -33,11 +36,7 @@ const MessagesPage = (props) => {
         updatedDocs[page - 1] = lastVisible; // Update lastVisible for the current page
         return updatedDocs;
       });
-
-      // Set total pages only once
-      if (totalPages === 0) {
-        setTotalPages(Math.ceil(total / pageSize));
-      }
+      setTotalPages(Math.ceil(total / pageSize));
     } catch (error) {
       console.error("Error fetching conversations:", error);
     }
@@ -117,6 +116,25 @@ const MessagesPage = (props) => {
     setConvoId(id);
   };
 
+  const handleSortedBy = (sortOption) => {
+    setSortedBy(sortOption);
+  
+    const sortedConversations = [...conversations].sort((a, b) => {
+      const dateA = new Date(getLatestMessage(a).date);
+      const dateB = new Date(getLatestMessage(b).date);
+  
+      if (sortOption === "Newest") {
+        return dateB - dateA; // Sort by descending date
+      }
+      if (sortOption === "Oldest") {
+        return dateA - dateB; // Sort by ascending date
+      }
+      return 0;
+    });
+  
+    setConversations(sortedConversations);
+  };
+
   const handleDeleteConversation = async () => {
     try {
       // Delete from Firestore
@@ -140,16 +158,40 @@ const MessagesPage = (props) => {
 
   return (
     <div className="messages-container">
-      <form className="search-bar" onSubmit={handleSearchSubmit}>
-        <input
-          type="text"
-          placeholder="Search conversations..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-        />
-        {/* <button type="submit">Search</button> */}
-      </form>
       <div className="messages card">
+        <div className="title-container">
+          <div className="card-title">All Messages</div>
+          <div className="flex">
+            <Select 
+              id="select-input" 
+              displayEmpty
+              value={sortedBy} 
+              onChange={(e) => handleSortedBy(e.target.value)}
+              renderValue={() =>
+                sortedBy ? sortedBy : "Sort by"
+              }
+            >
+              {sortOptions.map((option, index) => (
+                <MenuItem id="options" key={index} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+            <form className="search-container" onSubmit={handleSearchSubmit}>
+              <div className="search-wrapper">
+                <img onClick={handleSearchSubmit} src={SearchIcon} alt="Search Icon" className="search-icon" />
+                <input
+                  className="search-input"
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                />
+              </div>
+              <button className="search primary-button" type="submit">Search</button>
+            </form>
+          </div>
+        </div>
         <table className="data-table">
           <thead>
             <tr>

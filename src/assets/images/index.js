@@ -21,6 +21,7 @@ import Close from "./Close.svg";
 import InfoIcon from "./InfoIcon.svg";
 import DeleteIcon from "./DeleteIcon.svg";
 import Delete from "./Delete.svg";
+import SearchIcon from "./SearchIcon.svg";
 
 export {
   Apple,
@@ -46,4 +47,5 @@ export {
   InfoIcon,
   DeleteIcon,
   Delete,
+  SearchIcon,
 };

@@ -1,24 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { UploadIcon } from "../../assets/images";
 import "./CandidatesPage.css";
+import { Select, MenuItem } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import { getStorage, ref, uploadBytesResumable } from "firebase/storage";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { fetchPaginatedCandidates, searchCandidates } from "../../utils/firebaseService";
 import Pagination from "../../components/pagination/Pagination";
-// import matchCandidates from "../../utils/matchCandidates.json";
-
-// const candidates = [
-//   {name: "John Smith", job: "Frontend Developer", status: "Waiting for approval", experience: "5 years", attachments: "CV_Frontend_Dev.pdf"},
-//   {name: "Alice Norman", job: "HR", status: "Selected", experience: "6 years", attachments: "CV_Frontend_Dev.pdf"},
-//   {name: "Ryan Rey", job: "UI/UX Designer", status: "Interviewed", experience: "3 years", attachments: "CV_Frontend_Dev.pdf"},
-//   {name: "Melissa Moore", job: "Business Manager", status: "Salary draft", experience: "10 years", attachments: "CV_Frontend_Dev.pdf"},
-//   {name: "Justine Green", job: "QA Engineer", status: "Selected", experience: "4 years", attachments: "CV_Frontend_Dev.pdf"},
-// ];
+import { UploadIcon, SearchIcon } from "../../assets/images";
 
 const CandidatesPage = (props) => {
   const storage = getStorage(); // Initialize Firebase Storage
   const tableHeader = ["Candidate", "Job", "Status", "Experience", "Attachments"];
+  const filterOptions = ["Job", "Status", "Experience"];
+  const sortOptions = ["Newest", "Oldest"];
   const [files, setFiles] = useState([]);
   const [uploadStatus, setUploadStatus] = useState({}); // Track upload progress for each file
   const [error, setError] = useState(null);
@@ -30,53 +24,78 @@ const CandidatesPage = (props) => {
   const [totalPages, setTotalPages] = useState(0);
   const pageSize = 5; // Number of candidates per page
   const [searchQuery, setSearchQuery] = useState(""); // Search query state
+  const [sortedBy, setSortedBy] = useState("");
+  const [filterBy, setFilterBy] = useState(""); // Holds the selected filter value
+  const [filteredCandidates, setFilteredCandidates] = useState([]); // Filtered candidates
 
-  const loadCandidates = async (page) => {
+  // Load all candidates when the page loads
+  const loadCandidates = async () => {
     try {
-      const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
-      const { data, lastVisible, total } = await fetchPaginatedCandidates(pageSize, lastVisibleDoc);
-
+      const { data, total } = await fetchPaginatedCandidates(pageSize, null);
       setCandidates(data);
-
-      // Store the lastVisibleDoc for the current page
-      setLastVisibleDocs((prev) => {
-        const updatedDocs = [...prev];
-        updatedDocs[page - 1] = lastVisible; // Update lastVisible for the current page
-        return updatedDocs;
-      });
-
-      // Set total pages only once
-      if (totalPages === 0) {
-        setTotalPages(Math.ceil(total / pageSize));
-      }
+      setFilteredCandidates(data);
+      setTotalPages(Math.ceil(total / pageSize));
     } catch (error) {
       console.error("Error fetching candidates:", error);
     }
   };
 
-  const searchAndLoadCandidates = async () => {
-    if (!searchQuery) {
-      // If search query is empty, reset to paginated candidates
-      setCurrentPage(1);
-      setLastVisibleDocs([]);
-      await loadCandidates(1);
-      return;
+  useEffect(() => {
+    loadCandidates();
+  }, []);
+
+  // Filter and sort candidates
+  const applyFilterAndSort = (filter, sort) => {
+    let updatedCandidates = [...candidates];
+
+    // Filter Logic
+    if (filter === "Job") {
+      updatedCandidates = updatedCandidates.filter(candidate => candidate.job).sort((a, b) => a.job.localeCompare(b.job));
+    } else if (filter === "Status") {
+      updatedCandidates = updatedCandidates.filter(candidate => candidate.status).sort((a, b) => a.status.localeCompare(b.status));
+    } else if (filter === "Experience") {
+      updatedCandidates = updatedCandidates.sort((a, b) => b.total_experience_years - a.total_experience_years);
     }
 
+    // Sort Logic
+    if (sort === "Newest") {
+      updatedCandidates = updatedCandidates.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    } else if (sort === "Oldest") {
+      updatedCandidates = updatedCandidates.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    }
+
+    setFilteredCandidates(updatedCandidates);
+  };
+
+  const handleFilterChange = (value) => {
+    setFilterBy(value);
+    applyFilterAndSort(value, sortedBy);
+  };
+
+  const handleSortedBy = (value) => {
+    setSortedBy(value);
+    applyFilterAndSort(filterBy, value);
+  };
+
+  const handleSearchSubmit = async (e) => {
+    e.preventDefault();
     try {
       const data = await searchCandidates(searchQuery);
-      setCandidates(data);
-      setTotalPages(1); // Since search results are not paginated
+      setFilteredCandidates(data);
     } catch (error) {
       console.error("Error searching candidates:", error);
     }
   };
 
-  useEffect(() => {
-    if (!searchQuery) {
-      loadCandidates(currentPage);
-    }
-  }, [currentPage]);
+  const handleViewDetails = (index) => {
+    setSelectedCandidate(filteredCandidates[index]);
+    setViewDetails(true);
+  };
+
+  (function setHeaderTitle() {
+    props.title("Candidates");
+    props.subtitle("Centralized page to view and manage all candidates");
+  })();
 
   const onDrop = (acceptedFiles) => {
     setFiles([...files, ...acceptedFiles]); // Allow multiple files to be added
@@ -124,29 +143,6 @@ const CandidatesPage = (props) => {
     });
   };
 
-  const handleViewDetails = (index) => {
-    setSelectedCandidate(candidates[index]);
-    setViewDetails(true);
-  }
-
-  (function setHeaderTitle() {
-    props.title("Candidates");
-    props.subtitle("Centralized page to view and manage all candidates");
-  })();
-
-  const handleSearchChange = (event) => {
-    setSearchQuery(event.target.value);
-  };
-
-  const handleSearchSubmit = async (event) => {
-    event.preventDefault();
-    await searchAndLoadCandidates();
-  };
-
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-  };
-
   console.log('Candidates: ', candidates);
 
   return (
@@ -175,15 +171,51 @@ const CandidatesPage = (props) => {
         )}
       </div>
       <div>
-        <form className="search-bar" onSubmit={handleSearchSubmit}>
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-          />
-        </form>
         <div className="candidates card">
+          <div className="title-container">
+            <div className="card-title">All Candidates</div>
+            <div className="flex">
+              <Select
+                id="select-input"
+                displayEmpty
+                value={filterBy}
+                onChange={(e) => handleFilterChange(e.target.value)}
+                renderValue={() => (filterBy ? filterBy : "Filter")}
+              >
+                {filterOptions.map((option, index) => (
+                  <MenuItem id="options" key={index} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
+              <Select 
+                id="select-input" 
+                displayEmpty
+                value={sortedBy} 
+                onChange={(e) => handleSortedBy(e.target.value)}
+                renderValue={() => sortedBy ? sortedBy : "Sort by"}
+              >
+                {sortOptions.map((option, index) => (
+                  <MenuItem id="options" key={index} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
+              <form className="search-container" onSubmit={handleSearchSubmit}>
+                <div className="search-wrapper">
+                  <img onClick={handleSearchSubmit} src={SearchIcon} alt="Search Icon" className="search-icon" />
+                  <input
+                    className="search-input"
+                    type="text"
+                    placeholder="Search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button className="search primary-button" type="submit">Search</button>
+              </form>
+            </div>
+          </div>
           <table className="candidates-table">
             <thead>
               <tr>
@@ -193,8 +225,8 @@ const CandidatesPage = (props) => {
               </tr>
             </thead>
             <tbody>
-            {candidates && candidates.length > 0 ? (
-              candidates.map((candidate, index) => (
+            {filteredCandidates && filteredCandidates.length > 0 ? (
+              filteredCandidates.map((candidate, index) => (
                 <tr onClick={() => handleViewDetails(index)} key={index}>
                   <td>{candidate.contact?.name}</td>
                   <td>{candidate.job}</td>
@@ -208,9 +240,7 @@ const CandidatesPage = (props) => {
               ))
             ) : (
               <tr>
-                <td className="no-data">
-                  No candidate available
-                </td>
+                <td className="no-data">No candidate available</td>
               </tr>
             )}
             </tbody>
@@ -219,7 +249,7 @@ const CandidatesPage = (props) => {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={handlePageChange}
+          onPageChange={(page) => setCurrentPage(page)}
         />
       </div>
       <CandidateDetailsModal 
