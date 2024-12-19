@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import "./CandidatesPage.css";
-import { Select, MenuItem } from '@mui/material';
+import { Button, Select, Menu, MenuItem } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import { getStorage, ref, uploadBytesResumable } from "firebase/storage";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { fetchPaginatedCandidates, searchCandidates } from "../../utils/firebaseService";
 import Pagination from "../../components/pagination/Pagination";
-import { UploadIcon, SearchIcon } from "../../assets/images";
+import { UploadIcon, SearchIcon, FilterIcon } from "../../assets/images";
 
 const CandidatesPage = (props) => {
   const storage = getStorage(); // Initialize Firebase Storage
@@ -26,6 +26,7 @@ const CandidatesPage = (props) => {
   const [searchQuery, setSearchQuery] = useState(""); // Search query state
   const [sortedBy, setSortedBy] = useState("");
   const [filterBy, setFilterBy] = useState(""); // Holds the selected filter value
+  const [filterAnchorEl, setFilterAnchorEl] = useState(null); // Anchor for the filter menu
   const [filteredCandidates, setFilteredCandidates] = useState([]); // Filtered candidates
 
   // Load all candidates when the page loads
@@ -47,29 +48,46 @@ const CandidatesPage = (props) => {
   // Filter and sort candidates
   const applyFilterAndSort = (filter, sort) => {
     let updatedCandidates = [...candidates];
-
+  
     // Filter Logic
     if (filter === "Job") {
-      updatedCandidates = updatedCandidates.filter(candidate => candidate.job).sort((a, b) => a.job.localeCompare(b.job));
+      updatedCandidates.sort((a, b) => (a.job || "").localeCompare(b.job || ""));
     } else if (filter === "Status") {
-      updatedCandidates = updatedCandidates.filter(candidate => candidate.status).sort((a, b) => a.status.localeCompare(b.status));
+      updatedCandidates.sort((a, b) => (a.status || "").localeCompare(b.status || ""));
     } else if (filter === "Experience") {
-      updatedCandidates = updatedCandidates.sort((a, b) => b.total_experience_years - a.total_experience_years);
+      updatedCandidates.sort((a, b) => (b.total_experience_years || 0) - (a.total_experience_years || 0));
     }
-
-    // Sort Logic
+  
+    // Sort Logic for Timestamps
     if (sort === "Newest") {
-      updatedCandidates = updatedCandidates.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      updatedCandidates.sort((a, b) => {
+        const dateA = a.timestamp ? timestampToDate(a.timestamp) : new Date(0);
+        const dateB = b.timestamp ? timestampToDate(b.timestamp) : new Date(0);
+        return dateB - dateA;
+      });
     } else if (sort === "Oldest") {
-      updatedCandidates = updatedCandidates.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      updatedCandidates.sort((a, b) => {
+        const dateA = a.timestamp ? timestampToDate(a.timestamp) : new Date(0);
+        const dateB = b.timestamp ? timestampToDate(b.timestamp) : new Date(0);
+        return dateA - dateB;
+      });
     }
-
+  
     setFilteredCandidates(updatedCandidates);
+  };  
+
+  const handleFilterMenuOpen = (event) => {
+    setFilterAnchorEl(event.currentTarget);
+  };
+
+  const handleFilterMenuClose = () => {
+    setFilterAnchorEl(null);
   };
 
   const handleFilterChange = (value) => {
     setFilterBy(value);
     applyFilterAndSort(value, sortedBy);
+    setFilterAnchorEl(null); // Close the menu after selection
   };
 
   const handleSortedBy = (value) => {
@@ -143,6 +161,10 @@ const CandidatesPage = (props) => {
     });
   };
 
+  const timestampToDate = (timestamp) => {
+    return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+  };
+
   console.log('Candidates: ', candidates);
 
   return (
@@ -175,19 +197,28 @@ const CandidatesPage = (props) => {
           <div className="title-container">
             <div className="card-title">All Candidates</div>
             <div className="flex">
-              <Select
-                id="select-input"
-                displayEmpty
-                value={filterBy}
-                onChange={(e) => handleFilterChange(e.target.value)}
-                renderValue={() => (filterBy ? filterBy : "Filter")}
+              <button
+                onClick={handleFilterMenuOpen}
+                className="filter-button"
+              >
+                <img src={FilterIcon} alt="Filter"/>Filter
+              </button>
+              <Menu
+                sx={{marginTop: '4px'}}
+                anchorEl={filterAnchorEl}
+                open={Boolean(filterAnchorEl)}
+                onClose={handleFilterMenuClose}
               >
                 {filterOptions.map((option, index) => (
-                  <MenuItem id="options" key={index} value={option}>
+                  <MenuItem
+                    id="options" 
+                    key={index}
+                    onClick={() => handleFilterChange(option)}
+                  >
                     {option}
                   </MenuItem>
                 ))}
-              </Select>
+              </Menu>
               <Select 
                 id="select-input" 
                 displayEmpty
@@ -196,7 +227,7 @@ const CandidatesPage = (props) => {
                 renderValue={() => sortedBy ? sortedBy : "Sort by"}
               >
                 {sortOptions.map((option, index) => (
-                  <MenuItem id="options" key={index} value={option}>
+                  <MenuItem id="options" key={index} value={option} onChange={() => handleSortedBy(option)}>
                     {option}
                   </MenuItem>
                 ))}
