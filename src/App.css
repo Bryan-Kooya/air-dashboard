@@ -201,11 +201,8 @@ img {
   align-items: center;
 }
 
-.status-badge.waiting-for-approval {
-  background-color: #F91E24;
-}
-
-.status-badge.selected {
+.status-badge.selected,
+.status-badge.active {
   background-color: #2AD324;
 }
 
@@ -217,7 +214,9 @@ img {
   background-color: #9461E6;
 }
 
-.status-badge.rejected{
+.status-badge.rejected,
+.status-badge.inactive,
+.status-badge.waiting-for-approval {
   background-color: #F91E24;
 }
 

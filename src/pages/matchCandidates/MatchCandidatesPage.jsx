@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, db, storage } from "../../firebaseConfig";
 import { MenuItem, Select, Box, Chip, TextField, CircularProgress } from '@mui/material';
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
 import CandidateCard from "../../components/candidateCard/CandidateCard";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
@@ -21,6 +21,8 @@ const MatchCandidatesPage = (props) => {
   const [jobs, setJobs] = useState([]); // List of jobs
   const [selectedJob, setSelectedJob] = useState(''); // Currently selected job
   const [selectedJobTitle, setSelectedJobTitle] = useState('');
+  const [location, setLocation] = useState('');
+  const [company, setCompany] = useState('');
   const [tags, setTags] = useState([]); // Tags related to the selected job
   const [inputTag, setInputTag] = useState(''); // Input for new tags
   const [inputValue, setInputValue] = useState('');
@@ -58,6 +60,8 @@ const MatchCandidatesPage = (props) => {
         // Convert the comma-separated string into an array
         setTags(tagsData ? tagsData.split(',') : []);
         setSelectedJobTitle(jobTitle);
+        setLocation(jobDoc.data().location);
+        setCompany(jobDoc.data().company_name);
       } else {
         console.error('No such document!');
         setTags([]);
@@ -115,14 +119,37 @@ const MatchCandidatesPage = (props) => {
     setLoading(true);
   
     try {
-      const resumesRef = ref(storage, "resumes");
-      const resumesList = await listAll(resumesRef);
+      // Fetch all applicants from Firestore
+      const applicantsRef = collection(db, "applicants");
+      const applicantsSnapshot = await getDocs(applicantsRef);
   
-      console.log(`Found ${resumesList.items.length} resumes to process.`);
+      if (applicantsSnapshot.empty) {
+        console.log("No applicants found in the database.");
+        setLoading(false);
+        return;
+      }
+  
+      console.log(`Found ${applicantsSnapshot.size} applicants to process.`);
+  
+      // Process each applicant's resume
       const candidatesData = await Promise.all(
-        resumesList.items.map(async (resumeRef) => {
+        applicantsSnapshot.docs.map(async (doc) => {
           try {
-            const url = await getDownloadURL(resumeRef);
+            const applicant = doc.data();
+  
+            // Check if the applicant has a job with selectedJobTitle and status 'Rejected'
+            const hasRejectedJob = applicant.jobs?.some(
+              (job) => job.jobTitle === selectedJobTitle && job.status === "Rejected"
+            );
+  
+            if (hasRejectedJob) {
+              console.log(`Skipping applicant ${applicant.name} due to rejected status for job "${selectedJobTitle}".`);
+              return null; // Skip processing this applicant
+            }
+  
+            const url = applicant.url;
+            const fileName = applicant.fileName;
+  
             console.log("Fetching resume from URL:", url);
   
             const response = await fetch(url);
@@ -130,33 +157,48 @@ const MatchCandidatesPage = (props) => {
               throw new Error(`HTTP error! Status: ${response.status}`);
             }
   
-            const fileType = resumeRef.name.split(".").pop().toLowerCase();
+            const fileType = fileName.split(".").pop().toLowerCase();
             let resumeText = "";
   
+            // Extract text from the resume based on file type
             if (fileType === "pdf") {
               resumeText = await extractTextFromPDF(url);
             } else if (fileType === "docx") {
-              resumeText = await extractTextFromDocx(url); // Assuming you handle .docx
+              resumeText = await extractTextFromDocx(url); // Assuming you handle .docx files
             } else {
               resumeText = await response.text(); // Fallback for text files
             }
-
+  
+            // Process the resume using an external API
             const res = await fetch(`${apiBaseUrl}/process-resume`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ resumeText, tags }),
             });
+
             if (!res.ok) {
               const error = await res.json();
               console.error("Error:", error);
               throw new Error(error.error);
             }
-
+  
             const processedCandidate = await res.json();
-            console.log("Processed candidate data:", processedCandidate); // Log the processed data
-            return processedCandidate;
+            console.log("Processed candidate data:", processedCandidate);
+  
+            // Add job details to the applicant in Firestore
+            await updateDoc(doc.ref, {
+              jobs: arrayUnion({ jobTitle: selectedJobTitle, status: "Pending" }),
+            });
+  
+            console.log(`Added job "${selectedJobTitle}" to applicant: ${applicant.name}`);
+  
+            return {
+              ...processedCandidate,
+              applicantId: doc.id,
+              name: applicant.name,
+            };
           } catch (error) {
-            console.error(`Failed to process resume: ${error.message}`);
+            console.error(`Failed to process resume for applicant: ${error.message}`);
             return null;
           }
         })
@@ -164,9 +206,8 @@ const MatchCandidatesPage = (props) => {
   
       // Filter out null results caused by fetch or processing errors
       const validCandidates = candidatesData.filter((candidate) => candidate !== null);
-      // const validCandidates = matchCandidates;
 
-      // Sort candidates by score in descending order
+      // Sort candidates by skill match score in descending order
       const sortedCandidates = validCandidates.sort((a, b) => b.skill_match.score - a.skill_match.score);
 
       console.log(`Successfully processed and sorted ${sortedCandidates.length} candidates.`);
@@ -192,22 +233,38 @@ const MatchCandidatesPage = (props) => {
       <div className="card">
         <div className="input-row">
           <div style={{width: 360}} className="card-row">
-            <div className="card-title">Job Title:</div>
-            <Select 
-              id="select-input" 
+            <div className="card-title">Job title:</div>
+            <Select
+              id="select-input"
               displayEmpty
-              value={selectedJob} 
+              value={selectedJob}
               onChange={(e) => handleJobSelect(e.target.value)}
               renderValue={() =>
                 selectedJobTitle ? selectedJobTitle : "Select Job title"
               }
             >
-              {jobs.map((job) => (
-                <MenuItem id="options" key={job.id} value={job.id}>
-                  {job.job_title}
-                </MenuItem>
-              ))}
+              {jobs
+                .filter((job) => job.status !== "Inactive") // Exclude jobs with 'Inactive' status
+                .map((job) => (
+                  <MenuItem id="options" key={job.id} value={job.id}>
+                    {job.job_title}
+                  </MenuItem>
+                ))}
             </Select>
+            <div className="card-title">Candidates' count:</div>
+            <input 
+              placeholder="Enter number of candidates"
+              className="job-info-input"
+              type="number"
+              min="1"
+              max="10"
+              onInput={(e) => {
+                // Ensure the input stays within range
+                if (e.target.value > 10) e.target.value = 10;
+                if (e.target.value < 1) e.target.value = 1;
+              }}
+              // onChange={handleInputChange}
+            />
           </div>
           <div className="card-row">
             <div className="card-title">Job Description (tags):</div>
@@ -236,6 +293,8 @@ const MatchCandidatesPage = (props) => {
             rank={index + 1}
             candidate={candidate}
             matchedJob={selectedJobTitle}
+            company={company}
+            location={location}
             handleViewDetails={() => handleViewDetails(candidate)}
           />
         ))}

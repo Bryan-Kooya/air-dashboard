@@ -23,6 +23,7 @@ import DeleteIcon from "./DeleteIcon.svg";
 import Delete from "./Delete.svg";
 import SearchIcon from "./SearchIcon.svg";
 import FilterIcon from "./FilterIcon.svg";
+import CVIcon from "./CVIcon.svg";
 
 export {
   Apple,
@@ -50,4 +51,5 @@ export {
   Delete,
   SearchIcon,
   FilterIcon,
+  CVIcon,
 };

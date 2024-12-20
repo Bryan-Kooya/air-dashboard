@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import "./CandidateCard.css";
 import { Chip, LinearProgress, Tooltip } from '@mui/material';
 import { Bookmark } from '../../assets/images';
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
 import { db } from '../../firebaseConfig';
 import { capitalizeFirstLetter, handleRedirectToLinkedIn } from '../../utils/utils';
 
@@ -12,11 +12,13 @@ const CandidateCard = (props) => {
   const matchedJob = props.matchedJob;
   const handleViewDetails = props.handleViewDetails;
   const [candidate, setCandidate] = useState(props.candidate);
+  const company = props.company;
+  const location = props.location;
 
   const handleSaveCandidate = async () => {
     try {
-      if (!candidate?.contact?.email) {
-        alert("Candidate email is missing. Unable to save.");
+      if (!candidate?.contact?.name || !matchedJob) {
+        alert("Candidate name or job is missing. Unable to save.");
         return;
       }
 
@@ -35,13 +37,33 @@ const CandidateCard = (props) => {
       const candidateData = {
         ...updatedCandidate,
         job: matchedJob,
+        company: company,
+        location: location,
         searchKeywords,
         timestamp: serverTimestamp(), // Add server-side timestamp
       };
-
-      // Save the data to Firestore
-      const candidateRef = doc(db, "candidates", updatedCandidate.contact?.email?.toLowerCase()); // Using email as unique ID
-      await setDoc(candidateRef, candidateData);
+  
+      // Generate a unique ID for the candidate in Firestore
+      const candidatesRef = collection(db, "candidates");
+  
+      // Check if a candidate with the same name and job already exists
+      const querySnapshot = await getDocs(
+        query(
+          candidatesRef,
+          where("contact.name", "==", candidate.contact.name),
+          where("job", "==", matchedJob)
+        )
+      );
+  
+      if (!querySnapshot.empty) {
+        // If a candidate with the same name and job exists, skip saving
+        alert("Candidate with the same name and job already exists.");
+        return;
+      }
+  
+      const newCandidateRef = doc(candidatesRef); // Automatically generates a unique ID
+      await setDoc(newCandidateRef, candidateData);
+      await updateApplicant("Selected");
 
       // Update the local state to reflect the change
       setCandidate(updatedCandidate);
@@ -53,7 +75,50 @@ const CandidateCard = (props) => {
     }
   };
 
+  const updateApplicant = async (status) => {
+    try {  
+      const applicantsRef = collection(db, "applicants");
+  
+      // Check if the applicant with the same name already exists
+      const querySnapshot = await getDocs(
+        query(applicantsRef, where("name", "==", capitalizeFirstLetter(candidate.contact.name)))
+      );
+  
+      if (querySnapshot.empty) {
+        console.error("Applicant not found. Please ensure the candidate exists in the 'applicants' collection.");
+        return;
+      }
+  
+      const applicantDoc = querySnapshot.docs[0]; // Get the existing document
+      const applicantDocRef = applicantDoc.ref;
+  
+      // Get the existing jobs or set it as an empty array
+      const existingJobs = applicantDoc.data().jobs || [];
+  
+      // Check if the job already exists in the 'jobs' field
+      const jobIndex = existingJobs.findIndex((job) => job.jobTitle === matchedJob);
+  
+      if (jobIndex >= 0) {
+        // If the job exists, update its status
+        existingJobs[jobIndex].status = status;
+      } else {
+        // Add the new job if it doesn't exist
+        existingJobs.push({ jobTitle: matchedJob, status: status });
+      }
+  
+      // Update the applicant's document with the updated jobs field
+      await updateDoc(applicantDocRef, {
+        jobs: existingJobs,
+      });
+  
+      console.log("Candidate's job information updated successfully!");
+    } catch (error) {
+      console.error("Error updating candidate's job information:", error);
+    }
+  };  
+
   const handleRejectCandidate = async () => {
+    await updateApplicant("Rejected");
     const updatedCandidate = {
       ...candidate,
       status: "Rejected",

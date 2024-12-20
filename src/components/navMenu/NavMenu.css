@@ -31,11 +31,11 @@
   position: relative;
 }
 
-.menu-container:nth-child(1) {
+/* .menu-container:nth-child(1) {
   color: 0A66C2;
   border-radius: 9px;
   background: #ECF4FC;
-}
+} */
 
 .active {
   color: #0A66C2;
@@ -72,4 +72,10 @@
   font-size: 14px;
   margin-left: auto;
   text-align: center;
+}
+
+.menu-container.disabled {
+  cursor: not-allowed;
+  opacity: 0.5; /* Make it visually clear that the menu is disabled */
+  pointer-events: none; /* Prevent clicks */
 }

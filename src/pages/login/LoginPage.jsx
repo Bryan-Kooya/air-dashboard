@@ -17,7 +17,7 @@ const LoginPage = () => {
     try {
       setError("");
       await loginUser(email, password);
-      navigate("/dashboard")
+      navigate("/messages")
     } catch (error) {
       setError("Incorrect email or password");
     }

@@ -1,0 +1,6 @@
+.resumes-container {
+  display: grid;
+  gap: 24px;
+  color: #002041;
+  font-family: Inter;
+}

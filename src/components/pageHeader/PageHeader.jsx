@@ -13,8 +13,8 @@ const PageHeader = (props) => {
         <div className="header-subtitle">{subtitle}</div>
       </div>
       <div className="user-card">
-        <img src={Bell} alt="Notification"/>
-        <div className="user-info">
+        {/* <img src={Bell} alt="Notification"/> */}
+        <div style={{marginLeft: 'auto'}} className="user-info">
           <div>
             <div className="user-name">Artem Delvy</div>
             <div className="subscription">Premium</div>

@@ -1,20 +1,16 @@
 import React, { useState, useEffect } from "react";
 import "./CandidatesPage.css";
-import { Button, Select, Menu, MenuItem } from '@mui/material';
-import { useDropzone } from 'react-dropzone';
-import { getStorage, ref, uploadBytesResumable } from "firebase/storage";
+import { Select, Menu, MenuItem } from '@mui/material';
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { fetchPaginatedCandidates, searchCandidates } from "../../utils/firebaseService";
 import Pagination from "../../components/pagination/Pagination";
-import { UploadIcon, SearchIcon, FilterIcon } from "../../assets/images";
+import { SearchIcon, FilterIcon } from "../../assets/images";
+import { capitalizeFirstLetter } from "../../utils/utils";
 
 const CandidatesPage = (props) => {
-  const storage = getStorage(); // Initialize Firebase Storage
-  const tableHeader = ["Candidate", "Job", "Status", "Experience", "Attachments"];
+  const tableHeader = ["Candidate", "Job", "Status", "Company", "Location", "Experience", "Attachments"];
   const filterOptions = ["Job", "Status", "Experience"];
   const sortOptions = ["Newest", "Oldest"];
-  const [files, setFiles] = useState([]);
-  const [uploadStatus, setUploadStatus] = useState({}); // Track upload progress for each file
   const [error, setError] = useState(null);
   const [viewDetails, setViewDetails] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState([]);
@@ -115,52 +111,6 @@ const CandidatesPage = (props) => {
     props.subtitle("Centralized page to view and manage all candidates");
   })();
 
-  const onDrop = (acceptedFiles) => {
-    setFiles([...files, ...acceptedFiles]); // Allow multiple files to be added
-    setUploadStatus({});
-  };
-
-  const { getRootProps, getInputProps } = useDropzone({
-    onDrop,
-    accept: ".pdf, .doc, .docx",
-    multiple: true,
-  });
-
-  const uploadFiles = async () => {
-    if (files.length === 0) {
-      alert("No files selected for upload.");
-      return;
-    }
-
-    const updatedStatus = { ...uploadStatus };
-
-    files.forEach((file) => {
-      const storageRef = ref(storage, `resumes/${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      // Monitor upload progress
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-          updatedStatus[file.name] = progress;
-          setUploadStatus({ ...updatedStatus });
-        },
-        (error) => {
-          console.error("Upload failed for", file.name, error);
-          updatedStatus[file.name] = "Failed";
-          setUploadStatus({ ...updatedStatus });
-        },
-        () => {
-          // Upload complete
-          console.log("Upload complete for", file.name);
-          updatedStatus[file.name] = "Complete";
-          setUploadStatus({ ...updatedStatus });
-        }
-      );
-    });
-  };
-
   const timestampToDate = (timestamp) => {
     return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
   };
@@ -169,29 +119,6 @@ const CandidatesPage = (props) => {
 
   return (
     <div className="candidates-container">
-      <div {...getRootProps()} className={`upload-container ${files.length > 0 ? "uploaded" : ""}`}>
-      <input {...getInputProps()} />
-        <img className="upload-icon" src={UploadIcon} alt="Upload" />
-        <div className="upload-row">
-          <div className="label-container">
-            <div className="row1-label">Drag and Drop or choose your file for upload</div>
-            <div className="row2-label">Upload multiple resumes for comparison (PDF, DOC, DOCX)</div>
-          </div>
-          <div className="button-container">
-            <button style={{width: 'max-content'}} className="secondary-button">Browse file</button>
-            <button style={{width: 'max-content'}} className="primary-button" onClick={uploadFiles}>Upload Files</button>
-          </div>
-        </div>
-        {files.length > 0 && (
-          <div className="file-list">
-            {files.map((file, index) => (
-              <div key={index} className="file-item">
-                {file.name} - {uploadStatus[file.name] || "Pending"}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
       <div>
         <div className="candidates card">
           <div className="title-container">
@@ -259,12 +186,14 @@ const CandidatesPage = (props) => {
             {filteredCandidates && filteredCandidates.length > 0 ? (
               filteredCandidates.map((candidate, index) => (
                 <tr onClick={() => handleViewDetails(index)} key={index}>
-                  <td>{candidate.contact?.name}</td>
+                  <td>{capitalizeFirstLetter(candidate.contact?.name)}</td>
                   <td>{candidate.job}</td>
                   <td>
                     <div className={`status-badge ${candidate.status.toLowerCase().replace(/\s/g, "-")}`}></div>
                     {candidate.status}
                   </td>
+                  <td>{candidate.company}</td>
+                  <td>{candidate.location}</td>
                   <td>{candidate.total_experience_years + ' year(s)'}</td>
                   <td className="cv-link">CV_Frontend_Dev.pdf</td>
                 </tr>

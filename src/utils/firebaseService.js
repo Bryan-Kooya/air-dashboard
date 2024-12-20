@@ -121,3 +121,58 @@ export const deleteConversation = async (conversationId) => {
     throw error;
   }
 };
+
+export const searchResumes = async (searchQuery) => {
+  const resumesCollection = collection(db, "applicants");
+
+  // Search query: filter by `connection` field (or adjust as needed)
+  const q = query(resumesCollection, where("name", ">=", searchQuery), where("name", "<=", searchQuery + "\uf8ff"));
+
+  const snapshot = await getDocs(q);
+
+  const data = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+
+  return data;
+};
+
+export const fetchPaginatedResumes = async (pageSize, lastVisibleDoc = null) => {
+  try {
+    const resumesCollection = collection(db, "applicants");
+
+    // Query for paginated data
+    let q = query(resumesCollection, orderBy("timestamp"), limit(pageSize));
+
+    if (lastVisibleDoc) {
+      q = query(
+        resumesCollection,
+        orderBy("timestamp"),
+        startAfter(lastVisibleDoc),
+        limit(pageSize)
+      );
+    }
+
+    // Fetch paginated data
+    const snapshot = await getDocs(q);
+
+    // Fetch total count of documents in the collection
+    const totalSnapshot = await getCountFromServer(resumesCollection);
+    const totalDocuments = totalSnapshot.data().count;
+
+    // Get the last visible document for pagination
+    const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    // Map the data
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return { data, lastVisible, total: totalDocuments };
+  } catch (error) {
+    console.error("Error fetching paginated resumes:", error);
+    throw new Error("Unable to fetch paginated resumes.");
+  }
+};

@@ -22,7 +22,7 @@
 .user-card {
   display: flex;
   justify-content: space-between;
-  min-width: 266px;
+  /* min-width: 266px; */
   height: 36px;
   padding: 12px;
   border-radius: 12px;

@@ -11,6 +11,7 @@ import MessagesPage from "./pages/messages/MessagesPage";
 import CandidatesPage from "./pages/candidates/CandidatesPage";
 import JobPostingsPage from "./pages/jobPostings/JobPostingsPage";
 import MatchCandidatesPage from "./pages/matchCandidates/MatchCandidatesPage";
+import ResumesPage from "./pages/resumes/ResumesPage";
 import BillingPage from "./pages/billing/BillingPage";
 import HelpPage from "./pages/help/HelpPage";
 import { getConversationCount } from "./utils/firebaseService";
@@ -87,16 +88,20 @@ const App = () => {
                   element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
                 />
                 <Route
-                  path="/candidates"
+                  path="/candidates-status"
                   element={<CandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
                 />
                 <Route
-                  path="/job-postings"
+                  path="/job-definitions"
                   element={<JobPostingsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
                 />
                 <Route
                   path="/match-candidates"
                   element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                />
+                <Route
+                  path="/contacts"
+                  element={<ResumesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
                 />
                 <Route
                   path="/billing"

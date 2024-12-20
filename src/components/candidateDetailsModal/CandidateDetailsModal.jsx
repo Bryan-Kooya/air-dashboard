@@ -54,16 +54,23 @@ const CandidateDetailsModal = (props) => {
 
   const handleUpdateChanges = async (isRejected) => {
     try {
-      if (!email) {
-        alert("Candidate email is missing. Unable to update status.");
+      if (!candidate?.id) {
+        alert("Candidate ID is missing. Unable to update status.");
         return;
       }
   
-      const candidateRef = doc(db, "candidates", email);
-      await setDoc(candidateRef, { status: isRejected ? 'Rejected' : selectedStatus }, { merge: true });
+      const candidateRef = doc(db, "candidates", candidate.id);
+  
+      // Update the status of the candidate
+      await setDoc(
+        candidateRef,
+        { status: isRejected ? "Rejected" : selectedStatus },
+        { merge: true } // Merge with existing fields to avoid overwriting
+      );
+  
       alert("Candidate status updated successfully!");
       close();
-      props.loadCandidates();
+      props.loadCandidates(); // Reload candidates to reflect the changes
     } catch (error) {
       console.error("Error updating candidate status:", error);
       alert("An error occurred while updating candidate status.");
