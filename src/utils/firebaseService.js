@@ -1,37 +1,69 @@
 import { collection, getDocs, query, orderBy, limit, startAfter, getCountFromServer, where, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
-export const getConversationCount = async () => {
-  const conversationsCollection = collection(db, "linkedinConversations");
-  const snapshot = await getDocs(conversationsCollection);
-  return snapshot.size; // Return only the count of documents
-};
-
-export const fetchPaginatedConversations = async (pageSize, lastVisibleDoc = null) => {
-  const conversationsCollection = collection(db, "linkedinConversations");
-
-  // Query for paginated data
-  let q = query(conversationsCollection, orderBy("timestamp"), limit(pageSize));
-
-  if (lastVisibleDoc) {
-    q = query(conversationsCollection, orderBy("timestamp"), startAfter(lastVisibleDoc), limit(pageSize));
+export const getConversationCount = async (userId) => {
+  if (!userId) {
+    throw new Error("User ID is required to fetch conversation count.");
   }
 
-  const snapshot = await getDocs(q);
+  // Create a query to filter conversations by the current userId
+  const conversationsCollection = collection(db, "linkedinConversations");
+  const userQuery = query(conversationsCollection, where("userId", "==", userId));
 
-  // Fetch total count of documents in the collection
-  const totalSnapshot = await getCountFromServer(conversationsCollection);
-  const totalDocuments = totalSnapshot.data().count;
+  // Fetch the total count of documents for the user
+  const countSnapshot = await getCountFromServer(userQuery);
 
-  // Get the last visible document for pagination
-  const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+  return countSnapshot.data().count; // Return the count of documents
+};
 
-  const data = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+export const fetchPaginatedConversations = async (pageSize, lastVisibleDoc = null, userId) => {
+  if (!userId) {
+    throw new Error("User ID is required to fetch conversations.");
+  }
 
-  return { data, lastVisible, total: totalDocuments };
+  try {
+    const conversationsCollection = collection(db, "linkedinConversations");
+
+    // Base query for paginated data
+    let q = query(
+      conversationsCollection,
+      where("userId", "==", userId),
+      orderBy("timestamp"),
+      limit(pageSize)
+    );
+
+    // Add pagination if lastVisibleDoc exists
+    if (lastVisibleDoc) {
+      q = query(
+        conversationsCollection,
+        where("userId", "==", userId),
+        orderBy("timestamp"),
+        startAfter(lastVisibleDoc),
+        limit(pageSize)
+      );
+    }
+
+    const snapshot = await getDocs(q);
+
+    // Query for counting total documents that match the userId
+    const countQuery = query(conversationsCollection, where("userId", "==", userId));
+    const totalSnapshot = await getCountFromServer(countQuery);
+    const totalDocuments = totalSnapshot.data().count;
+
+    // Get the last visible document for pagination
+    const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+    // Map documents to data
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return { data, lastVisible, total: totalDocuments };
+  } catch (error) {
+    console.error("Error fetching paginated conversations:", error);
+    throw error; // Rethrow the error to handle it in the calling function
+  }
 };
 
 export const searchConversations = async (searchQuery) => {
@@ -122,11 +154,16 @@ export const deleteConversation = async (conversationId) => {
   }
 };
 
-export const searchResumes = async (searchQuery) => {
-  const resumesCollection = collection(db, "applicants");
+export const searchContacts = async (searchQuery, userId) => {
+  const contactsCollection = collection(db, "contacts");
 
   // Search query: filter by `connection` field (or adjust as needed)
-  const q = query(resumesCollection, where("name", ">=", searchQuery), where("name", "<=", searchQuery + "\uf8ff"));
+  const q = query(
+    contactsCollection, 
+    where("userId", "==", userId),
+    where("name", ">=", searchQuery), 
+    where("name", "<=", searchQuery + "\uf8ff")
+  );
 
   const snapshot = await getDocs(q);
 
@@ -138,16 +175,17 @@ export const searchResumes = async (searchQuery) => {
   return data;
 };
 
-export const fetchPaginatedResumes = async (pageSize, lastVisibleDoc = null) => {
+export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, userId) => {
   try {
-    const resumesCollection = collection(db, "applicants");
+    const contactsCollection = collection(db, "contacts");
 
     // Query for paginated data
-    let q = query(resumesCollection, orderBy("timestamp"), limit(pageSize));
+    let q = query(contactsCollection, where("userId", "==", userId), orderBy("timestamp"), limit(pageSize));
 
     if (lastVisibleDoc) {
       q = query(
-        resumesCollection,
+        contactsCollection,
+        where("userId", "==", userId),
         orderBy("timestamp"),
         startAfter(lastVisibleDoc),
         limit(pageSize)
@@ -158,7 +196,7 @@ export const fetchPaginatedResumes = async (pageSize, lastVisibleDoc = null) => 
     const snapshot = await getDocs(q);
 
     // Fetch total count of documents in the collection
-    const totalSnapshot = await getCountFromServer(resumesCollection);
+    const totalSnapshot = await getCountFromServer(contactsCollection);
     const totalDocuments = totalSnapshot.data().count;
 
     // Get the last visible document for pagination
@@ -172,7 +210,7 @@ export const fetchPaginatedResumes = async (pageSize, lastVisibleDoc = null) => 
 
     return { data, lastVisible, total: totalDocuments };
   } catch (error) {
-    console.error("Error fetching paginated resumes:", error);
-    throw new Error("Unable to fetch paginated resumes.");
+    console.error("Error fetching paginated contacts:", error);
+    throw new Error("Unable to fetch paginated contacts.");
   }
 };

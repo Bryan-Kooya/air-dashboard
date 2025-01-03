@@ -11,17 +11,19 @@ import "./JobPostingsPage.css"
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../../firebaseConfig";
-import { CircularProgress } from '@mui/material';
+import { Select, MenuItem, CircularProgress } from '@mui/material';
 import AIGeneratedJobModal from "../../components/aiGeneratedJobModal/AIGeneratedJobModal";
 import EditJobModal from "../../components/editJobModal/EditJobModal";
+import { apiBaseUrl } from "../../utils/constants";
 
 const JobPostingsPage = (props) => {
-  const apiBaseUrl = "https://api-3piee3qgbq-uc.a.run.app";
-  const tableHeader = ["Job Title", "Company", "Industry", "Location", "Actions"];
+  const tableHeader = ["Job Title", "Status", "Company", "Industry", "Location", "Actions"];
+  const statusList = ["Active", "Not Active"];
   const [jobs, setJobs] = useState([]);
   const [job, setJob] = useState([]);
   const [formData, setFormData] = useState({
     job_title: '',
+    staus: '',
     company_name: '',
     industry: '',
     location: '',
@@ -33,6 +35,7 @@ const JobPostingsPage = (props) => {
   const [error, setError] = useState(null);
   const [isGenerateModalOpen, setAIGenerateModalOpen] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [loadingJobId, setLoadingJobId] = useState(null); // Tracks the job currently being updated
   const navigate = useNavigate();
 
   const handleInputChange = (e) => {
@@ -52,7 +55,7 @@ const JobPostingsPage = (props) => {
 
     try {
       console.log('Submitting form data:', formData);
-      const response = await fetch(`${apiBaseUrl}/generate`, {
+      const response = await fetch(`${apiBaseUrl}/generate-job`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,6 +93,7 @@ const JobPostingsPage = (props) => {
 
       const jobData = {
         job_title: formData.job_title,
+        status: "Active",
         company_name: formData.company_name,
         industry: formData.industry,
         location: formData.location,
@@ -107,6 +111,7 @@ const JobPostingsPage = (props) => {
       // Reset form after successful save
       setFormData({
         job_title: '',
+        status: '',
         company_name: '',
         industry: '',
         location: '',
@@ -177,12 +182,31 @@ const JobPostingsPage = (props) => {
     }
   };
 
-  const setHeaderTitle = () => {
+  const handleJobStatus = async (jobId, newStatus) => {
+    try {
+      setLoadingJobId(jobId);
+      // Find the job to update
+      const jobDoc = doc(db, "jobs", jobId);
+      console.log(`Updating status of job ID: ${jobId} to ${newStatus}`);
+      await updateDoc(jobDoc, { status: newStatus });
+      setJobs((prevJobs) =>
+        prevJobs.map((job) =>
+          job.id === jobId ? { ...job, status: newStatus } : job
+        )
+      );
+      alert("Job status updated successfully!");
+    } catch (error) {
+      alert("An error occurred while updating job status.");
+      console.error("Error updating job status:", error);
+    } finally {
+      setLoadingJobId(null); // Reset the loading state
+    }
+  };  
+
+  (function setHeaderTitle () {
     props.title("Job Postings");
     props.subtitle("Add new job postings and manage existing ones, streamlining the recruitment process.");
-  };
-
-  setHeaderTitle();
+  })();
 
   return (
     <div className="job-postings-container">
@@ -271,22 +295,56 @@ const JobPostingsPage = (props) => {
             </tr>
           </thead>
           <tbody>
-            {jobs.map(job => (
+            {jobs.map((job, index) => (
               <tr key={job.id}>
                 <td>{job.job_title}</td>
+                <td>
+                  {loadingJobId === job.id ? (
+                  <div className="progress-container">
+                    {/* Background Circle (Track) */}
+                    <CircularProgress
+                      variant="determinate"
+                      size={30}
+                      thickness={6}
+                      value={100}
+                      sx={{
+                        color: "#6E6E6E2B", // Gray color for the background track
+                      }}
+                    />
+                    {/* Foreground Progress */}
+                    <CircularProgress
+                      size={30}
+                      thickness={6}
+                      sx={{
+                        color: "#02B64A", // Green color for the actual progress
+                        position: "absolute", // Place on top of the track
+                      }}
+                    />
+                  </div>) : 
+                  (<Select
+                    id="select-input"
+                    sx={{ width: 140 }}
+                    displayEmpty
+                    value={job.status}
+                    onChange={(e) => handleJobStatus(job.id, e.target.value)}
+                  >
+                    {statusList.map((status, index) => (
+                      <MenuItem key={index} value={status}>
+                        <div className="status-container">
+                          <div className={`status-badge ${status?.toLowerCase().replace(/\s/g, "-")}`}></div>
+                          {status}
+                        </div>
+                      </MenuItem>
+                    ))}
+                  </Select>)}
+                </td>
                 <td>{job.company_name}</td>
                 <td>{job.industry}</td>
                 <td>{job.location}</td>
-                <td style={{width: 252}}>
+                <td>
                   <button
                     className="edit-button"
                     onClick={() => handleEditJob(job.id)}
-                    // onClick={() =>
-                    //   updateJob(job.id, {
-                    //     ...job,
-                    //     description: job.description + " (Updated)",
-                    //   })
-                    // }
                   >
                     Edit
                   </button>

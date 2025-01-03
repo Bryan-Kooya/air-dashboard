@@ -7,13 +7,13 @@ import ConfirmModal from '../confirmModal/ConfirmModal';
 import { db } from '../../firebaseConfig';
 import { doc, setDoc } from "firebase/firestore";
 
-const statusList = ['Waiting for approval', 'Selected', 'Interviewed', 'Salary draft'];
-
 const CandidateDetailsModal = (props) => {
+  const statusList = ['Waiting for approval', 'Selected', 'Interviewed', 'Salary draft'];
   const open = props.open;
   const close = props.close;
   const candidate = props.candidate;
   const isEditable = props.isEditable;
+  const handleMatchCandidates = props.handleMatchCandidates;
   const email = candidate.contact?.email?.toLowerCase();
   const [showSelectStatus, setShowSelectStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(candidate.status);

@@ -16,13 +16,14 @@ import BillingPage from "./pages/billing/BillingPage";
 import HelpPage from "./pages/help/HelpPage";
 import { getConversationCount } from "./utils/firebaseService";
 
-const AuthObserver = ({ setAuthenticated, onLogin }) => {
+const AuthObserver = ({ setAuthenticated, setUserId, onLogin }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = observeAuthState(async (user) => {
       if (user) {
         setAuthenticated(true);
+        setUserId(user.uid); // Set the userId
         try {
           await onLogin();
         } catch (error) {
@@ -30,11 +31,12 @@ const AuthObserver = ({ setAuthenticated, onLogin }) => {
         }
       } else {
         setAuthenticated(false);
+        setUserId(null); // Clear userId on logout
         navigate("/");
       }
     });
     return () => unsubscribe();
-  }, [navigate, setAuthenticated, onLogin]);
+  }, [navigate, setAuthenticated, setUserId, onLogin]);
 
   return null;
 };
@@ -44,6 +46,11 @@ const App = () => {
   const [headerSubtitle, setHeaderSubtitle] = useState("");
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [messagesCount, setMessagesCount] = useState("0");
+  const [userId, setUserId] = useState(null);
+
+  const updateUserId = (value) => {
+    setUserId(value);
+  };
 
   const updateMessagesCount = (count) => {
     setMessagesCount(count > 99 ? "+99" : count.toString());
@@ -51,7 +58,7 @@ const App = () => {
 
   const fetchAndSetMessageCount = async () => {
     try {
-      const count = await getConversationCount(); // Fetch count only
+      const count = await getConversationCount(userId); // Fetch count only
       updateMessagesCount(count);
     } catch (error) {
       console.error("Error fetching conversation count:", error);
@@ -64,10 +71,10 @@ const App = () => {
   return (
     <div className="page-container">
       <Router>
-        <AuthObserver setAuthenticated={setAuthenticated} onLogin={fetchAndSetMessageCount} />
+        <AuthObserver setAuthenticated={setAuthenticated} setUserId={updateUserId} onLogin={fetchAndSetMessageCount} />
         {!isAuthenticated ? (
           <Routes>
-            <Route path="/" element={<LoginPage />} />
+            <Route path="/" element={<LoginPage userId={updateUserId} />} />
           </Routes>
         ) : (
           <>
@@ -77,39 +84,39 @@ const App = () => {
               <Routes>
                 <Route
                   path="/ai-resume-analyzer"
-                  element={<AIResumeAnalyzerPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<AIResumeAnalyzerPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/dashboard"
-                  element={<DashboardPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<DashboardPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/messages"
-                  element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/candidates-status"
-                  element={<CandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<CandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/job-definitions"
-                  element={<JobPostingsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<JobPostingsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/match-candidates"
-                  element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/contacts"
-                  element={<ResumesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<ResumesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/billing"
-                  element={<BillingPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<BillingPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/help"
-                  element={<HelpPage title={getHeaderTitle} subtitle={getHeaderSubtitle} />}
+                  element={<HelpPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
               </Routes>
             </div>

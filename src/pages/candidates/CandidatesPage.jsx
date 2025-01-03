@@ -148,6 +148,7 @@ const CandidatesPage = (props) => {
               </Menu>
               <Select 
                 id="select-input" 
+                sx={{width: 100}}
                 displayEmpty
                 value={sortedBy} 
                 onChange={(e) => handleSortedBy(e.target.value)}
@@ -195,7 +196,15 @@ const CandidatesPage = (props) => {
                   <td>{candidate.company}</td>
                   <td>{candidate.location}</td>
                   <td>{candidate.total_experience_years + ' year(s)'}</td>
-                  <td className="cv-link">CV_Frontend_Dev.pdf</td>
+                  <td className="cv-link">
+                    <a
+                      href={candidate.contact?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {candidate.contact?.fileName || "Attachment"}
+                    </a>
+                  </td>
                 </tr>
               ))
             ) : (

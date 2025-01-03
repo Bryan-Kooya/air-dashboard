@@ -11,6 +11,7 @@ import Pagination from "../../components/pagination/Pagination";
 const MessagesPage = (props) => {
   const tableHeader = ["Sender", "Message Preview", "Date & Time", "Attachments", 'Actions'];
   const sortOptions = ["Newest", "Oldest"];
+  const userId = props.userId;
   const [selectedConvo, setSelectedConvo] = useState([]);
   const [showMessage, setShowMessage] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -26,7 +27,7 @@ const MessagesPage = (props) => {
   const loadConversations = async (page) => {
     try {
       const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
-      const { data, lastVisible, total } = await fetchPaginatedConversations(pageSize, lastVisibleDoc);
+      const { data, lastVisible, total } = await fetchPaginatedConversations(pageSize, lastVisibleDoc, userId);
 
       setConversations(data);
 
@@ -86,11 +87,6 @@ const MessagesPage = (props) => {
     }
 
     return { date: null, messageText: null, messageTime: null };
-  };
-
-  const setHeaderTitle = () => {
-    props.title("Messages");
-    props.subtitle("Manage your conversations effectively with pagination.");
   };
 
   const handleShowMessage = (convo) => {
@@ -154,7 +150,10 @@ const MessagesPage = (props) => {
     }
   };
 
-  setHeaderTitle();
+  (function setHeaderTitle() {
+    props.title("Messages");
+    props.subtitle("Manage your conversations effectively with pagination.");
+  })();
 
   return (
     <div className="messages-container">
@@ -164,6 +163,7 @@ const MessagesPage = (props) => {
           <div className="flex">
             <Select 
               id="select-input" 
+              sx={{width: 100}}
               displayEmpty
               value={sortedBy} 
               onChange={(e) => handleSortedBy(e.target.value)}

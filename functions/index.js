@@ -24,7 +24,7 @@ const app = express();
 app.use(cors(corsOptions));
 app.use(bodyParser.json()); 
 
-app.post('/generate', async (req, res) => {
+app.post("/generate-job", async (req, res) => {
   try {
     const openaiApiKey = await getOpenAIApiKey();
     const openai = new OpenAI({ apiKey: openaiApiKey });
@@ -78,7 +78,7 @@ app.post('/generate', async (req, res) => {
   }
 });
 
-app.post("/process-resume", async (req, res) => {
+app.post("/match-resume", async (req, res) => {
   const { resumeText, tags } = req.body;
 
   if (!resumeText || !tags || !Array.isArray(tags)) {
@@ -87,8 +87,6 @@ app.post("/process-resume", async (req, res) => {
 
   const systemMessage = `
   You are a resume parser and scorer. Extract the following information from the resume:
-  - Contact information (name, email, phone, location, LinkedIn).
-  - For location on contact information make it short, don't include numbers and abbreviate country name. You may add word 'City'(example: Bulacan City, PH)
   - Total years of work experience.
   - Key details such as professional summary, skills, education, work experience, projects, and certifications.
   - Provide numerical scores (0-100) for overall quality, experience, education, skills, projects, and presentation.
@@ -101,13 +99,6 @@ app.post("/process-resume", async (req, res) => {
   Respond with ONLY valid JSON, no markdown, no explanations.
   Format:
   {
-      "contact": {
-          "name": "John Doe",
-          "email": "johndoe@example.com",
-          "phone": "123-456-7890",
-          "location": "New York, NY",
-          "linkedin": "linkedin.com/in/johndoe"
-      },
       "summary": "2-3 sentence professional summary",
       "total_experience_years": 5,
       "skills": ["skill1", "skill2"],
@@ -166,7 +157,6 @@ app.post("/process-resume", async (req, res) => {
 
     // Ensure required fields exist and set defaults if missing
     const requiredKeys = [
-      "contact",
       "summary",
       "total_experience_years",
       "skills",
@@ -202,6 +192,75 @@ app.post("/process-resume", async (req, res) => {
     }
 
     // Send parsed response to the client
+    res.status(200).json(parsedContent);
+  } catch (error) {
+    console.error("Error processing resume:", error.message);
+    res.status(500).json({ error: "Failed to process the resume.", details: error.message });
+  }
+});
+
+app.post("/process-resume", async (req, res) => {
+  const { resumeText } = req.body;
+
+  if (!resumeText) {
+    return res.status(400).json({ error: "Invalid input. Ensure resumeText is provided." });
+  }
+
+  const systemMessage = `
+  You are a resume parser and job matcher. Extract the following from the resume:
+  - Contact information:
+    - Name
+    - Email
+    - Phone
+    - Location (City and abbreviation of Country name only)
+    - LinkedIn URL
+  - A list of job titles that this resume is most suitable for (generate atleast 10 job tags, e.g., Software Engineer, Data Analyst, Product Manager).
+
+  Respond with ONLY valid JSON, no markdown, no explanations.
+  Format:
+  {
+    "contact": {
+      "name": "John Doe",
+      "email": "johndoe@example.com",
+      "phone": "123-456-7890",
+      "location": "New York, USA",
+      "linkedin": "linkedin.com/in/johndoe"
+    },
+    "job_tags": ["Software Engineer", "Data Analyst", "Product Manager"]
+  }`;
+
+  try {
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: `Resume Text:\n${resumeText}` },
+      ],
+    });
+
+    let rawContent = response.choices[0].message.content.trim();
+
+    // Clean the response to ensure valid JSON
+    if (rawContent.startsWith("```")) {
+      const start = rawContent.indexOf("{");
+      const end = rawContent.lastIndexOf("}");
+      if (start !== -1 && end !== -1) {
+        rawContent = rawContent.substring(start, end + 1);
+      } else {
+        throw new Error("Invalid JSON structure in AI response.");
+      }
+    }
+
+    const parsedContent = JSON.parse(rawContent);
+
+    // Validate that contact information and job tags exist
+    if (!parsedContent.contact || !parsedContent.job_tags) {
+      throw new Error("Missing required fields in the parsed response.");
+    }
+
     res.status(200).json(parsedContent);
   } catch (error) {
     console.error("Error processing resume:", error.message);

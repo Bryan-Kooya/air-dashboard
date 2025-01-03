@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { observeAuthState, loginUser, registerUser } from "../../authService";
 import { Apple, Facebook, Google, TopCorner, BottomCorner } from "../../assets/images";
 
-const LoginPage = () => {
+const LoginPage = (props) => {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,12 +16,15 @@ const LoginPage = () => {
     event.preventDefault();
     try {
       setError("");
-      await loginUser(email, password);
-      navigate("/messages")
+      const userId = await loginUser(email, password);
+      props.userId(userId);
+      alert("Login successfully!");
+      navigate("/messages");
     } catch (error) {
       setError("Incorrect email or password");
+      alert("Login failed! Please check your email and password.");
     }
-  };
+  };  
 
   const handleRegister = async (event) => {
     event.preventDefault();

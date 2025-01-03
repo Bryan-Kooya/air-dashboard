@@ -1,22 +1,15 @@
 import React, { useState, useEffect } from "react";
 import "./MatchCandidatesPage.css"
 import { useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth, db, storage } from "../../firebaseConfig";
-import { MenuItem, Select, Box, Chip, TextField, CircularProgress } from '@mui/material';
-import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
-import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
+import { db } from "../../firebaseConfig";
+import { MenuItem, Select, Box, Chip, CircularProgress } from '@mui/material';
+import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion, query, limit, where, orderBy, startAt, endAt } from "firebase/firestore";
 import CandidateCard from "../../components/candidateCard/CandidateCard";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
-import mammoth from "mammoth";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
-import matchCandidates from "../../utils/matchCandidates.json";
-
-// Set the worker source to the local file
-GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+import { capitalizeFirstLetter } from "../../utils/utils";
+import { apiBaseUrl } from "../../utils/constants";
 
 const MatchCandidatesPage = (props) => {
-  const apiBaseUrl = "https://api-3piee3qgbq-uc.a.run.app";
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]); // List of jobs
   const [selectedJob, setSelectedJob] = useState(''); // Currently selected job
@@ -31,6 +24,7 @@ const MatchCandidatesPage = (props) => {
   const [viewDetails, setViewDetails] = useState(false);
   const [candidates, setCandidates] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState([]);
+  const userId = props.userId;
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -82,136 +76,152 @@ const MatchCandidatesPage = (props) => {
     }
   };
 
-  const setHeaderTitle = () => {
-    props.title("Match Candidates");
-    props.subtitle("Choose the job title and paste tags below to find the best candidates.");
-  };
-
-  async function extractTextFromPDF(pdfUrl) {
-    const loadingTask = getDocument(pdfUrl);
-    const pdf = await loadingTask.promise;
-  
-    let extractedText = "";
-  
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-  
-      // Concatenate all text items into a single string
-      textContent.items.forEach((item) => {
-        extractedText += item.str + " ";
-      });
-    }
-  
-    return extractedText.trim(); // Return the extracted text
-  }
-
-  async function extractTextFromDocx(docxUrl) {
-    const response = await fetch(docxUrl);
-    const arrayBuffer = await response.arrayBuffer();
-  
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    return result.value; // Extracted plain text
-  }
-
-  const handleMatchCandidates = async () => {
+  const handleMatchCandidates = async (isRejected) => {
     console.log("Starting candidate matching process...");
     setLoading(true);
   
     try {
-      // Fetch all applicants from Firestore
-      const applicantsRef = collection(db, "applicants");
-      const applicantsSnapshot = await getDocs(applicantsRef);
+      // Determine the number of candidates to process
+      const candidateCountInput = parseInt(
+        document.querySelector(".job-info-input").value,
+        10
+      );
+      const candidateCount = isRejected ? 1 : candidateCountInput || 1;
   
-      if (applicantsSnapshot.empty) {
-        console.log("No applicants found in the database.");
+      if (candidateCount < 1 || candidateCount > 10) {
+        alert("Please enter a valid number between 1 and 10.");
         setLoading(false);
         return;
       }
   
-      console.log(`Found ${applicantsSnapshot.size} applicants to process.`);
+      console.log(`Fetching ${isRejected ? "next" : `up to ${candidateCount}`} contacts...`);
   
-      // Process each applicant's resume
-      const candidatesData = await Promise.all(
-        applicantsSnapshot.docs.map(async (doc) => {
+      // Prioritized query: fetch contacts with matching job_tags first
+      const contactsRef = collection(db, "contacts");
+      const prioritizedQuery = query(
+        contactsRef,
+        where("userId", "==", userId),
+        where("job_tags", "array-contains", selectedJobTitle),
+        limit(candidateCount)
+      );
+      const prioritizedSnapshot = await getDocs(prioritizedQuery);
+  
+      let contacts = prioritizedSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        ref: doc.ref,
+      }));
+  
+      // If prioritized contacts are insufficient, fetch additional ones
+      if (contacts.length < candidateCount) {
+        const additionalQuery = query(
+          contactsRef,
+          where("userId", "==", userId),
+          orderBy("timestamp", "desc"),
+          limit(candidateCount - contacts.length)
+        );
+        const additionalSnapshot = await getDocs(additionalQuery);
+  
+        const additionalContacts = additionalSnapshot.docs
+          .filter((doc) => !contacts.some((contact) => contact.id === doc.id)) // Avoid duplicates
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            ref: doc.ref,
+          }));
+  
+        contacts = [...contacts, ...additionalContacts];
+      }
+  
+      if (contacts.length === 0) {
+        console.log("No contacts found in the database.");
+        setLoading(false);
+        return;
+      }
+  
+      // Separate contacts into two groups
+      const existingJobCandidates = [];
+      const unprocessedContacts = [];
+  
+      for (const contact of contacts) {
+        const jobData = contact.jobs?.find((job) => job.jobTitle === selectedJobTitle && job.status !== "Rejected");
+        const { name, email, phone, linkedin, location, fileName, url } = contact;
+
+        if (jobData) {
+          // Use existing data for the CandidateCard component
+          existingJobCandidates.push({
+            contact: { name, email, phone, linkedin, location, fileName, url },
+            ...jobData,
+          });
+        } else {
+          unprocessedContacts.push(contact);
+        }
+      }
+  
+      console.log(
+        `Using ${existingJobCandidates.length} existing candidates and processing ${unprocessedContacts.length} resumes.`
+      );
+  
+      // Process unprocessed contacts
+      const processedCandidates = await Promise.all(
+        unprocessedContacts.map(async (contact) => {
           try {
-            const applicant = doc.data();
+            const { resumeText, name, email, phone, linkedin, location, fileName, url } = contact;
   
-            // Check if the applicant has a job with selectedJobTitle and status 'Rejected'
-            const hasRejectedJob = applicant.jobs?.some(
-              (job) => job.jobTitle === selectedJobTitle && job.status === "Rejected"
-            );
-  
-            if (hasRejectedJob) {
-              console.log(`Skipping applicant ${applicant.name} due to rejected status for job "${selectedJobTitle}".`);
-              return null; // Skip processing this applicant
+            if (!resumeText) {
+              throw new Error("Resume text is missing for contact: " + contact.name);
             }
   
-            const url = applicant.url;
-            const fileName = applicant.fileName;
-  
-            console.log("Fetching resume from URL:", url);
-  
-            const response = await fetch(url);
-            if (!response.ok) {
-              throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-  
-            const fileType = fileName.split(".").pop().toLowerCase();
-            let resumeText = "";
-  
-            // Extract text from the resume based on file type
-            if (fileType === "pdf") {
-              resumeText = await extractTextFromPDF(url);
-            } else if (fileType === "docx") {
-              resumeText = await extractTextFromDocx(url); // Assuming you handle .docx files
-            } else {
-              resumeText = await response.text(); // Fallback for text files
-            }
-  
-            // Process the resume using an external API
-            const res = await fetch(`${apiBaseUrl}/process-resume`, {
+            // Call external API to process the resume
+            const res = await fetch(`${apiBaseUrl}/match-resume`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ resumeText, tags }),
             });
-
+  
             if (!res.ok) {
               const error = await res.json();
-              console.error("Error:", error);
+              console.error("Error processing resume:", error);
               throw new Error(error.error);
             }
   
             const processedCandidate = await res.json();
             console.log("Processed candidate data:", processedCandidate);
   
-            // Add job details to the applicant in Firestore
-            await updateDoc(doc.ref, {
-              jobs: arrayUnion({ jobTitle: selectedJobTitle, status: "Pending" }),
+            // Update contact in Firestore with the new job status
+            await updateDoc(contact.ref, {
+              jobs: arrayUnion({
+                jobTitle: selectedJobTitle,
+                status: "Pending",
+                ...processedCandidate,
+              }),
             });
   
-            console.log(`Added job "${selectedJobTitle}" to applicant: ${applicant.name}`);
-  
+            console.log(`Added job "${selectedJobTitle}" to contact: ${contact.name}`);
             return {
+              contact: { name, email, phone, linkedin, location, fileName, url },
               ...processedCandidate,
-              applicantId: doc.id,
-              name: applicant.name,
             };
           } catch (error) {
-            console.error(`Failed to process resume for applicant: ${error.message}`);
+            console.error(`Failed to process resume for contact: ${error.message}`);
             return null;
           }
         })
       );
   
-      // Filter out null results caused by fetch or processing errors
-      const validCandidates = candidatesData.filter((candidate) => candidate !== null);
+      // Filter out null candidates and sort by skill match score
+      const validProcessedCandidates = processedCandidates.filter((candidate) => candidate !== null);
+      const allCandidates = [...existingJobCandidates, ...validProcessedCandidates];
 
-      // Sort candidates by skill match score in descending order
-      const sortedCandidates = validCandidates.sort((a, b) => b.skill_match.score - a.skill_match.score);
+      const sortedCandidates = allCandidates.sort(
+        (a, b) => b.skill_match.score - a.skill_match.score
+      );
 
-      console.log(`Successfully processed and sorted ${sortedCandidates.length} candidates.`);
-      setCandidates(sortedCandidates);
+      console.log('validProcessedCandidates', validProcessedCandidates);
+      console.log('allCandidates', allCandidates)
+  
+      console.log(`Successfully processed and retrieved ${sortedCandidates.length} candidates.`);
+      setCandidates((prevCandidates) => (isRejected ? [...prevCandidates, ...sortedCandidates] : sortedCandidates));
       setShowCandidate(true);
     } catch (error) {
       console.error("Error during candidate matching process:", error.message);
@@ -220,13 +230,72 @@ const MatchCandidatesPage = (props) => {
       console.log("Candidate matching process complete.");
     }
   };
+        
+  const updateContact = async (candidate, status) => {
+    try {  
+      const contactsRef = collection(db, "contacts");
+  
+      // Check if the contact with the same name already exists
+      const querySnapshot = await getDocs(
+        query(contactsRef, where("name", "==", capitalizeFirstLetter(candidate.contact.name)))
+      );
+  
+      if (querySnapshot.empty) {
+        console.error("Contact not found. Please ensure the candidate exists in the 'contacts' collection.");
+        return;
+      }
+  
+      const contactDoc = querySnapshot.docs[0]; // Get the existing document
+      const contactDocRef = contactDoc.ref;
+  
+      // Get the existing jobs or set it as an empty array
+      const existingJobs = contactDoc.data().jobs || [];
+  
+      // Check if the job already exists in the 'jobs' field
+      const jobIndex = existingJobs.findIndex((job) => job.jobTitle === selectedJobTitle);
+  
+      if (jobIndex >= 0) {
+        // If the job exists, update its status
+        existingJobs[jobIndex].status = status;
+      } else {
+        // Add the new job if it doesn't exist
+        existingJobs.push({ jobTitle: selectedJobTitle, status: status });
+      }
+  
+      // Update the contact's document with the updated jobs field
+      await updateDoc(contactDocRef, {
+        jobs: existingJobs,
+      });
+
+      // Update the local candidates state
+      setCandidates((prevCandidates) =>
+        prevCandidates.map((c) =>
+          c.contact.name === candidate.contact.name
+            ? { ...c, status } // Update the status of the matched candidate
+            : c // Leave other candidates unchanged
+        )
+      );
+  
+      console.log("Candidate's job information updated successfully!");
+    } catch (error) {
+      console.error("Error updating candidate's job information:", error);
+    }
+  };  
+
+  const handleRejectCandidate = async (candidate) => {
+    await updateContact(candidate, "Rejected");
+    handleMatchCandidates(true);
+  };
 
   const handleViewDetails = (candidate) => {
     setSelectedCandidate(candidate);
     setViewDetails(true);
   }
-  
-  setHeaderTitle();
+
+  (function setHeaderTitle() {
+    props.title("Match Candidates");
+    props.subtitle("Choose the job title and paste tags below to find the best candidates.");
+  })();
 
   return (
     <div className="match-candidates-container">
@@ -244,7 +313,7 @@ const MatchCandidatesPage = (props) => {
               }
             >
               {jobs
-                .filter((job) => job.status !== "Inactive") // Exclude jobs with 'Inactive' status
+                .filter((job) => job.status !== "Not Active") // Exclude jobs with 'Not Active' status
                 .map((job) => (
                   <MenuItem id="options" key={job.id} value={job.id}>
                     {job.job_title}
@@ -280,14 +349,16 @@ const MatchCandidatesPage = (props) => {
             </Box>
           </div>
         </div>
-        <button onClick={handleMatchCandidates} className='match-button' disabled={loading}>
+        <button onClick={() => handleMatchCandidates(false)} className='match-button' disabled={loading}>
           {loading ? <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} /> : 'Match Candidates'}
         </button>
       </div>
-      {showCandidates && <div className="match-result">Match Results: {candidates.length} Candidate(s)</div>}
+      {showCandidates && <div className="match-result">Match Results: {candidates.filter(candidate => candidate.status != "Rejected").length} Candidate(s)</div>}
       {showCandidates &&
       <div style={{display: 'flex', flexWrap: 'wrap', gap: 16}}>
-        {candidates.map((candidate, index) => (
+        {candidates
+        .filter((candidate) => candidate.status != "Rejected")
+        .map((candidate, index) => (
           <CandidateCard
             key={index}
             rank={index + 1}
@@ -296,6 +367,8 @@ const MatchCandidatesPage = (props) => {
             company={company}
             location={location}
             handleViewDetails={() => handleViewDetails(candidate)}
+            updateContact={updateContact}
+            handleRejectCandidate={() => handleRejectCandidate(candidate)}
           />
         ))}
       </div>}
@@ -304,6 +377,7 @@ const MatchCandidatesPage = (props) => {
         close={() => setViewDetails(false)}
         candidate={selectedCandidate}
         isEditable={false}
+        handleMatchCandidates={handleMatchCandidates}
       />
     </div>
   );
