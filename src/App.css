@@ -30,6 +30,7 @@ button {
 }
 
 button:disabled {
+  border: none;
   background: #F1F1F1;
   color: #C3C3C3;
   cursor: not-allowed;

@@ -66,11 +66,16 @@ export const fetchPaginatedConversations = async (pageSize, lastVisibleDoc = nul
   }
 };
 
-export const searchConversations = async (searchQuery) => {
+export const searchConversations = async (searchQuery, userId) => {
   const conversationsCollection = collection(db, "linkedinConversations");
 
   // Search query: filter by `connection` field (or adjust as needed)
-  const q = query(conversationsCollection, where("connection", ">=", searchQuery), where("connection", "<=", searchQuery + "\uf8ff"));
+  const q = query(
+    conversationsCollection, 
+    where("userId", "==", userId),
+    where("connection", ">=", searchQuery), 
+    where("connection", "<=", searchQuery + "\uf8ff")
+  );
 
   const snapshot = await getDocs(q);
 
@@ -82,16 +87,21 @@ export const searchConversations = async (searchQuery) => {
   return data;
 };
 
-export const fetchPaginatedCandidates = async (pageSize, lastVisibleDoc = null) => {
+export const fetchPaginatedCandidates = async (pageSize, lastVisibleDoc = null, userId) => {
   try {
     const candidatesCollection = collection(db, "candidates");
 
     // Query for paginated data
-    let q = query(candidatesCollection, orderBy("timestamp"), limit(pageSize));
+    let q = query(
+      candidatesCollection, 
+      where("userId", "==", userId), 
+      orderBy("timestamp"), 
+      limit(pageSize));
 
     if (lastVisibleDoc) {
       q = query(
         candidatesCollection,
+        where("userId", "==", userId), 
         orderBy("timestamp"),
         startAfter(lastVisibleDoc),
         limit(pageSize)
@@ -101,8 +111,9 @@ export const fetchPaginatedCandidates = async (pageSize, lastVisibleDoc = null) 
     // Fetch paginated data
     const snapshot = await getDocs(q);
 
-    // Fetch total count of documents in the collection
-    const totalSnapshot = await getCountFromServer(candidatesCollection);
+    // Query for counting total documents that match the userId
+    const countQuery = query(candidatesCollection, where("userId", "==", userId));
+    const totalSnapshot = await getCountFromServer(countQuery);
     const totalDocuments = totalSnapshot.data().count;
 
     // Get the last visible document for pagination
@@ -121,7 +132,7 @@ export const fetchPaginatedCandidates = async (pageSize, lastVisibleDoc = null) 
   }
 };
 
-export const searchCandidates = async (searchQuery) => {
+export const searchCandidates = async (searchQuery, userId) => {
   const candidatesCollection = collection(db, "candidates");
 
   // Transform the search query to lowercase for case-insensitive search
@@ -130,6 +141,7 @@ export const searchCandidates = async (searchQuery) => {
   // Query to search in `searchKeywords` field
   const q = query(
     candidatesCollection,
+    where("userId", "==", userId),
     where("searchKeywords", "array-contains", lowercasedQuery)
   );
 
@@ -180,7 +192,12 @@ export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, us
     const contactsCollection = collection(db, "contacts");
 
     // Query for paginated data
-    let q = query(contactsCollection, where("userId", "==", userId), orderBy("timestamp"), limit(pageSize));
+    let q = query(
+      contactsCollection, 
+      where("userId", "==", userId), 
+      orderBy("timestamp"), 
+      limit(pageSize)
+    );
 
     if (lastVisibleDoc) {
       q = query(
@@ -195,8 +212,9 @@ export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, us
     // Fetch paginated data
     const snapshot = await getDocs(q);
 
-    // Fetch total count of documents in the collection
-    const totalSnapshot = await getCountFromServer(contactsCollection);
+    // Query for counting total documents that match the userId
+    const countQuery = query(contactsCollection, where("userId", "==", userId));
+    const totalSnapshot = await getCountFromServer(countQuery);
     const totalDocuments = totalSnapshot.data().count;
 
     // Get the last visible document for pagination
@@ -212,5 +230,99 @@ export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, us
   } catch (error) {
     console.error("Error fetching paginated contacts:", error);
     throw new Error("Unable to fetch paginated contacts.");
+  }
+};
+
+export const searchJobs = async (searchQuery, userId) => {
+  const jobsCollection = collection(db, "jobs");
+
+  // Search query: filter by `connection` field (or adjust as needed)
+  const q = query(
+    jobsCollection, 
+    where("userId", "==", userId),
+    where("name", ">=", searchQuery), 
+    where("name", "<=", searchQuery + "\uf8ff")
+  );
+
+  const snapshot = await getDocs(q);
+
+  const data = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+
+  return data;
+};
+
+export const fetchPaginatedJobs = async (pageSize, lastVisibleDoc = null, userId) => {
+  try {
+    const jobsCollection = collection(db, "jobs");
+
+    // Query for paginated data
+    let q = query(
+      jobsCollection, 
+      where("userId", "==", userId), 
+      orderBy("timestamp"), 
+      limit(pageSize)
+    );
+
+    if (lastVisibleDoc) {
+      q = query(
+        jobsCollection,
+        where("userId", "==", userId),
+        orderBy("timestamp"),
+        startAfter(lastVisibleDoc),
+        limit(pageSize)
+      );
+    }
+
+    // Fetch paginated data
+    const snapshot = await getDocs(q);
+
+    // Query for counting total documents that match the userId
+    const countQuery = query(jobsCollection, where("userId", "==", userId));
+    const totalSnapshot = await getCountFromServer(countQuery);
+    const totalDocuments = totalSnapshot.data().count;
+
+    // Get the last visible document for pagination
+    const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    // Map the data
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return { data, lastVisible, total: totalDocuments };
+  } catch (error) {
+    console.error("Error fetching paginated jobs:", error);
+    throw new Error("Unable to fetch paginated jobs.");
+  }
+};
+
+export const getUser = async (email) => {
+  if (!email) {
+    throw new Error("Email is required to fetch user.");
+  }
+
+  // Create a query to filter users by email
+  const usersCollection = collection(db, "users");
+  const userQuery = query(usersCollection, where("email", "==", email));
+
+  try {
+    // Execute the query and fetch the documents
+    const querySnapshot = await getDocs(userQuery);
+
+    if (querySnapshot.empty) {
+      throw new Error("No user found with the given email.");
+    }
+
+    // Assuming there's only one user per email (unique email constraint)
+    const user = querySnapshot.docs[0].data();
+
+    return user; // Return the user data
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    throw new Error("Failed to fetch user details.");
   }
 };

@@ -180,6 +180,7 @@ const CandidateDetailsModal = (props) => {
         </div>
         <div className='candidate-modal-row1'>
           <button 
+            disabled={candidate.status == "Selected"}
             className='send-button' 
             onClick={handleEditOrReject}
           >

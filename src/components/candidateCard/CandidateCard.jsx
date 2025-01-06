@@ -15,6 +15,7 @@ const CandidateCard = (props) => {
   const location = props.location;
   const updateContact = props.updateContact;
   const handleRejectCandidate = props.handleRejectCandidate;
+  const userId = props.userId;
   const [candidate, setCandidate] = useState(props.candidate);
 
   const handleSaveCandidate = async () => {
@@ -38,6 +39,7 @@ const CandidateCard = (props) => {
 
       const candidateData = {
         ...updatedCandidate,
+        userId: userId,
         job: matchedJob,
         company: company,
         location: location,
@@ -81,10 +83,9 @@ const CandidateCard = (props) => {
     <div className='candidate-card-container'>
       {candidate.status != "Pending" &&
       <div className='candidate-card-row1'>
-        {candidate.status &&
         <div className='status-container'>
           <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>{candidate.status}
-        </div>}
+        </div>
       </div>}
       <div className='candidate-card-row1'>
         <div className='candidate-ranking'>
@@ -139,7 +140,7 @@ const CandidateCard = (props) => {
         </div>
       </div>
       <div className='candidate-card-row4'>
-        <button className='send-button' onClick={handleRejectCandidate}>Reject Candidate</button>
+        <button disabled={candidate.status == "Selected"} className='send-button' onClick={handleRejectCandidate}>Reject Candidate</button>
         <button className='view-button' onClick={handleViewDetails}>View Details</button>
         <Tooltip title="Interested" arrow placement='top'>
           <img onClick={handleSaveCandidate} src={Bookmark} alt="Bookmark"/>

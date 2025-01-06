@@ -11,6 +11,7 @@ const PageHeader = (props) => {
   const [filterAnchorEl, setFilterAnchorEl] = useState(null); // Anchor for the filter menu
   const title = props.title;
   const subtitle = props.subtitle;
+  const user = props.user;
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -35,7 +36,7 @@ const PageHeader = (props) => {
         {/* <img src={Bell} alt="Notification"/> */}
         <div style={{marginLeft: 'auto'}} className="user-info">
           <div>
-            <div className="user-name">Artem Delvy</div>
+            <div className="user-name">{user.name}</div>
             <div className="subscription">Premium</div>
           </div>
           <img src={Avatar} alt="Avatar" onClick={handleMenuOpen}/>

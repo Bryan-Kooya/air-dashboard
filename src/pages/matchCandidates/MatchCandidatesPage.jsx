@@ -8,6 +8,7 @@ import CandidateCard from "../../components/candidateCard/CandidateCard";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { capitalizeFirstLetter } from "../../utils/utils";
 import { apiBaseUrl } from "../../utils/constants";
+import { fetchPaginatedJobs } from "../../utils/firebaseService";
 
 const MatchCandidatesPage = (props) => {
   const navigate = useNavigate();
@@ -24,13 +25,20 @@ const MatchCandidatesPage = (props) => {
   const [viewDetails, setViewDetails] = useState(false);
   const [candidates, setCandidates] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState([]);
+  const [candidateCountInput, setCandidateCountInput] = useState(null);
+  const [disabledMatching, setDisabledMatching] = useState(false);
   const userId = props.userId;
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         const jobsCollection = collection(db, 'jobs');
-        const jobSnapshot = await getDocs(jobsCollection);
+        let q = query(
+          jobsCollection, 
+          where("userId", "==", userId), 
+          orderBy("timestamp"),   
+        );
+        const jobSnapshot = await getDocs(q);
         const jobData = jobSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -43,6 +51,10 @@ const MatchCandidatesPage = (props) => {
 
     fetchJobs();
   }, []);
+
+  useEffect(() => {
+    setDisabledMatching(!selectedJobTitle || !candidateCountInput);
+  }, [candidateCountInput, selectedJobTitle]);
 
   const handleJobSelect = async (jobId) => {
     setSelectedJob(jobId);
@@ -82,10 +94,6 @@ const MatchCandidatesPage = (props) => {
   
     try {
       // Determine the number of candidates to process
-      const candidateCountInput = parseInt(
-        document.querySelector(".job-info-input").value,
-        10
-      );
       const candidateCount = isRejected ? 1 : candidateCountInput || 1;
   
       if (candidateCount < 1 || candidateCount > 10) {
@@ -96,62 +104,106 @@ const MatchCandidatesPage = (props) => {
   
       console.log(`Fetching ${isRejected ? "next" : `up to ${candidateCount}`} contacts...`);
   
-      // Prioritized query: fetch contacts with matching job_tags first
       const contactsRef = collection(db, "contacts");
-      const prioritizedQuery = query(
-        contactsRef,
-        where("userId", "==", userId),
-        where("job_tags", "array-contains", selectedJobTitle),
-        limit(candidateCount)
-      );
-      const prioritizedSnapshot = await getDocs(prioritizedQuery);
-  
-      let contacts = prioritizedSnapshot.docs.map((doc) => ({
+      const allContactsSnapshot = await getDocs(query(contactsRef, where("userId", "==", userId)));
+      let allContacts = allContactsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         ref: doc.ref,
       }));
   
-      // If prioritized contacts are insufficient, fetch additional ones
-      if (contacts.length < candidateCount) {
+      // Step 1: Filter out contacts already in candidates if isRejected is true
+      if (isRejected) {
+        const currentCandidateNames = new Set(candidates.map((candidate) => candidate.contact.name));
+        allContacts = allContacts.filter((contact) => !currentCandidateNames.has(contact.name));
+        console.log("Rejected is true: ", allContacts);
+      }
+
+      // Step 2: Filter out contacts with "Selected" or "Rejected" status for the specific job title
+      allContacts = allContacts.filter((contact) => {
+        const job = contact.jobs?.find((job) => job.jobTitle === selectedJobTitle);
+        return !job || (job.status !== "Selected" && job.status !== "Rejected");
+      });
+  
+      console.log(`Filtered contacts count after removing "Selected" or "Rejected": ${allContacts.length}`);
+  
+      // Step 3: Filter contacts with the specific condition
+      let prioritizedContacts = allContacts.filter((contact) => {
+        const job = contact.jobs?.find(
+          (job) =>
+            job.jobTitle === selectedJobTitle &&
+            job.status === "Pending" &&
+            job.skill_match.score >= 85
+        );
+        return Boolean(job);
+      });
+  
+      console.log(`Prioritized contacts count: ${prioritizedContacts.length}`);
+  
+      // Step 4: If insufficient, add new available contacts with tags matching the selected job tags
+      if (prioritizedContacts.length < candidateCount || isRejected) {
         const additionalQuery = query(
           contactsRef,
           where("userId", "==", userId),
-          orderBy("timestamp", "desc"),
-          limit(candidateCount - contacts.length)
+          where("tags", "array-contains-any", tags), // Match tags
+          orderBy("timestamp", "desc") // Sort by timestamp
         );
+      
         const additionalSnapshot = await getDocs(additionalQuery);
-  
+      
         const additionalContacts = additionalSnapshot.docs
-          .filter((doc) => !contacts.some((contact) => contact.id === doc.id)) // Avoid duplicates
+          .filter((doc) => {
+            const contactData = doc.data();
+      
+            // Check if there's no job entry for the selected job title
+            const hasRelevantJob = contactData.jobs?.some((job) => job.jobTitle === selectedJobTitle);
+      
+            // Exclude candidates with matching job title and unwanted statuses
+            return !hasRelevantJob;
+          })
           .map((doc) => ({
             id: doc.id,
             ...doc.data(),
             ref: doc.ref,
-          }));
+          }))
+          .slice(0, isRejected ? 1 : candidateCount - prioritizedContacts.length); // Apply the limit after filtering
+      
+        // Add new contacts to the prioritized list
+        prioritizedContacts = [...prioritizedContacts, ...additionalContacts];
+        console.log(`Added new contacts, total prioritized count: ${prioritizedContacts.length}`);
+      }      
   
-        contacts = [...contacts, ...additionalContacts];
-      }
-  
-      if (contacts.length === 0) {
-        console.log("No contacts found in the database.");
+      if (prioritizedContacts.length === 0) {
+        console.log(`No eligible contacts found for the ${selectedJobTitle} job`);
+        alert(`No eligible contacts found for the ${selectedJobTitle} job`)
         setLoading(false);
         return;
       }
   
-      // Separate contacts into two groups
+      // Separate contacts into existing candidates and new ones for processing
       const existingJobCandidates = [];
       const unprocessedContacts = [];
   
-      for (const contact of contacts) {
-        const jobData = contact.jobs?.find((job) => job.jobTitle === selectedJobTitle && job.status !== "Rejected");
-        const { name, email, phone, linkedin, location, fileName, url } = contact;
-
-        if (jobData) {
-          // Use existing data for the CandidateCard component
+      for (const contact of prioritizedContacts) {
+        const job = contact.jobs?.find(
+          (job) =>
+            job.jobTitle === selectedJobTitle &&
+            job.status === "Pending" &&
+            job.skill_match.score >= 85
+        );
+  
+        if (job) {
           existingJobCandidates.push({
-            contact: { name, email, phone, linkedin, location, fileName, url },
-            ...jobData,
+            contact: {
+              name: contact.name,
+              email: contact.email,
+              phone: contact.phone,
+              linkedin: contact.linkedin,
+              location: contact.location,
+              fileName: contact.fileName,
+              url: contact.url,
+            },
+            ...job,
           });
         } else {
           unprocessedContacts.push(contact);
@@ -159,7 +211,7 @@ const MatchCandidatesPage = (props) => {
       }
   
       console.log(
-        `Using ${existingJobCandidates.length} existing candidates and processing ${unprocessedContacts.length} resumes.`
+        `Using ${existingJobCandidates.length} existing candidates and processing ${unprocessedContacts.length} new resumes.`
       );
   
       // Process unprocessed contacts
@@ -200,6 +252,7 @@ const MatchCandidatesPage = (props) => {
             console.log(`Added job "${selectedJobTitle}" to contact: ${contact.name}`);
             return {
               contact: { name, email, phone, linkedin, location, fileName, url },
+              status: "Pending",
               ...processedCandidate,
             };
           } catch (error) {
@@ -212,19 +265,19 @@ const MatchCandidatesPage = (props) => {
       // Filter out null candidates and sort by skill match score
       const validProcessedCandidates = processedCandidates.filter((candidate) => candidate !== null);
       const allCandidates = [...existingJobCandidates, ...validProcessedCandidates];
-
-      const sortedCandidates = allCandidates.sort(
-        (a, b) => b.skill_match.score - a.skill_match.score
-      );
-
-      console.log('validProcessedCandidates', validProcessedCandidates);
-      console.log('allCandidates', allCandidates)
   
-      console.log(`Successfully processed and retrieved ${sortedCandidates.length} candidates.`);
-      setCandidates((prevCandidates) => (isRejected ? [...prevCandidates, ...sortedCandidates] : sortedCandidates));
+      console.log(`Successfully processed and retrieved ${allCandidates.length} candidates.`);
+      setCandidates((prevCandidates) => {
+        const mergedCandidates = isRejected ? [...prevCandidates, ...allCandidates] : allCandidates;
+        // Sort the candidates by skill match score in descending order
+        const sortedCandidates = mergedCandidates.sort((a, b) => b.skill_match.score - a.skill_match.score);
+        return sortedCandidates;
+      });
       setShowCandidate(true);
+      setDisabledMatching(true);
     } catch (error) {
       console.error("Error during candidate matching process:", error.message);
+      setDisabledMatching(true);
     } finally {
       setLoading(false);
       console.log("Candidate matching process complete.");
@@ -321,7 +374,7 @@ const MatchCandidatesPage = (props) => {
                 ))}
             </Select>
             <div className="card-title">Candidates' count:</div>
-            <input 
+            <input
               placeholder="Enter number of candidates"
               className="job-info-input"
               type="number"
@@ -331,8 +384,9 @@ const MatchCandidatesPage = (props) => {
                 // Ensure the input stays within range
                 if (e.target.value > 10) e.target.value = 10;
                 if (e.target.value < 1) e.target.value = 1;
+                // Update state with the value of the input
+                setCandidateCountInput(parseInt(e.target.value, 10) || null);
               }}
-              // onChange={handleInputChange}
             />
           </div>
           <div className="card-row">
@@ -349,7 +403,7 @@ const MatchCandidatesPage = (props) => {
             </Box>
           </div>
         </div>
-        <button onClick={() => handleMatchCandidates(false)} className='match-button' disabled={loading}>
+        <button onClick={() => handleMatchCandidates(false)} className='match-button' disabled={loading || disabledMatching}>
           {loading ? <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} /> : 'Match Candidates'}
         </button>
       </div>
@@ -366,6 +420,7 @@ const MatchCandidatesPage = (props) => {
             matchedJob={selectedJobTitle}
             company={company}
             location={location}
+            userId={userId}
             handleViewDetails={() => handleViewDetails(candidate)}
             updateContact={updateContact}
             handleRejectCandidate={() => handleRejectCandidate(candidate)}

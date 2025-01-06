@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "./ResumesPage.css";
+import "./ContactsPage.css";
 import { Select, MenuItem, CircularProgress } from '@mui/material';
 import { useDropzone } from "react-dropzone";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -11,7 +11,7 @@ import { UploadIcon, SearchIcon } from "../../assets/images";
 import { apiBaseUrl } from "../../utils/constants";
 import Pagination from "../../components/pagination/Pagination";
 
-const ResumesPage = (props) => {
+const ContactsPage = (props) => {
   const tableHeader = ["Name", "Phone Number", "Email", "Resume", "Status"];
   const sortOptions = ["Newest", "Oldest"];
   const storage = getStorage(); // Initialize Firebase Storage
@@ -155,7 +155,7 @@ const ResumesPage = (props) => {
                 phone: apiData.contact.phone || "",
                 location: apiData.contact.location || "N/A",
                 linkedin: apiData.contact.linkedin || "",
-                job_tags: apiData.job_tags || [],
+                tags: apiData.tags || [],
                 fileName: file.name,
                 url: downloadUrl,
                 jobs: [],
@@ -237,7 +237,7 @@ const ResumesPage = (props) => {
   })();
 
   return (
-    <div className="resumes-container">
+    <div className="contacts-container">
       <div {...getRootProps()} className={`upload-container ${files.length > 0 ? "uploaded" : ""}`}>
         <input {...getInputProps()} />
         <img className="upload-icon" src={UploadIcon} alt="Upload" />
@@ -387,4 +387,4 @@ const ResumesPage = (props) => {
   );
 };
 
-export default ResumesPage;
+export default ContactsPage;

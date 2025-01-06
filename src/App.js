@@ -11,19 +11,19 @@ import MessagesPage from "./pages/messages/MessagesPage";
 import CandidatesPage from "./pages/candidates/CandidatesPage";
 import JobPostingsPage from "./pages/jobPostings/JobPostingsPage";
 import MatchCandidatesPage from "./pages/matchCandidates/MatchCandidatesPage";
-import ResumesPage from "./pages/resumes/ResumesPage";
+import ContactsPage from "./pages/contacts/ContactsPage";
 import BillingPage from "./pages/billing/BillingPage";
 import HelpPage from "./pages/help/HelpPage";
 import { getConversationCount } from "./utils/firebaseService";
 
-const AuthObserver = ({ setAuthenticated, setUserId, onLogin }) => {
+const AuthObserver = ({ setAuthenticated, setUser, onLogin }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = observeAuthState(async (user) => {
       if (user) {
         setAuthenticated(true);
-        setUserId(user.uid); // Set the userId
+        setUser(user); // Set the userId
         try {
           await onLogin();
         } catch (error) {
@@ -31,12 +31,12 @@ const AuthObserver = ({ setAuthenticated, setUserId, onLogin }) => {
         }
       } else {
         setAuthenticated(false);
-        setUserId(null); // Clear userId on logout
+        setUser(null); // Clear userId on logout
         navigate("/");
       }
     });
     return () => unsubscribe();
-  }, [navigate, setAuthenticated, setUserId, onLogin]);
+  }, [navigate, setAuthenticated, setUser, onLogin]);
 
   return null;
 };
@@ -46,10 +46,12 @@ const App = () => {
   const [headerSubtitle, setHeaderSubtitle] = useState("");
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [messagesCount, setMessagesCount] = useState("0");
+  const [user, setUser] = useState("");
   const [userId, setUserId] = useState(null);
 
-  const updateUserId = (value) => {
-    setUserId(value);
+  const updateUser = (user) => {
+    setUser(user);
+    setUserId(user.uid);
   };
 
   const updateMessagesCount = (count) => {
@@ -71,16 +73,16 @@ const App = () => {
   return (
     <div className="page-container">
       <Router>
-        <AuthObserver setAuthenticated={setAuthenticated} setUserId={updateUserId} onLogin={fetchAndSetMessageCount} />
+        <AuthObserver setAuthenticated={setAuthenticated} setUser={updateUser} onLogin={fetchAndSetMessageCount} />
         {!isAuthenticated ? (
           <Routes>
-            <Route path="/" element={<LoginPage userId={updateUserId} />} />
+            <Route path="/" element={<LoginPage user={updateUser} />} />
           </Routes>
         ) : (
           <>
             <NavMenu messagesCount={messagesCount} />
             <div className="view-section">
-              <PageHeader title={headerTitle} subtitle={headerSubtitle} />
+              <PageHeader title={headerTitle} subtitle={headerSubtitle} user={user} />
               <Routes>
                 <Route
                   path="/ai-resume-analyzer"
@@ -108,7 +110,7 @@ const App = () => {
                 />
                 <Route
                   path="/contacts"
-                  element={<ResumesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
+                  element={<ContactsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
                   path="/billing"

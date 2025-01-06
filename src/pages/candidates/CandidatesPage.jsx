@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./CandidatesPage.css";
-import { Select, Menu, MenuItem } from '@mui/material';
+import { Select, Menu, MenuItem } from "@mui/material";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { fetchPaginatedCandidates, searchCandidates } from "../../utils/firebaseService";
 import Pagination from "../../components/pagination/Pagination";
@@ -11,79 +11,97 @@ const CandidatesPage = (props) => {
   const tableHeader = ["Candidate", "Job", "Status", "Company", "Location", "Experience", "Attachments"];
   const filterOptions = ["Job", "Status", "Experience"];
   const sortOptions = ["Newest", "Oldest"];
-  const [error, setError] = useState(null);
-  const [viewDetails, setViewDetails] = useState(false);
-  const [selectedCandidate, setSelectedCandidate] = useState([]);
-  const [candidates, setCandidates] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastVisibleDocs, setLastVisibleDocs] = useState([]); // Track lastVisibleDoc for each page
-  const [totalPages, setTotalPages] = useState(0);
-  const pageSize = 5; // Number of candidates per page
-  const [searchQuery, setSearchQuery] = useState(""); // Search query state
-  const [sortedBy, setSortedBy] = useState("");
-  const [filterBy, setFilterBy] = useState(""); // Holds the selected filter value
-  const [filterAnchorEl, setFilterAnchorEl] = useState(null); // Anchor for the filter menu
-  const [filteredCandidates, setFilteredCandidates] = useState([]); // Filtered candidates
+  const userId = props.userId;
+  const pageSize = 5;
 
-  // Load all candidates when the page loads
-  const loadCandidates = async () => {
+  // State Management
+  const [viewDetails, setViewDetails] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState({});
+  const [candidates, setCandidates] = useState([]);
+  const [filteredCandidates, setFilteredCandidates] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortedBy, setSortedBy] = useState("");
+  const [filterBy, setFilterBy] = useState("");
+  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastVisibleDocs, setLastVisibleDocs] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Load candidates with pagination
+  const loadCandidates = async (page) => {
     try {
-      const { data, total } = await fetchPaginatedCandidates(pageSize, null);
+      const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
+      const { data, lastVisible, total } = await fetchPaginatedCandidates(pageSize, lastVisibleDoc, userId);
+
       setCandidates(data);
       setFilteredCandidates(data);
+
+      setLastVisibleDocs((prev) => {
+        const updatedDocs = [...prev];
+        updatedDocs[page - 1] = lastVisible;
+        return updatedDocs;
+      });
+
       setTotalPages(Math.ceil(total / pageSize));
     } catch (error) {
       console.error("Error fetching candidates:", error);
     }
   };
 
-  useEffect(() => {
-    loadCandidates();
-  }, []);
+  // Search candidates based on query
+  const searchAndLoadCandidates = async () => {
+    if (!searchQuery) {
+      setCurrentPage(1);
+      setLastVisibleDocs([]);
+      await loadCandidates(1);
+      return;
+    }
+
+    try {
+      const data = await searchCandidates(searchQuery, userId);
+      setCandidates(data);
+      setFilteredCandidates(data);
+      setTotalPages(1);
+    } catch (error) {
+      console.error("Error searching candidates:", error);
+    }
+  };
 
   // Filter and sort candidates
   const applyFilterAndSort = (filter, sort) => {
     let updatedCandidates = [...candidates];
-  
-    // Filter Logic
-    if (filter === "Job") {
-      updatedCandidates.sort((a, b) => (a.job || "").localeCompare(b.job || ""));
-    } else if (filter === "Status") {
-      updatedCandidates.sort((a, b) => (a.status || "").localeCompare(b.status || ""));
-    } else if (filter === "Experience") {
-      updatedCandidates.sort((a, b) => (b.total_experience_years || 0) - (a.total_experience_years || 0));
-    }
-  
-    // Sort Logic for Timestamps
-    if (sort === "Newest") {
-      updatedCandidates.sort((a, b) => {
-        const dateA = a.timestamp ? timestampToDate(a.timestamp) : new Date(0);
-        const dateB = b.timestamp ? timestampToDate(b.timestamp) : new Date(0);
-        return dateB - dateA;
-      });
-    } else if (sort === "Oldest") {
-      updatedCandidates.sort((a, b) => {
-        const dateA = a.timestamp ? timestampToDate(a.timestamp) : new Date(0);
-        const dateB = b.timestamp ? timestampToDate(b.timestamp) : new Date(0);
-        return dateA - dateB;
+
+    // Apply filter
+    if (filter) {
+      updatedCandidates = updatedCandidates.sort((a, b) => {
+        if (filter === "Job") return (a.job || "").localeCompare(b.job || "");
+        if (filter === "Status") return (a.status || "").localeCompare(b.status || "");
+        if (filter === "Experience") return (b.total_experience_years || 0) - (a.total_experience_years || 0);
+        return 0;
       });
     }
-  
+
+    // Apply sort
+    if (sort) {
+      updatedCandidates = updatedCandidates.sort((a, b) => {
+        const dateA = a.timestamp ? a.timestamp.toDate() : new Date(0);
+        const dateB = b.timestamp ? b.timestamp.toDate() : new Date(0);
+        return sort === "Newest" ? dateB - dateA : dateA - dateB;
+      });
+    }
+
     setFilteredCandidates(updatedCandidates);
-  };  
-
-  const handleFilterMenuOpen = (event) => {
-    setFilterAnchorEl(event.currentTarget);
   };
 
-  const handleFilterMenuClose = () => {
-    setFilterAnchorEl(null);
-  };
+  // Handlers
+  const handleFilterMenuOpen = (event) => setFilterAnchorEl(event.currentTarget);
+
+  const handleFilterMenuClose = () => setFilterAnchorEl(null);
 
   const handleFilterChange = (value) => {
     setFilterBy(value);
     applyFilterAndSort(value, sortedBy);
-    setFilterAnchorEl(null); // Close the menu after selection
+    setFilterAnchorEl(null);
   };
 
   const handleSortedBy = (value) => {
@@ -93,12 +111,7 @@ const CandidatesPage = (props) => {
 
   const handleSearchSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const data = await searchCandidates(searchQuery);
-      setFilteredCandidates(data);
-    } catch (error) {
-      console.error("Error searching candidates:", error);
-    }
+    await searchAndLoadCandidates();
   };
 
   const handleViewDetails = (index) => {
@@ -106,102 +119,91 @@ const CandidatesPage = (props) => {
     setViewDetails(true);
   };
 
-  (function setHeaderTitle() {
+  useEffect(() => {
+    if (!searchQuery) loadCandidates(currentPage);
+  }, [currentPage]);
+
+  // Set header titles
+  useEffect(() => {
     props.title("Candidates");
     props.subtitle("Centralized page to view and manage all candidates");
-  })();
-
-  const timestampToDate = (timestamp) => {
-    return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
-  };
-
-  console.log('Candidates: ', candidates);
+  }, [props]);
 
   return (
     <div className="candidates-container">
-      <div>
-        <div className="candidates card">
-          <div className="title-container">
-            <div className="card-title">All Candidates</div>
-            <div className="flex">
-              <button
-                onClick={handleFilterMenuOpen}
-                className="filter-button"
-              >
-                <img src={FilterIcon} alt="Filter"/>Filter
+      <div className="candidates card">
+        <div className="title-container">
+          <div className="card-title">All Candidates</div>
+          <div className="flex">
+            <button onClick={handleFilterMenuOpen} className="filter-button">
+              <img src={FilterIcon} alt="Filter" /> Filter
+            </button>
+            <Menu
+              sx={{ marginTop: "4px" }}
+              anchorEl={filterAnchorEl}
+              open={Boolean(filterAnchorEl)}
+              onClose={handleFilterMenuClose}
+            >
+              {filterOptions.map((option, index) => (
+                <MenuItem key={index} onClick={() => handleFilterChange(option)}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Menu>
+            <Select
+              id="select-input"
+              sx={{ width: 100 }}
+              displayEmpty
+              value={sortedBy}
+              onChange={(e) => handleSortedBy(e.target.value)}
+              renderValue={() => (sortedBy ? sortedBy : "Sort by")}
+            >
+              {sortOptions.map((option, index) => (
+                <MenuItem key={index} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+            <form className="search-container" onSubmit={handleSearchSubmit}>
+              <div className="search-wrapper">
+                <img src={SearchIcon} alt="Search Icon" className="search-icon" onClick={handleSearchSubmit} />
+                <input
+                  className="search-input"
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <button className="search primary-button" type="submit">
+                Search
               </button>
-              <Menu
-                sx={{marginTop: '4px'}}
-                anchorEl={filterAnchorEl}
-                open={Boolean(filterAnchorEl)}
-                onClose={handleFilterMenuClose}
-              >
-                {filterOptions.map((option, index) => (
-                  <MenuItem
-                    id="options" 
-                    key={index}
-                    onClick={() => handleFilterChange(option)}
-                  >
-                    {option}
-                  </MenuItem>
-                ))}
-              </Menu>
-              <Select 
-                id="select-input" 
-                sx={{width: 100}}
-                displayEmpty
-                value={sortedBy} 
-                onChange={(e) => handleSortedBy(e.target.value)}
-                renderValue={() => sortedBy ? sortedBy : "Sort by"}
-              >
-                {sortOptions.map((option, index) => (
-                  <MenuItem id="options" key={index} value={option} onChange={() => handleSortedBy(option)}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </Select>
-              <form className="search-container" onSubmit={handleSearchSubmit}>
-                <div className="search-wrapper">
-                  <img onClick={handleSearchSubmit} src={SearchIcon} alt="Search Icon" className="search-icon" />
-                  <input
-                    className="search-input"
-                    type="text"
-                    placeholder="Search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <button className="search primary-button" type="submit">Search</button>
-              </form>
-            </div>
+            </form>
           </div>
-          <table className="candidates-table">
-            <thead>
-              <tr>
-                {tableHeader.map((header, index) => (
-                  <th key={index}>{header}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-            {filteredCandidates && filteredCandidates.length > 0 ? (
+        </div>
+        <table className="candidates-table">
+          <thead>
+            <tr>
+              {tableHeader.map((header, index) => (
+                <th key={index}>{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredCandidates.length > 0 ? (
               filteredCandidates.map((candidate, index) => (
-                <tr onClick={() => handleViewDetails(index)} key={index}>
+                <tr key={index} onClick={() => handleViewDetails(index)}>
                   <td>{capitalizeFirstLetter(candidate.contact?.name)}</td>
                   <td>{candidate.job}</td>
                   <td>
-                    <div className={`status-badge ${candidate.status.toLowerCase().replace(/\s/g, "-")}`}></div>
+                    <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
                     {candidate.status}
                   </td>
                   <td>{candidate.company}</td>
                   <td>{candidate.location}</td>
-                  <td>{candidate.total_experience_years + ' year(s)'}</td>
+                  <td>{candidate.total_experience_years} year(s)</td>
                   <td className="cv-link">
-                    <a
-                      href={candidate.contact?.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <a href={candidate.contact?.url} target="_blank" rel="noopener noreferrer">
                       {candidate.contact?.fileName || "Attachment"}
                     </a>
                   </td>
@@ -209,20 +211,21 @@ const CandidatesPage = (props) => {
               ))
             ) : (
               <tr>
-                <td className="no-data">No candidate available</td>
+                <td className="no-data" colSpan={tableHeader.length}>
+                  No candidates available
+                </td>
               </tr>
             )}
-            </tbody>
-          </table>
-        </div>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => setCurrentPage(page)}
-        />
+          </tbody>
+        </table>
       </div>
-      <CandidateDetailsModal 
-        open={viewDetails} 
+      <Pagination 
+        currentPage={currentPage} 
+        totalPages={totalPages} 
+        onPageChange={setCurrentPage} 
+      />
+      <CandidateDetailsModal
+        open={viewDetails}
         close={() => setViewDetails(false)}
         candidate={selectedCandidate}
         isEditable={true}

@@ -1,7 +1,7 @@
 .job-postings-container{
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 24px;
   width: 100%;
   font-family: Inter;
   color: #002041;
@@ -45,6 +45,7 @@
 
 .jobs {
   width: -webkit-fill-available;
+  min-height: 137px;
 }
 
 .edit-button,

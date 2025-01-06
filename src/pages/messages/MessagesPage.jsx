@@ -17,10 +17,10 @@ const MessagesPage = (props) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [lastVisibleDocs, setLastVisibleDocs] = useState([]); // Track lastVisibleDoc for each page
+  const [lastVisibleDocs, setLastVisibleDocs] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
-  const pageSize = 10; // Number of conversations per page
-  const [searchQuery, setSearchQuery] = useState(""); // Search query state
+  const pageSize = 10;
+  const [searchQuery, setSearchQuery] = useState("");
   const [convoId, setConvoId] = useState("");
   const [sortedBy, setSortedBy] = useState("");
 
@@ -34,7 +34,7 @@ const MessagesPage = (props) => {
       // Store the lastVisibleDoc for the current page
       setLastVisibleDocs((prev) => {
         const updatedDocs = [...prev];
-        updatedDocs[page - 1] = lastVisible; // Update lastVisible for the current page
+        updatedDocs[page - 1] = lastVisible;
         return updatedDocs;
       });
       setTotalPages(Math.ceil(total / pageSize));
@@ -45,7 +45,6 @@ const MessagesPage = (props) => {
 
   const searchAndLoadConversations = async () => {
     if (!searchQuery) {
-      // If search query is empty, reset to paginated conversations
       setCurrentPage(1);
       setLastVisibleDocs([]);
       await loadConversations(1);
@@ -53,9 +52,9 @@ const MessagesPage = (props) => {
     }
 
     try {
-      const data = await searchConversations(searchQuery);
+      const data = await searchConversations(searchQuery, userId);
       setConversations(data);
-      setTotalPages(1); // Since search results are not paginated
+      setTotalPages(1);
     } catch (error) {
       console.error("Error searching conversations:", error);
     }
@@ -89,6 +88,14 @@ const MessagesPage = (props) => {
     return { date: null, messageText: null, messageTime: null };
   };
 
+  const getResumeFile = (conversation) => {
+    if (conversation.attachments && conversation.attachments.length > 0) {
+      const resumeFile = conversation.attachments.find((file) => file.isResume === true);
+      return resumeFile || null;
+    }
+    return null;
+  };
+
   const handleShowMessage = (convo) => {
     setSelectedConvo(convo);
     setShowMessage(true);
@@ -120,10 +127,10 @@ const MessagesPage = (props) => {
       const dateB = new Date(getLatestMessage(b).date);
   
       if (sortOption === "Newest") {
-        return dateB - dateA; // Sort by descending date
+        return dateB - dateA;
       }
       if (sortOption === "Oldest") {
-        return dateA - dateB; // Sort by ascending date
+        return dateA - dateB;
       }
       return 0;
     });
@@ -143,7 +150,7 @@ const MessagesPage = (props) => {
 
       console.log("Conversation deleted successfully");
       alert("Conversation deleted successfully!");
-      setShowConfirmation(false)
+      setShowConfirmation(false);
     } catch (error) {
       console.error("Error deleting conversation:", error);
       alert("An error occurred while deleting conversation");
@@ -161,15 +168,13 @@ const MessagesPage = (props) => {
         <div className="title-container">
           <div className="card-title">All Messages</div>
           <div className="flex">
-            <Select 
-              id="select-input" 
-              sx={{width: 100}}
+            <Select
+              id="select-input"
+              sx={{ width: 100 }}
               displayEmpty
-              value={sortedBy} 
+              value={sortedBy}
               onChange={(e) => handleSortedBy(e.target.value)}
-              renderValue={() =>
-                sortedBy ? sortedBy : "Sort by"
-              }
+              renderValue={() => (sortedBy ? sortedBy : "Sort by")}
             >
               {sortOptions.map((option, index) => (
                 <MenuItem id="options" key={index} value={option}>
@@ -201,22 +206,36 @@ const MessagesPage = (props) => {
             </tr>
           </thead>
           <tbody>
-            { conversations && conversations.length > 0 ?
-            (conversations.map((conversation) => (
-              <tr key={conversation.id}>
-                <td onClick={() => handleShowMessage(conversation)}>{conversation.connection}</td>
-                <td>{truncateText(getLatestMessage(conversation).messageText, 80)}</td>
-                <td>
-                  {convertDateFormat(getLatestMessage(conversation).date) +
-                    ` / ` +
-                    getLatestMessage(conversation).messageTime}
-                </td>
-                <td className="cv-link">CV_Frontend_Dev.pdf</td>
-                <td onClick={() => handleShowConfirmation(conversation.id)} style={{textAlign: 'center'}}><img src={Delete}/></td>
-              </tr>
-            ))) : (
+            {conversations && conversations.length > 0 ? (
+              conversations.map((conversation) => {
+                const resumeFile = getResumeFile(conversation);
+                return (
+                  <tr key={conversation.id}>
+                    <td onClick={() => handleShowMessage(conversation)}>{conversation.connection}</td>
+                    <td>{truncateText(getLatestMessage(conversation).messageText, 80)}</td>
+                    <td>
+                      {convertDateFormat(getLatestMessage(conversation).date) +
+                        ` / ` +
+                        getLatestMessage(conversation).messageTime}
+                    </td>
+                    <td className="cv-link">
+                      {resumeFile ? (
+                        <a href={resumeFile.url} target="_blank" rel="noopener noreferrer">
+                          {resumeFile.fileName || "Attachment"}
+                        </a>
+                      ) : (
+                        ""
+                      )}
+                    </td>
+                    <td onClick={() => handleShowConfirmation(conversation.id)} style={{ textAlign: "center" }}>
+                      <img src={Delete} alt="Delete" />
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
               <tr>
-                <td style={{marginTop: 10}} className="no-data">
+                <td style={{ marginTop: 10 }} className="no-data">
                   No message available
                 </td>
               </tr>

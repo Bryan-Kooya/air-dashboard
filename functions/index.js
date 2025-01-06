@@ -214,7 +214,7 @@ app.post("/process-resume", async (req, res) => {
     - Phone
     - Location (City and abbreviation of Country name only)
     - LinkedIn URL
-  - A list of job titles that this resume is most suitable for (generate atleast 10 job tags, e.g., Software Engineer, Data Analyst, Product Manager).
+  - Extract exactly 30 most relevant skill tags.
 
   Respond with ONLY valid JSON, no markdown, no explanations.
   Format:
@@ -226,7 +226,7 @@ app.post("/process-resume", async (req, res) => {
       "location": "New York, USA",
       "linkedin": "linkedin.com/in/johndoe"
     },
-    "job_tags": ["Software Engineer", "Data Analyst", "Product Manager"]
+    "tags": [tag1, tag2, ...]
   }`;
 
   try {
@@ -256,8 +256,8 @@ app.post("/process-resume", async (req, res) => {
 
     const parsedContent = JSON.parse(rawContent);
 
-    // Validate that contact information and job tags exist
-    if (!parsedContent.contact || !parsedContent.job_tags) {
+    // Validate that contact information and tags exist
+    if (!parsedContent.contact || !parsedContent.tags) {
       throw new Error("Missing required fields in the parsed response.");
     }
 

@@ -30,7 +30,7 @@ export const loginUser = async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     console.log("Logged in as:", user.email);
-    return user.uid;
+    return user;
   } catch (error) {
     console.error("Error logging in:", error.message);
     throw error;

@@ -50,11 +50,11 @@ const MessageModal = (props) => {
                     message.attachments.map((attachment, attachmentIndex) => (
                       <div key={attachmentIndex} className="message-attachment">
                         <a
-                          href={attachment.url}
+                          href={attachment?.url}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          {attachment.name || "Attachment"}
+                          {attachment?.name || "Attachment"}
                         </a>
                       </div>
                     ))}

@@ -6,19 +6,25 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  serverTimestamp
 } from "firebase/firestore";
 import "./JobPostingsPage.css"
 import { useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth, db } from "../../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { Select, MenuItem, CircularProgress } from '@mui/material';
 import AIGeneratedJobModal from "../../components/aiGeneratedJobModal/AIGeneratedJobModal";
 import EditJobModal from "../../components/editJobModal/EditJobModal";
 import { apiBaseUrl } from "../../utils/constants";
+import Pagination from "../../components/pagination/Pagination";
+import { fetchPaginatedJobs, searchJobs } from "../../utils/firebaseService";
+import { SearchIcon } from "../../assets/images";
 
 const JobPostingsPage = (props) => {
   const tableHeader = ["Job Title", "Status", "Company", "Industry", "Location", "Actions"];
   const statusList = ["Active", "Not Active"];
+  const sortOptions = ["Newest", "Oldest"];
+  const userId = props.userId;
+  const [sortedBy, setSortedBy] = useState("");
   const [jobs, setJobs] = useState([]);
   const [job, setJob] = useState([]);
   const [formData, setFormData] = useState({
@@ -37,6 +43,88 @@ const JobPostingsPage = (props) => {
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [loadingJobId, setLoadingJobId] = useState(null); // Tracks the job currently being updated
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastVisibleDocs, setLastVisibleDocs] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const pageSize = 5;
+
+  const loadJobs = async (page) => {
+    try {
+      const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
+      const { data, lastVisible, total } = await fetchPaginatedJobs(pageSize, lastVisibleDoc, userId);
+      setJobs(data);
+
+      // Store the lastVisibleDoc for the current page
+      setLastVisibleDocs((prev) => {
+        const updatedDocs = [...prev];
+        updatedDocs[page - 1] = lastVisible; // Update lastVisible for the current page
+        return updatedDocs;
+      });
+      setTotalPages(Math.ceil(total / pageSize));
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+    }
+  };
+
+  const searchAndLoadJobs = async () => {
+    if (!searchQuery) {
+      // If search query is empty, reset to paginated jobs
+      setCurrentPage(1);
+      setLastVisibleDocs([]);
+      await loadJobs(1);
+      return;
+    }
+
+    try {
+      const data = await searchJobs(searchQuery, userId);
+      searchJobs(data);
+      setTotalPages(1); // Since search results are not paginated
+    } catch (error) {
+      console.error("Error searching contacts:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!searchQuery) {
+      loadJobs(currentPage);
+    }
+  }, [currentPage]);
+
+  // Update a job
+  const updateJob = async (updatedJob) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const jobDoc = doc(db, "jobs", updatedJob.id);
+      console.log('Updating job data:', updatedJob);
+      await updateDoc(jobDoc, updatedJob);
+      setJobs(jobs.map((job) => (job.id === updatedJob.id ? { ...job, ...updatedJob } : job)));
+      // Show success message
+      setError(null);
+      setEditModalOpen(false);
+    } catch (error) {
+      console.error("Error updating job:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete a job
+  const deleteJob = async (id) => {
+    try {
+      const jobDoc = doc(db, "jobs", id);
+      await deleteDoc(jobDoc);
+      setJobs(jobs.filter((job) => job.id !== id));
+    } catch (error) {
+      console.error("Error deleting job:", error);
+    }
+  };
+
+  const handleSearchSubmit = async (event) => {
+    event.preventDefault();
+    await searchAndLoadJobs();
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -99,6 +187,8 @@ const JobPostingsPage = (props) => {
         location: formData.location,
         description: generatedDescription,
         tags: tags.join(','),
+        userId: userId,
+        timestamp: serverTimestamp(),
       };
 
       console.log('Saving job data:', jobData);
@@ -137,49 +227,27 @@ const JobPostingsPage = (props) => {
     setJob(selectedJob);
   };
 
-  // Fetch jobs from Firebase Firestore
-  const fetchJobs = async () => {
-    const jobsCollection = collection(db, "jobs");
-    const jobsSnapshot = await getDocs(jobsCollection);
-    const jobsList = jobsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    setJobs(jobsList);
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
   };
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  // Update a job
-  const updateJob = async (updatedJob) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const jobDoc = doc(db, "jobs", updatedJob.id);
-      console.log('Updating job data:', updatedJob);
-      await updateDoc(jobDoc, updatedJob);
-      setJobs(jobs.map((job) => (job.id === updatedJob.id ? { ...job, ...updatedJob } : job)));
-      // Show success message
-      setError(null);
-      setEditModalOpen(false);
-    } catch (error) {
-      console.error("Error updating job:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Delete a job
-  const deleteJob = async (id) => {
-    try {
-      const jobDoc = doc(db, "jobs", id);
-      await deleteDoc(jobDoc);
-      setJobs(jobs.filter((job) => job.id !== id));
-    } catch (error) {
-      console.error("Error deleting job:", error);
-    }
+  const handleSortedBy = (sortOption) => {
+    setSortedBy(sortOption);
+  
+    const sortedJobs = [...jobs].sort((a, b) => {
+      const dateA = a.timestamp;
+      const dateB = b.timestamp;
+  
+      if (sortOption === "Newest") {
+        return dateB - dateA; // Sort by descending date
+      }
+      if (sortOption === "Oldest") {
+        return dateA - dateB; // Sort by ascending date
+      }
+      return 0;
+    });
+  
+    setJobs(sortedJobs);
   };
 
   const handleJobStatus = async (jobId, newStatus) => {
@@ -285,7 +353,38 @@ const JobPostingsPage = (props) => {
         loading={loading}
       />
       <div className="jobs card">
-        <div className="card-title">Recently Added Jobs</div>
+        <div className="title-container">
+          <div className="card-title">Recently Added Jobs</div>
+          <div className="flex">
+            <Select 
+              id="select-input" 
+              sx={{width: 100}}
+              displayEmpty
+              value={sortedBy} 
+              onChange={(e) => handleSortedBy(e.target.value)}
+              renderValue={() => sortedBy ? sortedBy : "Sort by"}
+            >
+              {sortOptions.map((option, index) => (
+                <MenuItem id="options" key={index} value={option} onChange={() => handleSortedBy(option)}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+            <form className="search-container" onSubmit={handleSearchSubmit}>
+              <div className="search-wrapper">
+                <img onClick={handleSearchSubmit} src={SearchIcon} alt="Search Icon" className="search-icon" />
+                <input
+                  className="search-input"
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <button className="search primary-button" type="submit">Search</button>
+            </form>
+          </div>
+        </div>
         <table className="data-table">
           <thead>
             <tr>
@@ -295,7 +394,8 @@ const JobPostingsPage = (props) => {
             </tr>
           </thead>
           <tbody>
-            {jobs.map((job, index) => (
+            {jobs.length > 0 ?
+            jobs.map((job, index) => (
               <tr key={job.id}>
                 <td>{job.job_title}</td>
                 <td>
@@ -351,10 +451,21 @@ const JobPostingsPage = (props) => {
                   <button onClick={() => deleteJob(job.id)} className="delete-button">Delete</button>
                 </td>
               </tr>
-            ))}
+            )) : 
+            <tr>
+              <td style={{ marginTop: 10 }} className="no-data">
+                No jobs available
+              </td>
+            </tr>
+            }
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 };
