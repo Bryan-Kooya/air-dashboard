@@ -94,7 +94,7 @@ const CandidateCard = (props) => {
         </div>
       </div>
       <div className='candidate-card-row2'>
-        <div className='candidate-location'>Location: <span style={{fontWeight: 600}}>{capitalizeFirstLetter(candidate.contact.location)}</span></div>
+        <div className='candidate-location'>Location: <span style={{fontWeight: 600}}>{candidate.contact.location}</span></div>
         <div className='candidate-years'>Experience: <span style={{fontWeight: 600}}>{candidate.total_experience_years} years</span></div>
       </div>
       <div className='candidate-card-row3'>

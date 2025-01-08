@@ -42,9 +42,12 @@ const NavMenu = (props) => {
 
   return (
     <div className="nav-menu-container">
-      <div className="air-section">
-        <img src={AIRIcon} alt="AIR Icon" />
-        <img src={AIRLogo} alt="AIR Logo" />
+      <div className="animated-div">
+        <svg width="32" height="32" viewBox="0 0 32 32">
+          <rect width="32" height="32" rx="8" fill="currentColor" />
+          <text x="16" y="22" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold" fill="white" textAnchor="middle">TT</text>
+        </svg>
+        <span>TalentTap</span>
       </div>
       <Divider />
       <div className="nav-container">

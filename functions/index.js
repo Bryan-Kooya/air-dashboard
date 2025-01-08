@@ -15,13 +15,25 @@ async function getOpenAIApiKey() {
 
 // Allow requests from specific origins (update to match your frontend domain)
 const corsOptions = {
-  origin: ['https://message-scanner-extension.web.app'],
+  origin: [
+    'https://message-scanner-extension.web.app',
+    'chrome-extension://colmkbooojhebbpohdddofdgpekkbdep',
+    'https://www.linkedin.com',
+    'http://localhost:3000',
+  ],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true, // If you need cookies or authentication headers
 };
 
 const app = express();
 app.use(cors(corsOptions));
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 app.use(bodyParser.json()); 
 
 app.post("/generate-job", async (req, res) => {

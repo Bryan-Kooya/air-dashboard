@@ -15,28 +15,32 @@ import ContactsPage from "./pages/contacts/ContactsPage";
 import BillingPage from "./pages/billing/BillingPage";
 import HelpPage from "./pages/help/HelpPage";
 import { getConversationCount } from "./utils/firebaseService";
+import { getUser } from "./utils/firebaseService";
 
-const AuthObserver = ({ setAuthenticated, setUser, onLogin }) => {
+const AuthObserver = ({ setAuthenticated, updateUser, onLogin, setUserInfo }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = observeAuthState(async (user) => {
       if (user) {
         setAuthenticated(true);
-        setUser(user); // Set the userId
+        updateUser(user);
+        const userInfo = await getUser(user.email);
+        setUserInfo(userInfo);
         try {
-          await onLogin();
+          await onLogin(user?.uid);
         } catch (error) {
           console.error("Error during login process:", error);
         }
       } else {
         setAuthenticated(false);
-        setUser(null); // Clear userId on logout
+        updateUser(null);
+        setUserInfo("");
         navigate("/");
       }
     });
     return () => unsubscribe();
-  }, [navigate, setAuthenticated, setUser, onLogin]);
+  }, [navigate, setAuthenticated, updateUser, onLogin, setUserInfo]);
 
   return null;
 };
@@ -46,19 +50,18 @@ const App = () => {
   const [headerSubtitle, setHeaderSubtitle] = useState("");
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [messagesCount, setMessagesCount] = useState("0");
-  const [user, setUser] = useState("");
   const [userId, setUserId] = useState(null);
+  const [userInfo, setUserInfo] = useState("");
 
   const updateUser = (user) => {
-    setUser(user);
-    setUserId(user.uid);
+    setUserId(user?.uid);
   };
 
   const updateMessagesCount = (count) => {
     setMessagesCount(count > 99 ? "+99" : count.toString());
   };
 
-  const fetchAndSetMessageCount = async () => {
+  const fetchAndSetMessageCount = async (userId) => {
     try {
       const count = await getConversationCount(userId); // Fetch count only
       updateMessagesCount(count);
@@ -73,16 +76,16 @@ const App = () => {
   return (
     <div className="page-container">
       <Router>
-        <AuthObserver setAuthenticated={setAuthenticated} setUser={updateUser} onLogin={fetchAndSetMessageCount} />
+        <AuthObserver setAuthenticated={setAuthenticated} updateUser={updateUser} onLogin={fetchAndSetMessageCount} setUserInfo={setUserInfo} />
         {!isAuthenticated ? (
           <Routes>
-            <Route path="/" element={<LoginPage user={updateUser} />} />
+            <Route path="/" element={<LoginPage updateUser={updateUser} />} />
           </Routes>
         ) : (
           <>
             <NavMenu messagesCount={messagesCount} />
             <div className="view-section">
-              <PageHeader title={headerTitle} subtitle={headerSubtitle} user={user} />
+              <PageHeader title={headerTitle} subtitle={headerSubtitle} user={userInfo} />
               <Routes>
                 <Route
                   path="/ai-resume-analyzer"

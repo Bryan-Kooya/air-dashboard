@@ -3,7 +3,6 @@ import "./LoginPage.css"
 import { useNavigate } from "react-router-dom";
 import { observeAuthState, loginUser, registerUser } from "../../authService";
 import { Apple, Facebook, Google, TopCorner, BottomCorner } from "../../assets/images";
-import { getUser } from "../../utils/firebaseService";
 
 const LoginPage = (props) => {
   const [user, setUser] = useState(null);
@@ -18,8 +17,7 @@ const LoginPage = (props) => {
     try {
       setError("");
       const user = await loginUser(email, password);
-      const userInfo = await getUser(user.email)
-      props.user(user);
+      props.updateUser(user);
       alert("Login successfully!");
       navigate("/messages");
     } catch (error) {

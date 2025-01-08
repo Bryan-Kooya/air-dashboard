@@ -5,6 +5,7 @@ import { Avatar } from "../../assets/images";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
+import { getInitials } from "../../utils/helper";
 
 const PageHeader = (props) => {
   const navigate = useNavigate();
@@ -36,10 +37,12 @@ const PageHeader = (props) => {
         {/* <img src={Bell} alt="Notification"/> */}
         <div style={{marginLeft: 'auto'}} className="user-info">
           <div>
-            <div className="user-name">{user.name}</div>
+            <div className="user-name">{user?.name}</div>
             <div className="subscription">Premium</div>
           </div>
-          <img src={Avatar} alt="Avatar" onClick={handleMenuOpen}/>
+          <div onClick={handleMenuOpen} className="user-avatar">
+            {getInitials(user?.name)}
+          </div>
           <Menu
             sx={{marginTop: '11px', left: '-32px'}}
             anchorEl={filterAnchorEl}

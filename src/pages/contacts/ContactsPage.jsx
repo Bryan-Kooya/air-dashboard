@@ -89,7 +89,8 @@ const ContactsPage = (props) => {
     // Create an array of promises for all file uploads and processing
     const uploadPromises = files.map(async (file) => {
       const storageRef = ref(storage, `resumes/${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      const metadata = { customMetadata: { userId } };
+      const uploadTask = uploadBytesResumable(storageRef, file, metadata);
   
       return new Promise((resolve, reject) => {
         uploadTask.on(

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "./MessagesPage.css";
 import { Select, MenuItem } from '@mui/material';
 import { truncateText, convertDateFormat } from "../../utils/utils";
@@ -89,13 +89,29 @@ const MessagesPage = (props) => {
   };
 
   const getResumeFile = (conversation) => {
-    if (conversation.attachments && conversation.attachments.length > 0) {
-      const resumeFile = conversation.attachments.find((file) => file.isResume === true);
-      return resumeFile || null;
+    const messagesByDate = conversation.messagesByDate;
+
+    if (!messagesByDate) return null;
+
+    for (const date of Object.keys(messagesByDate)) {
+      const messages = messagesByDate[date];
+      for (const message of messages) {
+        const resumeFile = message.attachments.find((file) => file.isResume === true);
+        if (resumeFile) return resumeFile; // Return the resume file if found
+      }
     }
-    return null;
+
+    return null; // Return null if no resume file is found
   };
 
+  // Precompute resume files to avoid recalculating during rendering
+  const conversationsWithResumeFiles = useMemo(() => {
+    return conversations.map((conversation) => ({
+      ...conversation,
+      resumeFile: getResumeFile(conversation),
+    }));
+  }, [conversations]);
+  
   const handleShowMessage = (convo) => {
     setSelectedConvo(convo);
     setShowMessage(true);
@@ -206,33 +222,30 @@ const MessagesPage = (props) => {
             </tr>
           </thead>
           <tbody>
-            {conversations && conversations.length > 0 ? (
-              conversations.map((conversation) => {
-                const resumeFile = getResumeFile(conversation);
-                return (
-                  <tr key={conversation.id}>
-                    <td onClick={() => handleShowMessage(conversation)}>{conversation.connection}</td>
-                    <td>{truncateText(getLatestMessage(conversation).messageText, 80)}</td>
-                    <td>
-                      {convertDateFormat(getLatestMessage(conversation).date) +
-                        ` / ` +
-                        getLatestMessage(conversation).messageTime}
-                    </td>
-                    <td className="cv-link">
-                      {resumeFile ? (
-                        <a href={resumeFile.url} target="_blank" rel="noopener noreferrer">
-                          {resumeFile.fileName || "Attachment"}
-                        </a>
-                      ) : (
-                        ""
-                      )}
-                    </td>
-                    <td onClick={() => handleShowConfirmation(conversation.id)} style={{ textAlign: "center" }}>
-                      <img src={Delete} alt="Delete" />
-                    </td>
-                  </tr>
-                );
-              })
+            {conversationsWithResumeFiles && conversationsWithResumeFiles.length > 0 ? (
+              conversationsWithResumeFiles.map((conversation) => (
+                <tr key={conversation.id}>
+                  <td onClick={() => handleShowMessage(conversation)}>{conversation.connection}</td>
+                  <td>{truncateText(getLatestMessage(conversation).messageText, 80)}</td>
+                  <td>
+                    {convertDateFormat(getLatestMessage(conversation).date) +
+                      ` / ` +
+                      getLatestMessage(conversation).messageTime}
+                  </td>
+                  <td className="cv-link">
+                    {conversation.resumeFile ? (
+                      <a href={conversation.resumeFile.url} target="_blank" rel="noopener noreferrer">
+                        {conversation.resumeFile.name || "Attachment"}
+                      </a>
+                    ) : (
+                      ""
+                    )}
+                  </td>
+                  <td onClick={() => handleShowConfirmation(conversation.id)} style={{ textAlign: "center" }}>
+                    <img src={Delete} alt="Delete" />
+                  </td>
+                </tr>
+              ))
             ) : (
               <tr>
                 <td style={{ marginTop: 10 }} className="no-data">
