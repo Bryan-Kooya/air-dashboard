@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import "./LoginPage.css"
 import { useNavigate } from "react-router-dom";
 import { observeAuthState, loginUser, registerUser } from "../../authService";
-import { Apple, Facebook, Google, TopCorner, BottomCorner } from "../../assets/images";
+import { ShowPassword, HidePassword, TalentTap } from "../../assets/images";
 
 const LoginPage = (props) => {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
   const navigate = useNavigate();
@@ -18,13 +19,15 @@ const LoginPage = (props) => {
       setError("");
       const user = await loginUser(email, password);
       props.updateUser(user);
-      alert("Login successfully!");
       navigate("/messages");
     } catch (error) {
       setError("Incorrect email or password");
-      alert("Login failed! Please check your email and password.");
     }
-  };  
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
   const handleRegister = async (event) => {
     event.preventDefault();
@@ -40,35 +43,33 @@ const LoginPage = (props) => {
   return (
     <div className="main-container">
       <div className="login-container">
-        <div className="login-title">A.I.R</div>
-        <div className="login-subtitle">Let's Get Started!</div>
-        <form onSubmit={handleLogin}>
+        <div className="talent-tap-logo">
+          <img src={TalentTap}/><span>TalentTap</span>
+        </div>
+        <div className="login-message">Welcome back</div>
+        <div className="login-submessage">Enter your credentials to access your account</div>
+        <form className="login-form" onSubmit={handleLogin}>
           <div className="input-field">
             <input
               type="email"
               placeholder="Email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {setError(''); setEmail(e.target.value)}}
             />
           </div>
           <div className="input-field">
             <input
-              type="password"
+              style={{paddingRight: 35}}
+              type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+              onChange={(e) => {setError(''); setPassword(e.target.value)}}
+            /><img className="input-icon" onClick={togglePasswordVisibility} src={showPassword ? HidePassword : ShowPassword}/>
           </div>
+          {error && <div className="error-message">{error}</div>}
           <button className="login-btn" type="submit">Sign in</button>
+          <div className="login-submessage">Dont have an account?<span className="free-trial-link">Start free trial</span></div>
         </form>
-        <div className="label">Or continue with</div>
-        <div className="icon-container">
-          <img src={Google} alt="Google"/>
-          <img src={Facebook} alt="Facebook"/>
-          <img src={Apple} alt="Apple"/>
-        </div>
-        <img className="top-corner" src={TopCorner} alt="Corner"/>
-        <img className="bottom-corner" src={BottomCorner} alt="Corner"/>
       </div>
     </div>
   );

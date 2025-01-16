@@ -37,7 +37,7 @@ const PageHeader = (props) => {
         {/* <img src={Bell} alt="Notification"/> */}
         <div style={{marginLeft: 'auto'}} className="user-info">
           <div>
-            <div className="user-name">{user?.name}</div>
+            <div className="user-name">{user?.name ? user.name : 'Anonymous'}</div>
             <div className="subscription">Premium</div>
           </div>
           <div onClick={handleMenuOpen} className="user-avatar">

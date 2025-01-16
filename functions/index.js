@@ -36,6 +36,34 @@ app.use((req, res, next) => {
 });
 app.use(bodyParser.json()); 
 
+const INTERVIEW_PREP_PROMPT = `As an AI recruitment expert, create a comprehensive interview preparation package based on the provided job title, description, and optionally resume data. Include:
+
+1. Generate a mix of interview questions (10-15 total) across these categories:
+   - Technical questions specific to the role
+   - Behavioral questions
+   - Role-specific questions
+   Each question should include:
+   - The question text
+   - A suggested answer or key points to cover
+   - Category (Technical/Behavioral/Role-specific)
+   - Difficulty level (Basic/Intermediate/Advanced)
+
+2. Provide 5-7 preparation tips specific to this role and company type
+
+3. List 6-8 key topics the candidate should review before the interview
+
+Respond in JSON format with the following structure:
+{
+  "questions": [{
+    "question": string,
+    "answer": string,
+    "category": string,
+    "difficulty": "Basic" | "Intermediate" | "Advanced"
+  }],
+  "preparationTips": string[],
+  "keyTopics": string[]
+}`;
+
 app.post("/generate-job", async (req, res) => {
   try {
     const openaiApiKey = await getOpenAIApiKey();
@@ -59,7 +87,8 @@ app.post("/generate-job", async (req, res) => {
             content: "You are a professional job description writer. Using the provided context (job title, company, industry, and location), enhance the given job description to be more professional, compelling, and well-structured. Include key responsibilities, requirements, and benefits in a clear format."
           },
           { role: "user", content: context }
-        ]
+        ],
+        temperature: 0.7,
       }),
       openai.chat.completions.create({
         model: "gpt-4o",
@@ -70,6 +99,7 @@ app.post("/generate-job", async (req, res) => {
           },
           { role: "user", content: description }
         ],
+        temperature: 0.7,
         response_format: { type: "json_object" }
       })
     ]);
@@ -142,11 +172,12 @@ app.post("/match-resume", async (req, res) => {
     const openaiApiKey = await getOpenAIApiKey();
     const openai = new OpenAI({ apiKey: openaiApiKey });
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemMessage },
         { role: "user", content: `Resume Text:\n${resumeText}` },
       ],
+      temperature: 0.7,
     });
 
     let rawContent = response.choices[0].message.content;
@@ -246,11 +277,12 @@ app.post("/process-resume", async (req, res) => {
     const openai = new OpenAI({ apiKey: openaiApiKey });
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemMessage },
         { role: "user", content: `Resume Text:\n${resumeText}` },
       ],
+      temperature: 0.7,
     });
 
     let rawContent = response.choices[0].message.content.trim();
@@ -277,6 +309,91 @@ app.post("/process-resume", async (req, res) => {
   } catch (error) {
     console.error("Error processing resume:", error.message);
     res.status(500).json({ error: "Failed to process the resume.", details: error.message });
+  }
+});
+
+app.post("/generate-interview-prep", async (req, res) => {
+  try {
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+    const { jobTitle, jobDescription, resumeData } = req.body;
+
+    // Validate required fields
+    if (!jobTitle || !jobDescription) {
+      return res.status(400).json({
+        error: "Job title and job description are required",
+      });
+    }
+
+    // Validate resumeData
+    if (resumeData && typeof resumeData !== "string") {
+      return res.status(400).json({
+        error: "Resume data must be provided as a string",
+      });
+    }
+
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: INTERVIEW_PREP_PROMPT },
+        {
+          role: "user",
+          content: `Job Title: ${jobTitle}\n\nJob Description: ${jobDescription}${
+            resumeData ? `\n\nResume Data: ${JSON.stringify(resumeData)}` : ""
+          }`,
+        },
+      ],
+      temperature: 0.7,
+    });
+
+    // Parse and validate the response
+    let result;
+    try {
+      let rawContent = completion.choices[0].message.content.trim();
+
+      // Handle cases where response includes markdown
+      if (rawContent.startsWith("```")) {
+        const start = rawContent.indexOf("{");
+        const end = rawContent.lastIndexOf("}");
+        if (start !== -1 && end !== -1) {
+          rawContent = rawContent.substring(start, end + 1);
+        } else {
+          throw new Error("Invalid JSON structure in AI response.");
+        }
+      }
+
+      // Parse JSON content
+      result = JSON.parse(rawContent);
+
+      // Validate required fields in the response
+      if (
+        !result.questions ||
+        !Array.isArray(result.questions) ||
+        !result.preparationTips ||
+        !Array.isArray(result.preparationTips) ||
+        !result.keyTopics ||
+        !Array.isArray(result.keyTopics)
+      ) {
+        throw new Error("Incomplete or invalid response structure.");
+      }
+    } catch (parseError) {
+      console.error("Error parsing AI response:", parseError);
+      console.error("Raw AI response:", completion.choices[0].message.content); // Log raw response
+      return res.status(500).json({
+        error: "Failed to parse interview preparation materials",
+        details: parseError.message,
+      });
+    }
+
+    // Return the generated content
+    res.json(result);
+  } catch (error) {
+    console.error("Interview prep generation error:", error);
+    res.status(500).json({
+      error: "Failed to generate interview preparation materials",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 });
 

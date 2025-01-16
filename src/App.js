@@ -101,7 +101,7 @@ const App = () => {
                 />
                 <Route
                   path="/candidates-status"
-                  element={<CandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
+                  element={<CandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} userInfo={userInfo}/>}
                 />
                 <Route
                   path="/job-definitions"
@@ -109,11 +109,11 @@ const App = () => {
                 />
                 <Route
                   path="/match-candidates"
-                  element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
+                  element={<MatchCandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} userInfo={userInfo} />}
                 />
                 <Route
                   path="/contacts"
-                  element={<ContactsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
+                  element={<ContactsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} userInfo={userInfo}/>}
                 />
                 <Route
                   path="/billing"

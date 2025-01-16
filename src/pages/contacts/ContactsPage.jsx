@@ -14,6 +14,8 @@ import Pagination from "../../components/pagination/Pagination";
 const ContactsPage = (props) => {
   const tableHeader = ["Name", "Phone Number", "Email", "Resume", "Status"];
   const sortOptions = ["Newest", "Oldest"];
+  const userId = props.userId;
+  const userInfo = props.userInfo;
   const storage = getStorage(); // Initialize Firebase Storage
   const db = getFirestore(); // Initialize Firestore
   const [files, setFiles] = useState([]);
@@ -26,7 +28,6 @@ const ContactsPage = (props) => {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const pageSize = 5;
-  const userId = props.userId;
 
   const onDrop = (acceptedFiles) => {
     setFiles([...files, ...acceptedFiles]); // Allow multiple files to be added
@@ -88,7 +89,25 @@ const ContactsPage = (props) => {
   
     // Create an array of promises for all file uploads and processing
     const uploadPromises = files.map(async (file) => {
-      const storageRef = ref(storage, `resumes/${file.name}`);
+      const storageRef = ref(storage, `resumes/${userInfo.name}/${file.name}`);
+
+      try {
+        // Check if the file already exists in Firebase Storage
+        await getDownloadURL(storageRef);
+  
+        console.log(`File ${file.name} already exists in Firebase Storage. Skipping upload.`);
+        updatedStatus[file.name] = "Already Exists";
+        setUploadStatus({ ...updatedStatus });
+        return; // Skip further processing for this file
+      } catch (error) {
+        if (error.code !== "storage/object-not-found") {
+          console.error(`Error checking existence of ${file.name}:`, error);
+          updatedStatus[file.name] = "Failed";
+          setUploadStatus({ ...updatedStatus });
+          throw error; // Throw error for non-"not found" cases
+        }
+      }
+
       const metadata = { customMetadata: { userId } };
       const uploadTask = uploadBytesResumable(storageRef, file, metadata);
   
@@ -175,6 +194,8 @@ const ContactsPage = (props) => {
               resolve(); // Resolve the promise if everything is successful
             } catch (error) {
               console.error("Error processing and saving contact:", error);
+              updatedStatus[file.name] = "Failed";
+              setUploadStatus({ ...updatedStatus });
               reject(error); // Reject the promise if processing fails
             }
           }
@@ -184,13 +205,13 @@ const ContactsPage = (props) => {
   
     // Wait for all upload promises to resolve
     await Promise.all(uploadPromises);
+    alert("All files uploaded and processed successfully!");
   };
   
   const handleUploadFiles = async () => {
     try {
       await uploadFiles();
       setLoading(false);
-      files.length !== 0 && alert("All files uploaded and processed successfully!");
     } catch (error) {
       console.error("Error uploading files:", error);
       setLoading(false);
@@ -288,7 +309,7 @@ const ContactsPage = (props) => {
                 handleUploadFiles();
               }}
             >
-              Upload Files
+              Upload CVs
             </button>
           </div>}
           <input

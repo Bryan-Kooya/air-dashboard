@@ -1,4 +1,3 @@
-
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import mammoth from "mammoth";
 

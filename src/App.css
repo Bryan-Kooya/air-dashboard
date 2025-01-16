@@ -170,6 +170,25 @@ img {
   gap: 16px;
 }
 
+.action-button-container {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.action-button {
+  background: #FFFFFF;
+  border: 1px solid #e7e5e4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-button:hover {
+  background: #f5f5f4;
+}
+
 .primary-button,
 .secondary-button {
   font-size: 14px;

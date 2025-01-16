@@ -11,8 +11,8 @@ const menuList = [
   { name: "Messages", icon: MessageIcon, path: "/messages" },
   { name: "Contacts", icon: CVIcon, path: "/contacts" },
   { name: "Job Definitions", icon: JobPostIcon, path: "/job-definitions" },
-  { name: "Candidates Status", icon: CandidatesIcon, path: "/candidates-status" },
   { name: "Match Candidates", icon: MatchIcon, path: "/match-candidates" },
+  { name: "Candidates Status", icon: CandidatesIcon, path: "/candidates-status" },
   { name: "Billing", icon: BillingIcon, path: "/billing" },
   { name: "Help", icon: HelpIcon, path: "/help" },
 ];

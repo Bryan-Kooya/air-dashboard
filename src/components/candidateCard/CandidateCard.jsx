@@ -11,12 +11,12 @@ const CandidateCard = (props) => {
   const rank = props.rank;
   const matchedJob = props.matchedJob;
   const handleViewDetails = props.handleViewDetails;
-  const company = props.company;
+  const hiringCompany = props.hiringCompany;
   const location = props.location;
   const updateContact = props.updateContact;
   const handleRejectCandidate = props.handleRejectCandidate;
   const userId = props.userId;
-  const [candidate, setCandidate] = useState(props.candidate);
+  const candidate = props.candidate;
 
   const handleSaveCandidate = async () => {
     try {
@@ -40,8 +40,7 @@ const CandidateCard = (props) => {
       const candidateData = {
         ...updatedCandidate,
         userId: userId,
-        job: matchedJob,
-        company: company,
+        company: hiringCompany,
         location: location,
         searchKeywords,
         timestamp: serverTimestamp(), // Add server-side timestamp
@@ -67,10 +66,10 @@ const CandidateCard = (props) => {
   
       const newCandidateRef = doc(candidatesRef); // Automatically generates a unique ID
       await setDoc(newCandidateRef, candidateData);
-      await updateContact(candidate, "Selected");
+      await updateContact(candidate, "Selected", candidate.interviewPrep);
 
       // Update the local state to reflect the change
-      setCandidate(updatedCandidate);
+      // setCandidate(updatedCandidate);
 
       alert("Candidate saved successfully!");
     } catch (error) {
@@ -123,7 +122,7 @@ const CandidateCard = (props) => {
               value={candidate.skill_match.score}
               sx={{
                 "& .MuiLinearProgress-bar": {
-                  backgroundColor: "#FFB20D",
+                  backgroundColor: candidate.skill_match.score < 85 ? "#FFB20D" : "#22c55e",
                 },
               }}
             />

@@ -1,0 +1,124 @@
+.interview-modal-container {
+  border-radius: 12px;
+  border: 1px solid #E9E9E9;
+  background: #FFFFFF;
+  font-family: Inter;
+  color: #002041;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.modal-header {
+  padding: 20px 28px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modal-subtitle {
+  font-size: 14px;
+  font-weight: 400;
+  color: #78716c;
+}
+
+.modal-card {
+  padding: 16px 28px;
+  background: #F5F5F5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  border-radius: 0px 0px 12px 12px;
+  height: auto;
+  max-height: 500px;
+}
+
+.modal-card::-webkit-scrollbar {
+  width: 0px;
+}
+
+.tab-container-section {
+  position: relative;
+  display: flex;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #EEE;
+  background: #FFF;
+}
+
+.tab-button {
+  width: 100%;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.tab-button:nth-child(1) {
+  border-radius: 8px 0px 0px 8px;
+}
+
+.tab-button:nth-child(2) {
+  border-radius: 0px;
+}
+
+.tab-button:nth-child(3) {
+  border-radius: 0px 8px 8px 0px;
+}
+
+.tab-button:not(.selected) {
+  background-color: #FFFFFF;
+}
+
+.card-section {
+  display: flex;
+  flex-direction: column;
+  padding: 15px 10px;
+  gap: 16px;
+  border-radius: 12px;
+  border: 1px solid #EEE;
+  background: #FFF;
+  font-weight: 500;
+}
+
+.card-item {
+  border: 1px solid #EEE;
+  padding: 10px;
+  display: grid;
+  gap: 5px;
+  border-radius: 8px;
+}
+
+.tips-item {
+  border: 1px solid #EEE;
+  background: #FFFFFF;
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.card-light-label {
+  font-size: 14px;
+  font-weight: 400;
+  color: #78716c;
+}
+
+.card-item-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.blue-icon {
+  filter: brightness(0) saturate(100%) invert(26%) sepia(94%) saturate(1427%) hue-rotate(193deg) brightness(94%) contrast(98%);
+}

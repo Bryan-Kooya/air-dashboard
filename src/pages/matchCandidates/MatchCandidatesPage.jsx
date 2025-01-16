@@ -11,6 +11,8 @@ import { apiBaseUrl } from "../../utils/constants";
 import { fetchPaginatedJobs } from "../../utils/firebaseService";
 
 const MatchCandidatesPage = (props) => {
+  const userId = props.userId;
+  const userInfo = props.userInfo;
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]); // List of jobs
   const [selectedJob, setSelectedJob] = useState(''); // Currently selected job
@@ -18,6 +20,7 @@ const MatchCandidatesPage = (props) => {
   const [location, setLocation] = useState('');
   const [company, setCompany] = useState('');
   const [tags, setTags] = useState([]); // Tags related to the selected job
+  const [jobDescription, setJobDescription] = useState('');
   const [inputTag, setInputTag] = useState(''); // Input for new tags
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,7 +30,7 @@ const MatchCandidatesPage = (props) => {
   const [selectedCandidate, setSelectedCandidate] = useState([]);
   const [candidateCountInput, setCandidateCountInput] = useState(null);
   const [disabledMatching, setDisabledMatching] = useState(false);
-  const userId = props.userId;
+  const [resumeData, setResumeData] = useState("");
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -63,8 +66,10 @@ const MatchCandidatesPage = (props) => {
       if (jobDoc.exists()) {
         const tagsData = jobDoc.data().tags;
         const jobTitle = jobDoc.data().job_title;
+        const jobDescription = jobDoc.data().initialDescription;
         // Convert the comma-separated string into an array
         setTags(tagsData ? tagsData.split(',') : []);
+        setJobDescription(jobDescription);
         setSelectedJobTitle(jobTitle);
         setLocation(jobDoc.data().location);
         setCompany(jobDoc.data().company_name);
@@ -223,6 +228,7 @@ const MatchCandidatesPage = (props) => {
             if (!resumeText) {
               throw new Error("Resume text is missing for contact: " + contact.name);
             }
+            setResumeData(resumeText);
   
             // Call external API to process the resume
             const res = await fetch(`${apiBaseUrl}/match-resume`, {
@@ -254,6 +260,11 @@ const MatchCandidatesPage = (props) => {
               contact: { name, email, phone, linkedin, location, fileName, url },
               status: "Pending",
               ...processedCandidate,
+              company,
+              resumeText,
+              jobTitle: selectedJobTitle,
+              jobDescription: jobDescription,
+              interviewPrep: [],
             };
           } catch (error) {
             console.error(`Failed to process resume for contact: ${error.message}`);
@@ -284,7 +295,8 @@ const MatchCandidatesPage = (props) => {
     }
   };
         
-  const updateContact = async (candidate, status) => {
+  const updateContact = async (candidate, status, interviewPrep) => {
+    console.log('Candidate:', candidate, status, interviewPrep);
     try {  
       const contactsRef = collection(db, "contacts");
   
@@ -309,10 +321,12 @@ const MatchCandidatesPage = (props) => {
   
       if (jobIndex >= 0) {
         // If the job exists, update its status
+        existingJobs[jobIndex].interviewPrep = interviewPrep;
         existingJobs[jobIndex].status = status;
+        existingJobs[jobIndex].jobDescription = jobDescription;
       } else {
         // Add the new job if it doesn't exist
-        existingJobs.push({ jobTitle: selectedJobTitle, status: status });
+        existingJobs.push({ jobTitle: selectedJobTitle, status: status, interviewPrep, jobDescription });
       }
   
       // Update the contact's document with the updated jobs field
@@ -324,7 +338,7 @@ const MatchCandidatesPage = (props) => {
       setCandidates((prevCandidates) =>
         prevCandidates.map((c) =>
           c.contact.name === candidate.contact.name
-            ? { ...c, status } // Update the status of the matched candidate
+            ? { ...c, status, interviewPrep, jobDescription, resumeText: resumeData } // Update the status and interviewPrep of the matched candidate
             : c // Leave other candidates unchanged
         )
       );
@@ -333,7 +347,7 @@ const MatchCandidatesPage = (props) => {
     } catch (error) {
       console.error("Error updating candidate's job information:", error);
     }
-  };  
+  };
 
   const handleRejectCandidate = async (candidate) => {
     await updateContact(candidate, "Rejected");
@@ -403,8 +417,19 @@ const MatchCandidatesPage = (props) => {
             </Box>
           </div>
         </div>
-        <button onClick={() => handleMatchCandidates(false)} className='match-button' disabled={loading || disabledMatching}>
-          {loading ? <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} /> : 'Match Candidates'}
+        <button 
+          onClick={() => handleMatchCandidates(false)} 
+          className='match-button' 
+          disabled={loading || disabledMatching}
+        >
+          {loading ? (
+            <>
+              <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3', marginRight: '8px' }} />
+              Matching Candidates...
+            </>
+          ) : (
+            'Match Candidates'
+          )}
         </button>
       </div>
       {showCandidates && <div className="match-result">Match Results: {candidates.filter(candidate => candidate.status != "Rejected").length} Candidate(s)</div>}
@@ -418,7 +443,7 @@ const MatchCandidatesPage = (props) => {
             rank={index + 1}
             candidate={candidate}
             matchedJob={selectedJobTitle}
-            company={company}
+            hiringCompany={company}
             location={location}
             userId={userId}
             handleViewDetails={() => handleViewDetails(candidate)}
@@ -432,7 +457,8 @@ const MatchCandidatesPage = (props) => {
         close={() => setViewDetails(false)}
         candidate={selectedCandidate}
         isEditable={false}
-        handleMatchCandidates={handleMatchCandidates}
+        userInfo={userInfo}
+        updateContact={updateContact}
       />
     </div>
   );

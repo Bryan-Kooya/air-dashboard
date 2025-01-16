@@ -14,16 +14,15 @@ a:hover {
 /* Form Container */
 .login-container {
   position: relative;
-  height: 544px;
   width: 327px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 0px 24px;
+  padding: 24px;
   background: #ffffff;
-  border-bottom-left-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   text-align: center;
+  gap: 16px;
 }
 
 .login-title {
@@ -40,6 +39,30 @@ a:hover {
   margin: 11px auto 35px;
 }
 
+.login-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.login-message {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.login-submessage {
+  color: #78716c;
+  font-size: 14px;
+  margin-top: -6px;
+}
+
+.free-trial-link {
+  color: #0c4db6;
+  font-weight: 500;
+  cursor: pointer;
+  padding-left:5px;
+}
+
 .login-container h2 {
   margin-bottom: 20px;
   font-size: 24px;
@@ -49,7 +72,14 @@ a:hover {
 /* Form Fields */
 .input-field {
   width: 100%;
-  margin-bottom: 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  right: 12px; /* Adjust as needed */
 }
 
 .label {
@@ -77,20 +107,18 @@ a:hover {
 .login-btn {
   width: 100%;
   padding: 12px;
-  margin: 12px auto 30px;
-  background: linear-gradient(180deg, #023568 0%, #2B86E0 55.5%, #006AD5 100%);
-  border: none;
-  border-radius: 8px;
+  margin: 12px 0px;
+  background: #0c4db6;
   color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.3s;
+  font-size: 14px;
+  font-weight: 500;
   height: auto;
+  transition-duration: 0.2s;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 }
 
 .login-btn:hover {
-  background-color: var(--primary-hover-color);
+  scale: 1.02;
 }
 
 .forgot-password {
@@ -133,7 +161,6 @@ a:hover {
   color: #f33;
   padding: 8px 15px;
   border-radius: 8px;
-  margin-bottom: 15px;
   text-align: left;
 }
 
@@ -161,4 +188,14 @@ a:hover {
   bottom: 0px;
   left: 0px;
   border-bottom-left-radius: 12px;
+}
+
+.talent-tap-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #0c4db6;
+  justify-content: center;
 }

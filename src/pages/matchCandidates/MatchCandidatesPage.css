@@ -10,7 +10,9 @@
 .match-button {
   background-color: #0A66C2;
   color: white;
-  width: 139px;
+  width: fit-content;
+  display: flex;
+  align-items: center;
 }
 
 .match-result {

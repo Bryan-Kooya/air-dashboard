@@ -1,0 +1,16 @@
+.score-gauge-container {
+  width: fit-content;
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.score-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  font-weight: 700;
+}

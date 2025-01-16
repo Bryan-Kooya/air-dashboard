@@ -24,6 +24,15 @@ import Delete from "./Delete.svg";
 import SearchIcon from "./SearchIcon.svg";
 import FilterIcon from "./FilterIcon.svg";
 import CVIcon from "./CVIcon.svg";
+import InterviewIcon from "./InterviewIcon.svg";
+import EmailIcon from "./EmailIcon.svg";
+import CopyIcon from "./CopyIcon.svg";
+import CheckIcon from "./CheckIcon.svg";
+import BulbIcon from "./BulbIcon.svg";
+import BookIcon from "./BookIcon.svg";
+import TalentTap from "./TT.svg";
+import ShowPassword from "./Eye.png";
+import HidePassword from "./Hidden.png";
 
 export {
   Apple,
@@ -52,4 +61,13 @@ export {
   SearchIcon,
   FilterIcon,
   CVIcon,
+  InterviewIcon,
+  EmailIcon,
+  CopyIcon,
+  CheckIcon,
+  BulbIcon,
+  BookIcon,
+  TalentTap,
+  ShowPassword,
+  HidePassword,
 };

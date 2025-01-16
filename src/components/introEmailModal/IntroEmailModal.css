@@ -1,0 +1,51 @@
+.email-modal-container {
+  border-radius: 12px;
+  border: 1px solid #E9E9E9;
+  background: #FFFFFF;
+  font-family: Inter;
+  color: #002041;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.email-modal-row1 {
+  padding: 20px 28px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.email-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.email-modal-subtitle {
+  font-size: 14px;
+  font-weight: 400;
+  color: #78716c;
+}
+
+.email-modal-row2 {
+  padding: 16px 28px;
+  background: #F5F5F5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  border-radius: 0px 0px 12px 12px;
+}
+
+.generated-email-section {
+  position: relative;
+  font-family: monospace;
+  font-size: 14px;
+  white-space: pre-wrap;
+  padding: 20px;
+  gap: 16px;
+  border-radius: 12px;
+  border: 1px solid #EEE;
+  background: #FFF;
+}

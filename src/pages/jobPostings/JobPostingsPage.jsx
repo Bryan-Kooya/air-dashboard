@@ -185,6 +185,7 @@ const JobPostingsPage = (props) => {
         company_name: formData.company_name,
         industry: formData.industry,
         location: formData.location,
+        initialDescription: formData.description,
         description: generatedDescription,
         tags: tags.join(','),
         userId: userId,

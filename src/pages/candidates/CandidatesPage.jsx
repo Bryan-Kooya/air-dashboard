@@ -8,10 +8,11 @@ import { SearchIcon, FilterIcon } from "../../assets/images";
 import { capitalizeFirstLetter } from "../../utils/utils";
 
 const CandidatesPage = (props) => {
-  const tableHeader = ["Candidate", "Job", "Status", "Company", "Location", "Experience", "Attachments"];
+  const tableHeader = ["Candidate", "Status", "Company", "Location", "Experience", "Attachments"];
   const filterOptions = ["Job", "Status", "Experience"];
   const sortOptions = ["Newest", "Oldest"];
   const userId = props.userId;
+  const userInfo = props.userInfo;
   const pageSize = 5;
 
   // State Management
@@ -230,6 +231,7 @@ const CandidatesPage = (props) => {
         candidate={selectedCandidate}
         isEditable={true}
         loadCandidates={loadCandidates}
+        userInfo={userInfo}
       />
     </div>
   );
