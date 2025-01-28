@@ -38,3 +38,27 @@ export const getInitials = (name) => {
   const initials = names.map((n) => n[0]).join("").toUpperCase();
   return initials;
 };
+
+export const translateToEnglish = async (text) => {
+  try {
+    const apiKey = 'AIzaSyBpiGRjYvgayUj1sOg7XGj010vZanq6ZO8';
+    const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        q: text,
+        source: 'iw', // Hebrew
+        target: 'en', // English
+      }),
+    });
+
+    const data = await response.json();
+    return data.data.translations[0].translatedText.toLowerCase();
+  } catch (error) {
+    console.error("Error translating text:", error);
+    return text; // Return the original text if translation fails
+  }
+};

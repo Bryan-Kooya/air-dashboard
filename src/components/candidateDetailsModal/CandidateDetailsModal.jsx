@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import "./CandidateDetailsModal.css";
-import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem } from '@mui/material';
-import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon } from '../../assets/images';
+import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem, Rating, Divider } from '@mui/material';
+import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon } from '../../assets/images';
 import { capitalizeFirstLetter, handleRedirectToLinkedIn } from '../../utils/utils';
 import ConfirmModal from '../confirmModal/ConfirmModal';
 import { db } from '../../firebaseConfig';
-import { doc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import ScoreGauge from '../scoreGauge/ScoreGauge';
 import IntroEmailModal from '../introEmailModal/IntroEmailModal';
 import InterviewPrepModal from '../interviewPrepModal/InterviewPrepModal';
@@ -19,6 +19,10 @@ const CandidateDetailsModal = (props) => {
   const isEditable = props.isEditable;
   const userInfo = props.userInfo;
   const updateContact = props.updateContact;
+  const saveCandidate = props.saveCandidate;
+  const handleRejectCandidate = props.handleRejectCandidate;
+  const updateChanges = props.updateChanges;
+  const updateMessage = props.updateMessage;
   const email = candidate.contact?.email?.toLowerCase();
   const [showSelectStatus, setShowSelectStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(candidate.status);
@@ -27,10 +31,19 @@ const CandidateDetailsModal = (props) => {
   const [showInterviewPrep, setShowInterviewPrep] = useState(false);
   const [prepData, setPrepData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loadSaveButton, setLoadSaveButton] = useState(false);
+  const [status, setStatus] = useState(candidate.status); 
 
-  const handleIconClick = () => {
+  const handleIconClick = async () => {
     if (isEditable) setShowConfirm(true);
-    else console.log('Save Candidate');
+    else {
+      setLoadSaveButton(true);
+      await saveCandidate(candidate);
+      setStatus("Selected")
+      setTimeout(() => setLoadSaveButton(false), 700);
+      handleClose();
+    }
   };
 
   const handleClose = () => {
@@ -38,14 +51,17 @@ const CandidateDetailsModal = (props) => {
     setShowSelectStatus(false);
   };
 
-  const handleEditOrReject = () => {
-    if (isEditable && !showSelectStatus) {
-      setShowSelectStatus(true);
-      setSelectedStatus(candidate.status);
-    } else if (showSelectStatus) {
-      setSelectedStatus(candidate.status);
+  const handleEditOrReject = async () => {
+    if (isEditable) {
+      if (showSelectStatus) {
+        setSelectedStatus(candidate.status);
+      } else {
+        setShowSelectStatus(true);
+        setSelectedStatus(candidate.status);
+      }
     } else {
-      handleUpdateChanges(true);
+      await handleRejectCandidate();
+      handleClose();
     }
   };
 
@@ -53,38 +69,17 @@ const CandidateDetailsModal = (props) => {
     setSelectedStatus(value);
   };
 
-  const handleViewOrSaveChanges = () => {
-    if (isEditable) {
-      handleUpdateChanges(false);
+  const handleViewOrSaveChanges = async () => {
+    if (isEditable && showSelectStatus) {
+        setSaving(true);
+        await updateChanges(candidate, selectedStatus);
+        setShowSelectStatus(false);
+        setSaving(false);
     } else {
-      handleRedirectToLinkedIn(candidate.contact?.linkedin);
+      const openNewTab = handleRedirectToLinkedIn(candidate.contact?.linkedin);
+      if (!openNewTab) updateMessage("LinkedIn profile is not available for this candidate.", 'info', true);
     }
   };
-
-  const handleUpdateChanges = async (isRejected) => {
-    try {
-      if (!candidate?.id) {
-        alert("Candidate ID is missing. Unable to update status.");
-        return;
-      }
-  
-      const candidateRef = doc(db, "candidates", candidate.id);
-  
-      // Update the status of the candidate
-      await setDoc(
-        candidateRef,
-        { status: isRejected ? "Rejected" : selectedStatus },
-        { merge: true } // Merge with existing fields to avoid overwriting
-      );
-  
-      alert("Candidate status updated successfully!");
-      close();
-      props.loadCandidates(); // Reload candidates to reflect the changes
-    } catch (error) {
-      console.error("Error updating candidate status:", error);
-      alert("An error occurred while updating candidate status.");
-    }
-  };  
 
   const generatePrep = async () => {
     setLoading(true);
@@ -138,7 +133,7 @@ const CandidateDetailsModal = (props) => {
       }
     } catch (error) {
       console.error("Error generating interview prep:", error);
-      alert("Failed to generate interview prep. Please try again later.");
+      updateMessage("Failed to generate interview prep. Please try again later.", "error", true);
     } finally {
       setTimeout(() => setLoading(false), 500);
     }
@@ -182,9 +177,14 @@ const CandidateDetailsModal = (props) => {
           </div>}
           <div className='contact-section'>
             <div className='section-title'>Detailed Scores</div>
-            <div  className='metric-section'>
-              <ScoreGauge title={"Resume Quality"} value={candidate.scores?.overall}/>
-              <ScoreGauge title={"Job Match"} value={candidate.skill_match?.score}/>
+            <div className='score-row' style={{marginBottom: 20, gap: 25}}>
+              <div><span className='light-label'>Job Match: </span><span>{candidate.scores?.job_title_relevance.score}%</span></div>
+              <div><span className='light-label'>Resume Quality: </span><span>{candidate.scores?.presentation.score}%</span></div>
+              <div><span className='light-label'>Skills Match: </span><span>{candidate.skill_match?.score}%</span></div>
+            </div>
+            <div className='metric-section'>
+              <ScoreGauge title={"Resume Quality"} value={candidate.scores?.presentation.score}/>
+              <ScoreGauge title={"Job Match"} value={candidate.scores?.job_title_relevance.score}/>
               <div className='action-button-container'>
                 <button disabled={loading} onClick={handleInterviewPrep} className='action-button'>
                   {loading ? 
@@ -200,41 +200,293 @@ const CandidateDetailsModal = (props) => {
               </div>
             </div>
           </div>
-          {/* <div className='contact-section'>
-            <div className='section-title'>Detailed Scores</div>
-            <div>
-              <div>Overall Score</div>
-              <div className='score-row'>
-                <LinearProgress
-                  id='score-bar' 
-                  variant="determinate" 
-                  value={candidate.scores?.overall}
-                  sx={{
-                    "& .MuiLinearProgress-bar": {
-                      backgroundColor: "#0A66C2",
-                    },
-                  }}
-                />
-                <span>{candidate.scores?.overall}%</span>
+          <div className='contact-section'>
+            <div className='section-title'>Match Analysis</div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={SkillsIcon}/>Skills
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.skills.score}%<span className='light-label'>(Weight: 40%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.scores?.skills.score}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={ExperienceIcon}/>Experience
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.experience.score}%<span className='light-label'>(Weight: 30%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.scores?.experience.score}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={EducationIcon}/>Education
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.education.score}%<span className='light-label'>(Weight: 15%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.scores?.education.score}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={DatabaseIcon}/>Domain Expertise
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.skill_match?.score}%<span className='light-label'>(Weight: 15%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.skill_match?.score}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-row'>Overall Match Assesment</div>
+              <div className='light-label'>{candidate.detailedAnalysis?.overall_match_fitness}</div>
+            </div>
+            <div className='section-info'>
+              <div className='score-row'>Key Strengths</div>
+              <div>
+                {candidate.detailedAnalysis?.strengths_alignment.map((strength) => (
+                  <li className='light-label'>{strength}</li>
+                ))}
               </div>
             </div>
-            <div>
-              <div>Job Match</div>
-              <div className='score-row'>
-                <LinearProgress 
-                  id='score-bar' 
-                  variant="determinate" 
-                  value={candidate.skill_match?.score}
-                  sx={{
-                    "& .MuiLinearProgress-bar": {
-                      backgroundColor: "#FFB20D",
-                    },
-                  }}
-                />
-                <span>{candidate.skill_match?.score}%</span>
+            <div className='section-info'>
+              <div className='score-row'>Areas for Development</div>
+              <div>
+                {candidate.detailedAnalysis?.gap_analysis.map((area) => (
+                  <li className='light-label'>{area}</li>
+                ))}
               </div>
             </div>
-          </div> */}
+            <div className='section-info'>
+              <div className='score-row'>Growth Potential</div>
+              <div className='light-label'>{candidate.detailedAnalysis?.growth_potential}</div>
+            </div>
+          </div>
+          <div className='contact-section'>
+            <div>
+              <div className='section-title'>Match Confidence ({candidate.scores?.overall}%)</div>
+              <div className='light-label'>Confidence level in the match assessment based on available data</div>
+            </div>
+            <div style={{padding: '10px 0px'}}>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.scores?.overall}
+                sx={{
+                  height: '12px !important',
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+              <div className='score-sublabel'>
+                <span>0%</span>
+                <span>25%</span>
+                <span>50%</span>
+                <span>75%</span>
+                <span>100%</span>
+              </div>
+            </div>
+            <div className='section-info'>
+              <div className='score-row'>
+                Data Completeness 
+                <Tooltip title='How complete and detailed the resume information is'><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.presentation.score}%<span className='light-label'>(Weight: 30%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.scores?.presentation.score}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-row'>
+                Skills Match Accuracy 
+                <Tooltip title='Confidence in the skills matching assessment'><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.skill_match?.score}%<span className='light-label'>(Weight: 25%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.skill_match?.score}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-row'>
+                Experience Validation
+                <Tooltip title='Confidence in validating past experience and achievements'><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.experience.score}%<span className='light-label'>(Weight: 25%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.scores?.experience.score}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-row'>
+                Education Verification
+                <Tooltip title='Confidence in education history validation'><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.education.score}%<span className='light-label'>(Weight: 20%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.scores?.education.score}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+            </div>
+            <Divider style={{padding: '5px 0px'}}/>
+            <div className='section-info'>
+              <div className='score-row'>Confidence Indicators</div>
+              <div style={{display: 'flex'}}>
+                <div style={{display: 'grid', width: '100%', gap: '5px'}} className='light-label'>
+                  <span><div className={`status-badge high`}></div>High (80-100%): Strong data correlation</span>
+                  <span><div className={`status-badge medium`}></div>Medium (50-79%): Moderate confidence</span>
+                </div>
+                <div style={{display: 'grid', width: '100%', gap: '5px'}} className='light-label'>
+                  <span><div className={`status-badge low`}></div>Low (30-49%): Limited data available</span>
+                  <span><div className={`status-badge very-low`}></div>Very Low (0-29%): Insufficient data</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className='contact-section'>
+            <div className='section-title'>Personality Insights</div>
+            <div className='section-info'>
+              <div className='light-label'>{candidate.personality_insights?.summary}</div>
+            </div>
+            <div className='insight-card-container'>
+              <div className='contact-section' style={{width: '100%'}}>
+                <div className='score-label'>
+                  <img src={SkillsIcon}/>Personality Traits
+                </div>
+                {candidate.personality_insights?.traits.map((trait) => (
+                  <div className='section-info'>
+                    <div className='score-row'>
+                      {trait.name}
+                      <Rating sx={{marginLeft: 'auto', color: '#0A66C2'}} value={(trait.score / 2)} size='small' readOnly precision={0.5}/>
+                    </div>
+                    <LinearProgress
+                      id='score-bar' 
+                      variant="determinate" 
+                      value={candidate.scores?.skills.score}
+                      sx={{
+                        "& .MuiLinearProgress-bar": {
+                          backgroundColor: "#0A66C2",
+                        },
+                      }}
+                    />
+                    <div className='light-label'>{trait.description}</div>
+                  </div>
+                ))}
+              </div>
+              <div className='contact-section' style={{width: '100%'}}>
+                <div className='score-label'>
+                  <img src={PeopleIcon}/>Communication Style
+                </div>
+                {candidate.personality_insights?.communication_style.map((style) => (
+                  <div className='section-info'>
+                    <div className='score-row'>
+                      {style.name}
+                      <Rating sx={{marginLeft: 'auto', color: '#0A66C2'}} value={(style.score / 2)} size='small' readOnly precision={0.5}/>
+                    </div>
+                    <LinearProgress
+                      id='score-bar' 
+                      variant="determinate" 
+                      value={candidate.scores?.skills.score}
+                      sx={{
+                        "& .MuiLinearProgress-bar": {
+                          backgroundColor: "#0A66C2",
+                        },
+                      }}
+                    />
+                    <div className='light-label'>{style.description}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className='insight-card-container'>
+              <div className='contact-section' style={{width: '100%'}}>
+                <div className='section-info'>
+                  <div className='score-row'>Work Preferences</div>
+                  <div>
+                    {candidate.personality_insights?.work_preferences.map((pref) => (
+                      <li className='light-label'>{pref}</li>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className='contact-section' style={{width: '100%'}}>
+                <div className='section-info'>
+                  <div className='score-row'>Key Strengths</div>
+                  <div>
+                    {candidate.personality_insights?.strengths.map((strength) => (
+                      <li className='light-label'>{strength}</li>
+                    ))}
+                  </div>
+                </div>                
+              </div>
+              <div className='contact-section' style={{width: '100%'}}>
+                <div className='section-info'>
+                  <div className='score-row'>Growth Areas</div>
+                  <div>
+                    {candidate.personality_insights?.areas_for_growth.map((area) => (
+                      <li className='light-label'>{area}</li>
+                    ))}
+                  </div>
+                </div>                
+              </div>
+            </div>
+          </div>
           <div className='contact-section'>
             <div className='section-title'>Experience ({candidate.scores?.experience.score}%)</div>
             <div>{candidate.scores?.experience.feedback}</div>
@@ -276,16 +528,22 @@ const CandidateDetailsModal = (props) => {
             className='send-button' 
             onClick={handleEditOrReject}
           >
-            {(isEditable && !showSelectStatus) ? 'Edit Candidate' : showSelectStatus ? 'Cancel' : 'Reject Candidate'}
+            {isEditable ? `${showSelectStatus ? 'Cancel' : 'Edit Candidate'}` : 'Reject Candidate'}
           </button>
           <button 
+            disabled={saving}
             className='view-button' 
             onClick={handleViewOrSaveChanges}
           >
-            {showSelectStatus ? 'Save All Changes' : 'View Profile' }
+            {showSelectStatus ? `${saving ? 'Saving Changes...' : 'Save All Changes'}` : 'View Profile' }
           </button>
           <Tooltip title={isEditable ? 'Delete' : 'Interested'} arrow placement='top'>
-            <img onClick={handleIconClick} src={isEditable ? DeleteIcon : Bookmark} alt="Bookmark" />
+            {status != "Selected" && 
+            <img 
+              className={`save-icon ${loadSaveButton ? 'disabled' : ''}`} 
+              onClick={handleIconClick} 
+              src={isEditable ? DeleteIcon : Bookmark} 
+              alt="Bookmark" />}
           </Tooltip>
         </div>
         <ConfirmModal

@@ -9,73 +9,23 @@ import { capitalizeFirstLetter } from '../../utils/utils';
 
 const CandidateCard = (props) => {
   const rank = props.rank;
+  const candidate = props.candidate;
   const matchedJob = props.matchedJob;
   const handleViewDetails = props.handleViewDetails;
-  const hiringCompany = props.hiringCompany;
-  const location = props.location;
-  const updateContact = props.updateContact;
   const handleRejectCandidate = props.handleRejectCandidate;
-  const userId = props.userId;
-  const candidate = props.candidate;
+  const saveCandidate = props.saveCandidate;
+  const [loadSaveButton, setLoadSaveButton] = useState(false);
+  const [disableButton, setDisableButton] = useState(false);
 
   const handleSaveCandidate = async () => {
-    try {
-      if (!candidate?.contact?.name || !matchedJob) {
-        alert("Candidate name or job is missing. Unable to save.");
-        return;
-      }
+    setLoadSaveButton(true);
+    await saveCandidate(candidate);
+    setTimeout(() => setLoadSaveButton(false), 700);
+  };
 
-      const updatedCandidate = {
-        ...candidate,
-        status: "Selected", // Add or update the status
-      };
-
-      // Prepare searchable keywords
-      const searchKeywords = [
-        updatedCandidate?.contact?.name?.toLowerCase() || "",
-        "selected", // Added status (or dynamically set it)
-        matchedJob?.toLowerCase() || "",
-      ].filter(Boolean); // Remove empty values
-
-      const candidateData = {
-        ...updatedCandidate,
-        userId: userId,
-        company: hiringCompany,
-        location: location,
-        searchKeywords,
-        timestamp: serverTimestamp(), // Add server-side timestamp
-      };
-  
-      // Generate a unique ID for the candidate in Firestore
-      const candidatesRef = collection(db, "candidates");
-  
-      // Check if a candidate with the same name and job already exists
-      const querySnapshot = await getDocs(
-        query(
-          candidatesRef,
-          where("contact.name", "==", candidate.contact.name),
-          where("job", "==", matchedJob)
-        )
-      );
-  
-      if (!querySnapshot.empty) {
-        // If a candidate with the same name and job exists, skip saving
-        alert("Candidate with the same name and job already exists.");
-        return;
-      }
-  
-      const newCandidateRef = doc(candidatesRef); // Automatically generates a unique ID
-      await setDoc(newCandidateRef, candidateData);
-      await updateContact(candidate, "Selected", candidate.interviewPrep);
-
-      // Update the local state to reflect the change
-      // setCandidate(updatedCandidate);
-
-      alert("Candidate saved successfully!");
-    } catch (error) {
-      console.error("Error saving candidate:", error);
-      alert("An error occurred while saving the candidate.");
-    }
+  const rejectCandidate = async () => {
+    setDisableButton(true);
+    await handleRejectCandidate();
   };
 
   return (
@@ -98,19 +48,19 @@ const CandidateCard = (props) => {
       </div>
       <div className='candidate-card-row3'>
         <div>
-          <div>Overall Score</div>
+          <div>Resume Quality</div>
           <div className='score-row'>
             <LinearProgress
               id='score-bar' 
               variant="determinate" 
-              value={candidate.scores.overall}
+              value={candidate.scores?.presentation.score}
               sx={{
                 "& .MuiLinearProgress-bar": {
                   backgroundColor: "#0A66C2",
                 },
               }}
             />
-            <span>{candidate.scores.overall}%</span>
+            <span>{candidate.scores?.presentation.score}%</span>
           </div>
         </div>
         <div>
@@ -119,14 +69,14 @@ const CandidateCard = (props) => {
             <LinearProgress 
               id='score-bar' 
               variant="determinate" 
-              value={candidate.skill_match.score}
+              value={candidate.scores?.job_title_relevance.score}
               sx={{
                 "& .MuiLinearProgress-bar": {
-                  backgroundColor: candidate.skill_match.score < 85 ? "#FFB20D" : "#22c55e",
+                  backgroundColor: candidate.scores?.job_title_relevance.score < 85 ? "#FFB20D" : "#22c55e",
                 },
               }}
             />
-            <span>{candidate.skill_match.score}%</span>
+            <span>{candidate.scores?.job_title_relevance.score}%</span>
           </div>
         </div>
       </div>
@@ -139,10 +89,16 @@ const CandidateCard = (props) => {
         </div>
       </div>
       <div className='candidate-card-row4'>
-        <button disabled={candidate.status == "Selected"} className='send-button' onClick={handleRejectCandidate}>Reject Candidate</button>
+        <button disabled={candidate.status == "Selected" || disableButton} className='send-button' onClick={rejectCandidate}>Reject Candidate</button>
         <button className='view-button' onClick={handleViewDetails}>View Details</button>
         <Tooltip title="Interested" arrow placement='top'>
-          <img onClick={handleSaveCandidate} src={Bookmark} alt="Bookmark"/>
+          {candidate.status != "Selected" && 
+          <img 
+            className={`save-icon ${loadSaveButton ? 'disabled' : ''}`} 
+            onClick={handleSaveCandidate} 
+            src={Bookmark} 
+            alt="Bookmark"
+          />}
         </Tooltip>
       </div>
     </div>

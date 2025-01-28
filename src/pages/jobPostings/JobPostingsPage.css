@@ -37,10 +37,12 @@
 }
 
 .add-job-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: fit-content;
   background: #0A66C2;
   color: #FFFFFF;
-  width: 110px;
 }
 
 .jobs {

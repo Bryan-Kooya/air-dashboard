@@ -33,6 +33,13 @@ import BookIcon from "./BookIcon.svg";
 import TalentTap from "./TT.svg";
 import ShowPassword from "./Eye.png";
 import HidePassword from "./Hidden.png";
+import SkillsIcon from "./SkillsIcon.svg";
+import ExperienceIcon from "./ExperienceIcon.svg";
+import EducationIcon from "./EducationIcon.svg";
+import DatabaseIcon from "./DatabaseIcon.svg";
+import PeopleIcon from "./PeopleIcon.svg";
+import TooltipIcon from "./TooltipIcon.svg";
+
 
 export {
   Apple,
@@ -70,4 +77,10 @@ export {
   TalentTap,
   ShowPassword,
   HidePassword,
+  SkillsIcon,
+  ExperienceIcon,
+  EducationIcon,
+  DatabaseIcon,
+  PeopleIcon,
+  TooltipIcon,
 };

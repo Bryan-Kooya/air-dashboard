@@ -9,8 +9,7 @@ export const capitalizeFirstLetter = (input) => {
 export const handleRedirectToLinkedIn = (link) => {
   const profile = link.toLowerCase();
   if (!profile) {
-    alert('LinkedIn profile is not available for this candidate.');
-    return;
+    return false;
   }
 
   // Ensure the link starts with "http://" or "https://"

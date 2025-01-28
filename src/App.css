@@ -222,12 +222,18 @@ img {
 }
 
 .status-badge.selected,
-.status-badge.active {
+.status-badge.active,
+.status-badge.high {
   background-color: #2AD324;
 }
 
-.status-badge.interviewed {
+.status-badge.interviewed,
+.status-badge.medium {
   background-color: #FFB20D;
+}
+
+.status-badge.low {
+  background-color: #f97316;
 }
 
 .status-badge.salary-draft {
@@ -236,7 +242,8 @@ img {
 
 .status-badge.rejected,
 .status-badge.not-active,
-.status-badge.waiting-for-approval {
+.status-badge.waiting-for-approval,
+.status-badge.very-low {
   background-color: #F91E24;
 }
 
@@ -347,4 +354,10 @@ img {
   cursor: pointer;
   font-weight: bold;
   font-size: 16px;
+}
+
+.save-icon.disabled {
+  filter: opacity(0.5);
+  pointer-events: none;
+  cursor: not-allowed;
 }

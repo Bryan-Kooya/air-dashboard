@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import "./ContactsPage.css";
-import { Select, MenuItem, CircularProgress } from '@mui/material';
+import { Select, MenuItem, CircularProgress, Snackbar, Slide, Alert } from '@mui/material';
 import { useDropzone } from "react-dropzone";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, doc, updateDoc } from "firebase/firestore";
 import { searchContacts, fetchPaginatedContacts } from "../../utils/firebaseService";
 import { extractTextFromPDF, extractTextFromDocx } from "../../utils/helper";
 import { capitalizeFirstLetter } from "../../utils/utils";
@@ -27,11 +27,15 @@ const ContactsPage = (props) => {
   const [lastVisibleDocs, setLastVisibleDocs] = useState([]); // Track lastVisibleDoc for each page
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [open, setOpen] = useState(false);
+  const [messageType, setMessageType] = useState("");
   const pageSize = 5;
 
-  const onDrop = (acceptedFiles) => {
+  const onDrop = async (acceptedFiles) => {
     setFiles([...files, ...acceptedFiles]); // Allow multiple files to be added
     setUploadStatus({});
+    await uploadFiles(acceptedFiles); // Automatically upload the files
   };
 
   const { getRootProps, getInputProps } = useDropzone({
@@ -77,10 +81,10 @@ const ContactsPage = (props) => {
     }
   };
 
-  const uploadFiles = async () => {
+  const uploadFiles = async (filesToUpload) => {
     setLoading(true);
-    if (files.length === 0) {
-      alert("No files selected for upload.");
+    if (filesToUpload.length === 0) {
+      updateMessage("No files selected for upload.", "warning", true);
       setLoading(false);
       return;
     }
@@ -88,25 +92,8 @@ const ContactsPage = (props) => {
     const updatedStatus = { ...uploadStatus };
   
     // Create an array of promises for all file uploads and processing
-    const uploadPromises = files.map(async (file) => {
+    const uploadPromises = filesToUpload.map(async (file) => {
       const storageRef = ref(storage, `resumes/${userInfo.name}/${file.name}`);
-
-      try {
-        // Check if the file already exists in Firebase Storage
-        await getDownloadURL(storageRef);
-  
-        console.log(`File ${file.name} already exists in Firebase Storage. Skipping upload.`);
-        updatedStatus[file.name] = "Already Exists";
-        setUploadStatus({ ...updatedStatus });
-        return; // Skip further processing for this file
-      } catch (error) {
-        if (error.code !== "storage/object-not-found") {
-          console.error(`Error checking existence of ${file.name}:`, error);
-          updatedStatus[file.name] = "Failed";
-          setUploadStatus({ ...updatedStatus });
-          throw error; // Throw error for non-"not found" cases
-        }
-      }
 
       const metadata = { customMetadata: { userId } };
       const uploadTask = uploadBytesResumable(storageRef, file, metadata);
@@ -162,35 +149,79 @@ const ContactsPage = (props) => {
   
               const apiData = await response.json();
   
-              // Save the response in Firestore
-              const formattedName = file.name
-                .replace(/\.[^/.]+$/, "")
-                .replace(/[_-]+/g, " ")
-                .replace(/\b(resume|cv|curriculum vitae)\b/gi, "")
-                .trim();
+              // Check if a contact with the same name and userId already exists
+              const contactsRef = collection(db, "contacts");
+              const querySnapshot = await getDocs(
+                query(
+                  contactsRef,
+                  where("name", "==", apiData.contact.name),
+                  where("userId", "==", userId)
+                )
+              );
   
-              const newContact = {
-                name: apiData.contact.name || capitalizeFirstLetter(formattedName),
-                email: apiData.contact.email || "",
-                phone: apiData.contact.phone || "",
-                location: apiData.contact.location || "N/A",
-                linkedin: apiData.contact.linkedin || "",
-                tags: apiData.tags || [],
-                fileName: file.name,
-                url: downloadUrl,
-                jobs: [],
-                resumeText: resumeText,
-                status: "Active",
-                userId: userId,
-                timestamp: serverTimestamp(),
-              };
+              if (!querySnapshot.empty) {
+                // Update the existing contact
+                const existingContactDoc = querySnapshot.docs[0];
+                const existingContactRef = doc(db, "contacts", existingContactDoc.id);
   
-              await addDoc(collection(db, "contacts"), newContact);
-              updatedStatus[file.name] = "Complete";
-              setUploadStatus({ ...updatedStatus });
-              console.log("Contact added to Firestore:", newContact);
-              // Update the local contacts state
-              setContacts((prevContacts) => [newContact, ...prevContacts]);
+                await updateDoc(existingContactRef, {
+                  email: apiData.contact.email || existingContactDoc.data().email,
+                  phone: apiData.contact.phone || existingContactDoc.data().phone,
+                  location: apiData.contact.location || existingContactDoc.data().location,
+                  linkedin: apiData.contact.linkedin || existingContactDoc.data().linkedin,
+                  tags: apiData.tags || existingContactDoc.data().tags,
+                  fileName: file.name,
+                  url: downloadUrl,
+                  resumeText: resumeText,
+                  status: "Active",
+                  timestamp: serverTimestamp(),
+                });
+  
+                console.log("Contact updated in Firestore:", existingContactDoc.id);
+                updatedStatus[file.name] = "Complete";
+                setUploadStatus({ ...updatedStatus });
+  
+                // Update the local contacts state
+                setContacts((prevContacts) =>
+                  prevContacts.map((contact) =>
+                    contact.name === existingContactDoc.data().name
+                      ? { ...contact, ...apiData, fileName: file.name, url: downloadUrl, resumeText }
+                      : contact
+                  )
+                );
+              } else {
+                // Save the response in Firestore as a new contact
+                const formattedName = file.name
+                  .replace(/\.[^/.]+$/, "")
+                  .replace(/[_-]+/g, " ")
+                  .replace(/\b(resume|cv|curriculum vitae)\b/gi, "")
+                  .trim();
+  
+                const newContact = {
+                  name: apiData.contact.name || capitalizeFirstLetter(formattedName),
+                  email: apiData.contact.email || "",
+                  phone: apiData.contact.phone || "",
+                  location: apiData.contact.location || "N/A",
+                  linkedin: apiData.contact.linkedin || "",
+                  tags: apiData.tags || [],
+                  fileName: file.name,
+                  url: downloadUrl,
+                  jobs: [],
+                  resumeText: resumeText,
+                  status: "Active",
+                  userId: userId,
+                  timestamp: serverTimestamp(),
+                };
+  
+                await addDoc(collection(db, "contacts"), newContact);
+                updatedStatus[file.name] = "Complete";
+                setUploadStatus({ ...updatedStatus });
+                console.log("Contact added to Firestore:", newContact);
+  
+                // Update the local contacts state
+                setContacts((prevContacts) => [newContact, ...prevContacts]);
+              }
+  
               resolve(); // Resolve the promise if everything is successful
             } catch (error) {
               console.error("Error processing and saving contact:", error);
@@ -205,18 +236,8 @@ const ContactsPage = (props) => {
   
     // Wait for all upload promises to resolve
     await Promise.all(uploadPromises);
-    alert("All files uploaded and processed successfully!");
-  };
-  
-  const handleUploadFiles = async () => {
-    try {
-      await uploadFiles();
-      setLoading(false);
-    } catch (error) {
-      console.error("Error uploading files:", error);
-      setLoading(false);
-      alert("Some files failed to upload or process.");
-    }
+    updateMessage("All files uploaded and processed successfully!", "success", true);
+    setLoading(false);
   };
   
   const handleSortedBy = (sortOption) => {
@@ -247,6 +268,21 @@ const ContactsPage = (props) => {
     setCurrentPage(newPage);
   };
 
+  const updateMessage = (value, type, isOpen) => {
+    setMessage(value);
+    setMessageType(type);
+    if (isOpen && !open) {
+      setOpen(true); // Only set open to true if it's not already open
+    }
+  };
+
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setOpen(false);
+  };
+
   useEffect(() => {
     if (!searchQuery) {
       loadContacts(currentPage);
@@ -268,7 +304,7 @@ const ContactsPage = (props) => {
             <div className="row1-label">Drag and Drop or choose your file for upload</div>
             <div className="row2-label">Upload multiple resumes for comparison (PDF, DOC, DOCX)</div>
           </div>
-          {loading ? 
+          {loading ?
           <div className="progress-container">
             {/* Background Circle (Track) */}
             <CircularProgress
@@ -293,20 +329,10 @@ const ContactsPage = (props) => {
           <div className="button-container">
             <button
               style={{ width: "max-content" }}
-              className="secondary-button"
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent triggering unnecessary events
-                document.querySelector(".file-input").click(); // Trigger the file input
-              }}
-            >
-              Browse Files
-            </button>
-            <button
-              style={{ width: "max-content" }}
               className="primary-button"
               onClick={(e) => {
                 e.stopPropagation(); // Prevent triggering unnecessary events
-                handleUploadFiles();
+                document.querySelector(".file-input").click(); // Trigger the file input
               }}
             >
               Upload CVs
@@ -318,7 +344,7 @@ const ContactsPage = (props) => {
             style={{ display: "none" }} // Hide the input element
           />
         </div>
-        {files.length > 0 && (
+        {/* {files.length > 0 && (
           <div className="file-list">
             {files.map((file, index) => (
               <div key={index} className="file-item">
@@ -326,17 +352,17 @@ const ContactsPage = (props) => {
               </div>
             ))}
           </div>
-        )}
+        )} */}
       </div>
       <div className="candidates card">
         <div className="title-container">
           <div className="card-title">All Contacts</div>
           <div className="flex">
-            <Select 
-              id="select-input" 
-              sx={{width: 100}}
+            <Select
+              id="select-input"
+              sx={{ width: 100 }}
               displayEmpty
-              value={sortedBy} 
+              value={sortedBy}
               onChange={(e) => handleSortedBy(e.target.value)}
               renderValue={() => sortedBy ? sortedBy : "Sort by"}
             >
@@ -371,26 +397,26 @@ const ContactsPage = (props) => {
           </thead>
           <tbody>
             {contacts && contacts.length > 0 ?
-            (contacts.map((contact) => (
-              <tr key={contact.id}>
-                <td>{contact.name}</td>
-                <td>{contact.phone}</td>
-                <td>{contact.email?.toLowerCase()}</td>
-                <td className="cv-link">
-                  <a
-                    href={contact.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {contact.fileName || "Attachment"}
-                  </a>
-                </td>
-                <td>
-                  <div className={`status-badge ${contact.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
-                  {contact.status}
-                </td>
-              </tr>
-            ))) : (
+              (contacts.map((contact) => (
+                <tr key={contact.id}>
+                  <td>{contact.name}</td>
+                  <td>{contact.phone}</td>
+                  <td>{contact.email?.toLowerCase()}</td>
+                  <td className="cv-link">
+                    <a
+                      href={contact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {contact.fileName || "Attachment"}
+                    </a>
+                  </td>
+                  <td>
+                    <div className={`status-badge ${contact.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
+                    {contact.status}
+                  </td>
+                </tr>
+              ))) : (
               <tr>
                 <td className="no-data">
                   No contacts available
@@ -405,6 +431,18 @@ const ContactsPage = (props) => {
         totalPages={totalPages}
         onPageChange={handlePageChange}
       />
+      <Snackbar
+        autoHideDuration={5000}
+        open={open}
+        onClose={handleClose}
+        TransitionComponent={Slide} // Use Slide transition
+        TransitionProps={{ direction: "up" }} // Specify the slide direction
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }} // Position the Snackbar
+      >
+        <Alert sx={{ alignItems: 'center', "& .MuiAlert-action": { padding: '0px 0px 0px 6px' }, "& .MuiButtonBase-root": { width: '36px' } }} onClose={handleClose} severity={messageType}>
+          {message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

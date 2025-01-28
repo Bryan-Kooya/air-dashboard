@@ -11,7 +11,7 @@ import {
 import "./JobPostingsPage.css"
 import { useNavigate } from "react-router-dom";
 import { db } from "../../firebaseConfig";
-import { Select, MenuItem, CircularProgress } from '@mui/material';
+import { Select, MenuItem, CircularProgress, Snackbar, Slide, Alert } from '@mui/material';
 import AIGeneratedJobModal from "../../components/aiGeneratedJobModal/AIGeneratedJobModal";
 import EditJobModal from "../../components/editJobModal/EditJobModal";
 import { apiBaseUrl } from "../../utils/constants";
@@ -47,6 +47,9 @@ const JobPostingsPage = (props) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [lastVisibleDocs, setLastVisibleDocs] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
+  const [message, setMessage] = useState("");
+  const [open, setOpen] = useState(false);
+  const [messageType, setMessageType] = useState("");
   const pageSize = 5;
 
   const loadJobs = async (page) => {
@@ -198,6 +201,7 @@ const JobPostingsPage = (props) => {
       const docRef = await addDoc(collection(db, "jobs"), jobData);
       setJobs([...jobs, { id: docRef.id, ...jobData }]);
       console.log("Job saved successfully with ID:", docRef.id);
+      updateMessage("Job saved successfully!", "success", true);
       
       // Reset form after successful save
       setFormData({
@@ -263,18 +267,33 @@ const JobPostingsPage = (props) => {
           job.id === jobId ? { ...job, status: newStatus } : job
         )
       );
-      alert("Job status updated successfully!");
+      updateMessage("Job status updated successfully!", "success", true);
     } catch (error) {
-      alert("An error occurred while updating job status.");
+      updateMessage("An error occurred while updating job status.", "error", true);
       console.error("Error updating job status:", error);
     } finally {
       setLoadingJobId(null); // Reset the loading state
     }
   };  
 
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setOpen(false);
+  };
+
+  const updateMessage = (value, type, isOpen) => {
+    setMessage(value);
+    setMessageType(type);
+    if (isOpen && !open) {
+      setOpen(true); // Only set open to true if it's not already open
+    }
+  };
+
   (function setHeaderTitle () {
-    props.title("Job Postings");
-    props.subtitle("Add new job postings and manage existing ones, streamlining the recruitment process.");
+    props.title("Job Definitions");
+    props.subtitle("Centralized page to add new jobs and manage all existing ones.");
   })();
 
   return (
@@ -335,7 +354,10 @@ const JobPostingsPage = (props) => {
             onChange={handleInputChange}
           />
         </div>
-        <button disabled={loading} onClick={handleAICreateJob} className="add-job-button">{loading ? <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} /> : "AI Create Job"}</button>
+        <button disabled={loading} onClick={handleAICreateJob} className="add-job-button">
+          {loading && <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} />}
+          {`${loading ? 'Generating...' : 'AI Create Job'}`}
+        </button>
       </div>
       <AIGeneratedJobModal
         open={isGenerateModalOpen}
@@ -467,6 +489,18 @@ const JobPostingsPage = (props) => {
         totalPages={totalPages}
         onPageChange={handlePageChange}
       />
+      <Snackbar
+        autoHideDuration={5000}
+        open={open}
+        onClose={handleClose}
+        TransitionComponent={Slide} // Use Slide transition
+        TransitionProps={{ direction: "up" }} // Specify the slide direction
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }} // Position the Snackbar
+      >
+        <Alert sx={{alignItems: 'center', "& .MuiAlert-action": {padding: '0px 0px 0px 6px'}, "& .MuiButtonBase-root": {width: '36px'}}} onClose={handleClose} severity={messageType}>
+          {message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

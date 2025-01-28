@@ -1,7 +1,6 @@
 import React from 'react';
 import "./MessageModal.css";
 import { Modal, Divider } from '@mui/material';
-import { Bookmark } from '../../assets/images';
 import { formatDate } from '../../utils/utils';
 
 const MessageModal = (props) => {
@@ -24,6 +23,10 @@ const MessageModal = (props) => {
   const sortedDates = Object.keys(conversation.messagesByDate).sort(
     (a, b) => new Date(a) - new Date(b)
   );
+
+  const handleMessageContact = () => {
+
+  };
 
   return (
     <Modal open={isOpen} onClose={isClose}>
@@ -65,9 +68,8 @@ const MessageModal = (props) => {
         </div>
         <Divider/>
         <div className='modal-button-container'>
-          <button className='send-button'>Send message</button>
-          <button className='view-button'>View Profile</button>
-          <img src={Bookmark} alt="Bookmark" />
+          <button onClick={() => window.open(conversation.senderDetails?.messageUrl, '_blank', 'noopener,noreferrer')} className='send-button'>Send message</button>
+          <button onClick={() => window.open(conversation.senderDetails?.profileUrl, '_blank', 'noopener,noreferrer')} className='view-button'>View Profile</button>
         </div>
       </div>
     </Modal>

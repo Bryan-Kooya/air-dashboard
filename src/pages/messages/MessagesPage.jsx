@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "./MessagesPage.css";
-import { Select, MenuItem } from '@mui/material';
+import { Select, MenuItem, Snackbar, Slide, Alert } from '@mui/material';
 import { truncateText, convertDateFormat } from "../../utils/utils";
 import { fetchPaginatedConversations, searchConversations, deleteConversation } from "../../utils/firebaseService";
 import { Delete, SearchIcon } from "../../assets/images";
@@ -23,6 +23,9 @@ const MessagesPage = (props) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [convoId, setConvoId] = useState("");
   const [sortedBy, setSortedBy] = useState("");
+  const [message, setMessage] = useState("");
+  const [open, setOpen] = useState(false);
+  const [messageType, setMessageType] = useState("");
 
   const loadConversations = async (page) => {
     try {
@@ -41,6 +44,21 @@ const MessagesPage = (props) => {
     } catch (error) {
       console.error("Error fetching conversations:", error);
     }
+  };
+
+  const updateMessage = (value, type, isOpen) => {
+    setMessage(value);
+    setMessageType(type);
+    if (isOpen && !open) {
+      setOpen(true); // Only set open to true if it's not already open
+    }
+  };
+
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setOpen(false);
   };
 
   const searchAndLoadConversations = async () => {
@@ -88,27 +106,29 @@ const MessagesPage = (props) => {
     return { date: null, messageText: null, messageTime: null };
   };
 
-  const getResumeFile = (conversation) => {
+  const getResumeFiles = (conversation) => {
     const messagesByDate = conversation.messagesByDate;
 
-    if (!messagesByDate) return null;
+    if (!messagesByDate) return [];
+
+    const resumeFiles = [];
 
     for (const date of Object.keys(messagesByDate)) {
       const messages = messagesByDate[date];
       for (const message of messages) {
-        const resumeFile = message.attachments.find((file) => file.isResume === true);
-        if (resumeFile) return resumeFile; // Return the resume file if found
+        const resumeFilesInMessage = message.attachments.filter((file) => file.isResume === true);
+        resumeFiles.push(...resumeFilesInMessage); // Add all resume files to the array
       }
     }
 
-    return null; // Return null if no resume file is found
+    return resumeFiles; // Return the array of resume files
   };
 
   // Precompute resume files to avoid recalculating during rendering
   const conversationsWithResumeFiles = useMemo(() => {
     return conversations.map((conversation) => ({
       ...conversation,
-      resumeFile: getResumeFile(conversation),
+      resumeFiles: getResumeFiles(conversation), // Store all resume files
     }));
   }, [conversations]);
   
@@ -165,11 +185,11 @@ const MessagesPage = (props) => {
       );
 
       console.log("Conversation deleted successfully");
-      alert("Conversation deleted successfully!");
+      updateMessage("Conversation deleted successfully!", "success", true);
       setShowConfirmation(false);
     } catch (error) {
       console.error("Error deleting conversation:", error);
-      alert("An error occurred while deleting conversation");
+      updateMessage("An error occurred while deleting conversation", "error", true);
     }
   };
 
@@ -233,10 +253,14 @@ const MessagesPage = (props) => {
                       getLatestMessage(conversation).messageTime}
                   </td>
                   <td className="cv-link">
-                    {conversation.resumeFile ? (
-                      <a href={conversation.resumeFile.url} target="_blank" rel="noopener noreferrer">
-                        {conversation.resumeFile.name || "Attachment"}
-                      </a>
+                    {conversation.resumeFiles.length > 0 ? (
+                      conversation.resumeFiles.map((resumeFile, index) => (
+                        <div key={index}>
+                          <a href={resumeFile.url} target="_blank" rel="noopener noreferrer">
+                            {resumeFile.name || "Attachment"}
+                          </a>
+                        </div>
+                      ))
                     ) : (
                       ""
                     )}
@@ -271,6 +295,18 @@ const MessagesPage = (props) => {
         close={() => setShowConfirmation(false)}
         delete={handleDeleteConversation}
       />
+      <Snackbar
+        autoHideDuration={5000}
+        open={open}
+        onClose={handleClose}
+        TransitionComponent={Slide} // Use Slide transition
+        TransitionProps={{ direction: "up" }} // Specify the slide direction
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }} // Position the Snackbar
+      >
+        <Alert sx={{ alignItems: 'center', "& .MuiAlert-action": { padding: '0px 0px 0px 6px' }, "& .MuiButtonBase-root": { width: '36px' } }} onClose={handleClose} severity={messageType}>
+          {message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import "./MatchCandidatesPage.css"
 import { useNavigate } from "react-router-dom";
 import { db } from "../../firebaseConfig";
-import { MenuItem, Select, Box, Chip, CircularProgress } from '@mui/material';
-import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion, query, limit, where, orderBy, startAt, endAt } from "firebase/firestore";
+import { MenuItem, Select, Box, Chip, CircularProgress, Snackbar, Slide, Alert } from '@mui/material';
+import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion, query, where, orderBy, serverTimestamp, setDoc } from "firebase/firestore";
 import CandidateCard from "../../components/candidateCard/CandidateCard";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { capitalizeFirstLetter } from "../../utils/utils";
+import { translateToEnglish } from "../../utils/helper";
 import { apiBaseUrl } from "../../utils/constants";
-import { fetchPaginatedJobs } from "../../utils/firebaseService";
 
 const MatchCandidatesPage = (props) => {
   const userId = props.userId;
@@ -31,6 +31,10 @@ const MatchCandidatesPage = (props) => {
   const [candidateCountInput, setCandidateCountInput] = useState(null);
   const [disabledMatching, setDisabledMatching] = useState(false);
   const [resumeData, setResumeData] = useState("");
+  const [message, setMessage] = useState("");
+  const [open, setOpen] = useState(false);
+  const [messageType, setMessageType] = useState("");
+  const [candidateId, setCandidateId] = useState("");
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -95,14 +99,27 @@ const MatchCandidatesPage = (props) => {
 
   const handleMatchCandidates = async (isRejected) => {
     console.log("Starting candidate matching process...");
+    if (!isRejected) {
+      setCandidates([]);
+      setShowCandidate(false);
+    }
     setLoading(true);
   
     try {
       // Determine the number of candidates to process
       const candidateCount = isRejected ? 1 : candidateCountInput || 1;
+      const translatedJob = await translateToEnglish(selectedJobTitle);
+
+      let updatedTags = [...tags, ...translatedJob.split(" "), translatedJob];
+      // Translate updatedTags to English
+      const translatedTags = await Promise.all(updatedTags.map(async (tag) => {
+        return await translateToEnglish(tag);
+      }));
+
+      console.log('translatedTags', translatedTags);
   
       if (candidateCount < 1 || candidateCount > 10) {
-        alert("Please enter a valid number between 1 and 10.");
+        updateMessage("Please enter a valid number between 1 and 10.", "warning", true);
         setLoading(false);
         return;
       }
@@ -138,7 +155,7 @@ const MatchCandidatesPage = (props) => {
           (job) =>
             job.jobTitle === selectedJobTitle &&
             job.status === "Pending" &&
-            job.skill_match.score >= 85
+            job.scores?.job_title_relevance.score >= 85
         );
         return Boolean(job);
       });
@@ -150,7 +167,7 @@ const MatchCandidatesPage = (props) => {
         const additionalQuery = query(
           contactsRef,
           where("userId", "==", userId),
-          where("tags", "array-contains-any", tags), // Match tags
+          where("tags", ">=", translatedTags), // Use translated tags
           orderBy("timestamp", "desc") // Sort by timestamp
         );
       
@@ -180,7 +197,8 @@ const MatchCandidatesPage = (props) => {
   
       if (prioritizedContacts.length === 0) {
         console.log(`No eligible contacts found for the ${selectedJobTitle} job`);
-        alert(`No eligible contacts found for the ${selectedJobTitle} job`)
+        setShowCandidate(true);
+        updateMessage(`No eligible contacts found for the ${selectedJobTitle} job`, "warning", true)
         setLoading(false);
         return;
       }
@@ -194,7 +212,7 @@ const MatchCandidatesPage = (props) => {
           (job) =>
             job.jobTitle === selectedJobTitle &&
             job.status === "Pending" &&
-            job.skill_match.score >= 85
+            job.scores?.job_title_relevance.score >= 85
         );
   
         if (job) {
@@ -220,43 +238,63 @@ const MatchCandidatesPage = (props) => {
       );
   
       // Process unprocessed contacts
-      const processedCandidates = await Promise.all(
-        unprocessedContacts.map(async (contact) => {
-          try {
-            const { resumeText, name, email, phone, linkedin, location, fileName, url } = contact;
-  
-            if (!resumeText) {
-              throw new Error("Resume text is missing for contact: " + contact.name);
-            }
-            setResumeData(resumeText);
-  
-            // Call external API to process the resume
-            const res = await fetch(`${apiBaseUrl}/match-resume`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ resumeText, tags }),
-            });
-  
-            if (!res.ok) {
-              const error = await res.json();
-              console.error("Error processing resume:", error);
-              throw new Error(error.error);
-            }
-  
-            const processedCandidate = await res.json();
-            console.log("Processed candidate data:", processedCandidate);
-  
-            // Update contact in Firestore with the new job status
-            await updateDoc(contact.ref, {
-              jobs: arrayUnion({
-                jobTitle: selectedJobTitle,
-                status: "Pending",
-                ...processedCandidate,
-              }),
-            });
-  
-            console.log(`Added job "${selectedJobTitle}" to contact: ${contact.name}`);
-            return {
+      const processedCandidates = [];
+      const processedContactIds = new Set(); // Track processed contact IDs to avoid duplication
+
+      // Use a while loop to continue fetching and processing until we have enough candidates
+      while (processedCandidates.length < candidateCount && unprocessedContacts.length > 0) {
+        const contact = unprocessedContacts.shift(); // Take the first contact from the queue
+
+        try {
+          const { resumeText, name, email, phone, linkedin, location, fileName, url, id } = contact;
+
+          if (processedContactIds.has(id)) {
+            console.log(`Skipping already processed contact: ${name}`);
+            continue; // Skip if already processed
+          }
+
+          if (!resumeText) {
+            throw new Error("Resume text is missing for contact: " + contact.name);
+          }
+          setResumeData(resumeText);
+
+          // Call external API to process the resume
+          const res = await fetch(`${apiBaseUrl}/match-resume`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resumeText, tags: updatedTags, jobTitle: selectedJobTitle }),
+          });
+
+          if (!res.ok) {
+            const error = await res.json();
+            console.error("Error processing resume:", error);
+            throw new Error(error.error);
+          }
+
+          const processedCandidate = await res.json();
+          console.log("Processed candidate data:", processedCandidate);
+
+          // Update contact in Firestore with the new job status
+          await updateDoc(contact.ref, {
+            jobs: arrayUnion({
+              status: "Pending",
+              ...processedCandidate,
+              company,
+              resumeText,
+              jobTitle: selectedJobTitle,
+              jobDescription: jobDescription,
+              interviewPrep: [],
+            }),
+          });
+
+          console.log(`Added job "${selectedJobTitle}" to contact: ${contact.name}`);
+
+          // Mark the contact as processed immediately
+          processedContactIds.add(id);
+
+          // Only add the candidate if their scores.job_title_relevance.score >= 85
+          if (processedCandidate.scores?.job_title_relevance.score >= 85) {
+            processedCandidates.push({
               contact: { name, email, phone, linkedin, location, fileName, url },
               status: "Pending",
               ...processedCandidate,
@@ -265,23 +303,48 @@ const MatchCandidatesPage = (props) => {
               jobTitle: selectedJobTitle,
               jobDescription: jobDescription,
               interviewPrep: [],
-            };
-          } catch (error) {
-            console.error(`Failed to process resume for contact: ${error.message}`);
-            return null;
+            });
+          } else {
+            console.log(`Low skill match score (${processedCandidate.scores?.job_title_relevance.score}) for ${contact.name}. Fetching another resume...`);
+
+            // Fetch another contact, excluding already processed contacts
+            const additionalQuery = query(
+              contactsRef,
+              where("userId", "==", userId),
+              where("tags", ">=", translatedTags),
+              orderBy("timestamp", "desc")
+            );
+            const additionalSnapshot = await getDocs(additionalQuery);
+
+            const additionalContacts = additionalSnapshot.docs
+              .filter((doc) => {
+                const contactData = doc.data();
+                const hasRelevantJob = contactData.jobs?.some((job) => job.jobTitle === selectedJobTitle);
+                const isAlreadyProcessed = processedContactIds.has(doc.id);
+                return !hasRelevantJob && !isAlreadyProcessed; // Exclude already processed contacts
+              })
+              .map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+                ref: doc.ref,
+              }));
+
+            // Add the new contacts to the processing queue
+            unprocessedContacts.push(...additionalContacts);
           }
-        })
-      );
-  
-      // Filter out null candidates and sort by skill match score
-      const validProcessedCandidates = processedCandidates.filter((candidate) => candidate !== null);
-      const allCandidates = [...existingJobCandidates, ...validProcessedCandidates];
-  
+        } catch (error) {
+          console.error(`Failed to process resume for contact: ${error.message}`);
+        }
+      }
+
+      // Combine existing and processed candidates
+      const allCandidates = [...existingJobCandidates, ...processedCandidates];
+
       console.log(`Successfully processed and retrieved ${allCandidates.length} candidates.`);
       setCandidates((prevCandidates) => {
         const mergedCandidates = isRejected ? [...prevCandidates, ...allCandidates] : allCandidates;
         // Sort the candidates by skill match score in descending order
-        const sortedCandidates = mergedCandidates.sort((a, b) => b.skill_match.score - a.skill_match.score);
+        const sortedCandidates = mergedCandidates.sort((a, b) => b.scores?.job_title_relevance.score - a.scores?.job_title_relevance.score);
         return sortedCandidates;
       });
       setShowCandidate(true);
@@ -302,7 +365,7 @@ const MatchCandidatesPage = (props) => {
   
       // Check if the contact with the same name already exists
       const querySnapshot = await getDocs(
-        query(contactsRef, where("name", "==", capitalizeFirstLetter(candidate.contact.name)))
+        query(contactsRef, where("name", "==", candidate.contact.name))
       );
   
       if (querySnapshot.empty) {
@@ -350,14 +413,91 @@ const MatchCandidatesPage = (props) => {
   };
 
   const handleRejectCandidate = async (candidate) => {
-    await updateContact(candidate, "Rejected");
+    await updateContact(candidate, "Rejected", candidate.interviewPrep || []);
+    updateMessage(`Candidate successfully rejected for ${selectedJobTitle} job.`, "success", true);
     handleMatchCandidates(true);
   };
 
   const handleViewDetails = (candidate) => {
+    setCandidateId(candidate.id);
     setSelectedCandidate(candidate);
     setViewDetails(true);
   }
+
+  const handleSaveCandidate = async (candidate) => {
+    try {
+      if (!candidate?.contact?.name || !selectedJobTitle) {
+        updateMessage("Candidate name or job is missing. Unable to save.", "warning", true);
+        return;
+      }
+
+      const updatedCandidate = {
+        ...candidate,
+        status: "Selected", // Add or update the status
+      };
+
+      // Prepare searchable keywords
+      const searchKeywords = [
+        updatedCandidate?.contact?.name?.toLowerCase() || "",
+        "selected", // Added status (or dynamically set it)
+        selectedJobTitle?.toLowerCase() || "",
+      ].filter(Boolean); // Remove empty values
+
+      const candidateData = {
+        ...updatedCandidate,
+        userId: userId,
+        company: company,
+        location: location,
+        searchKeywords,
+        timestamp: serverTimestamp(), // Add server-side timestamp
+      };
+  
+      // Generate a unique ID for the candidate in Firestore
+      const candidatesRef = collection(db, "candidates");
+  
+      // Check if a candidate with the same name and job already exists
+      const querySnapshot = await getDocs(
+        query(
+          candidatesRef,
+          where("contact.name", "==", candidate.contact.name),
+          where("job", "==", selectedJobTitle)
+        )
+      );
+  
+      if (!querySnapshot.empty) {
+        // If a candidate with the same name and job exists, skip saving
+        updateMessage("Candidate with the same name and job already exists.", "info", true);
+        return;
+      }
+  
+      const newCandidateRef = doc(candidatesRef); // Automatically generates a unique ID
+      await setDoc(newCandidateRef, candidateData);
+      await updateContact(candidate, "Selected", candidate.interviewPrep);
+
+      // Update the local state to reflect the change
+      // setCandidate(updatedCandidate);
+
+      updateMessage(`Candidate selected for ${selectedJobTitle} job. Saved successfully!`, "success", true);
+    } catch (error) {
+      console.error("Error saving candidate:", error);
+      updateMessage("An error occurred while saving the candidate.", "error", true);
+    }
+  };
+
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setOpen(false);
+  };
+
+  const updateMessage = (value, type, isOpen) => {
+    setMessage(value);
+    setMessageType(type);
+    if (isOpen && !open) {
+      setOpen(true); // Only set open to true if it's not already open
+    }
+  };
 
   (function setHeaderTitle() {
     props.title("Match Candidates");
@@ -443,23 +583,36 @@ const MatchCandidatesPage = (props) => {
             rank={index + 1}
             candidate={candidate}
             matchedJob={selectedJobTitle}
-            hiringCompany={company}
-            location={location}
-            userId={userId}
             handleViewDetails={() => handleViewDetails(candidate)}
-            updateContact={updateContact}
             handleRejectCandidate={() => handleRejectCandidate(candidate)}
+            saveCandidate={handleSaveCandidate}
           />
         ))}
       </div>}
       <CandidateDetailsModal 
+        candidateId={candidateId}
         open={viewDetails} 
         close={() => setViewDetails(false)}
         candidate={selectedCandidate}
         isEditable={false}
         userInfo={userInfo}
         updateContact={updateContact}
+        saveCandidate={handleSaveCandidate}
+        handleRejectCandidate={() => handleRejectCandidate(selectedCandidate)}
+        updateMessage={updateMessage}
       />
+      <Snackbar
+        autoHideDuration={5000}
+        open={open}
+        onClose={handleClose}
+        TransitionComponent={Slide} // Use Slide transition
+        TransitionProps={{ direction: "up" }} // Specify the slide direction
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }} // Position the Snackbar
+      >
+        <Alert sx={{alignItems: 'center', "& .MuiAlert-action": {padding: '0px 0px 0px 6px'}, "& .MuiButtonBase-root": {width: '36px'}}} onClose={handleClose} severity={messageType}>
+          {message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
