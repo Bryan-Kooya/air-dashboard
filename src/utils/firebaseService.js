@@ -134,17 +134,7 @@ export const fetchPaginatedCandidates = async (pageSize, lastVisibleDoc = null, 
 
 export const searchCandidates = async (searchQuery, userId) => {
   const candidatesCollection = collection(db, "candidates");
-
-  // Transform the search query to lowercase for case-insensitive search
-  const lowercasedQuery = searchQuery.toLowerCase();
-
-  // Query to search in `searchKeywords` field
-  const q = query(
-    candidatesCollection,
-    where("userId", "==", userId),
-    where("searchKeywords", "array-contains", lowercasedQuery)
-  );
-
+  const q = query(candidatesCollection, where("userId", "==", userId));
   const snapshot = await getDocs(q);
 
   const data = snapshot.docs.map((doc) => ({
@@ -152,7 +142,19 @@ export const searchCandidates = async (searchQuery, userId) => {
     ...doc.data(),
   }));
 
-  return data;
+  // Filter in memory
+  const filteredData = data.filter((candidate) => {
+    return (
+      candidate.contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.contact.fileName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
+  return filteredData;
 };
 
 export const deleteConversation = async (conversationId) => {
@@ -168,15 +170,7 @@ export const deleteConversation = async (conversationId) => {
 
 export const searchContacts = async (searchQuery, userId) => {
   const contactsCollection = collection(db, "contacts");
-
-  // Search query: filter by `connection` field (or adjust as needed)
-  const q = query(
-    contactsCollection, 
-    where("userId", "==", userId),
-    where("name", ">=", searchQuery), 
-    where("name", "<=", searchQuery + "\uf8ff")
-  );
-
+  const q = query(contactsCollection, where("userId", "==", userId));
   const snapshot = await getDocs(q);
 
   const data = snapshot.docs.map((doc) => ({
@@ -184,7 +178,18 @@ export const searchContacts = async (searchQuery, userId) => {
     ...doc.data(),
   }));
 
-  return data;
+  // Filter in memory
+  const filteredData = data.filter((contact) => {
+    return (
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.status.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
+  return filteredData;
 };
 
 export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, userId) => {
@@ -235,15 +240,7 @@ export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, us
 
 export const searchJobs = async (searchQuery, userId) => {
   const jobsCollection = collection(db, "jobs");
-
-  // Search query: filter by `connection` field (or adjust as needed)
-  const q = query(
-    jobsCollection, 
-    where("userId", "==", userId),
-    where("name", ">=", searchQuery), 
-    where("name", "<=", searchQuery + "\uf8ff")
-  );
-
+  const q = query(jobsCollection, where("userId", "==", userId));
   const snapshot = await getDocs(q);
 
   const data = snapshot.docs.map((doc) => ({
@@ -251,7 +248,17 @@ export const searchJobs = async (searchQuery, userId) => {
     ...doc.data(),
   }));
 
-  return data;
+  // Filter in memory
+  const filteredData = data.filter((job) => {
+    return (
+      job.job_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.location.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
+  return filteredData;
 };
 
 export const fetchPaginatedJobs = async (pageSize, lastVisibleDoc = null, userId) => {

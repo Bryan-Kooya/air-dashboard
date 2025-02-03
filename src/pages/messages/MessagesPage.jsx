@@ -26,6 +26,7 @@ const MessagesPage = (props) => {
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
   const [messageType, setMessageType] = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   const loadConversations = async (page) => {
     try {
@@ -175,6 +176,7 @@ const MessagesPage = (props) => {
   };
 
   const handleDeleteConversation = async () => {
+    setConfirming(true);
     try {
       // Delete from Firestore
       await deleteConversation(convoId);
@@ -183,12 +185,13 @@ const MessagesPage = (props) => {
       setConversations((prevConversations) =>
         prevConversations.filter((convo) => convo.id !== convoId)
       );
-
-      console.log("Conversation deleted successfully");
-      updateMessage("Conversation deleted successfully!", "success", true);
+      setTimeout(() => setConfirming(false), 500);
       setShowConfirmation(false);
+      updateMessage("Conversation deleted successfully!", "success", true);
     } catch (error) {
       console.error("Error deleting conversation:", error);
+      setTimeout(() => setConfirming(false), 500);
+      setShowConfirmation(false);
       updateMessage("An error occurred while deleting conversation", "error", true);
     }
   };
@@ -294,6 +297,8 @@ const MessagesPage = (props) => {
         open={showConfirmation}
         close={() => setShowConfirmation(false)}
         delete={handleDeleteConversation}
+        item={"message"}
+        loading={confirming}
       />
       <Snackbar
         autoHideDuration={5000}

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   collection,
   addDoc,
-  getDocs,
   updateDoc,
   deleteDoc,
   doc,
@@ -18,6 +17,7 @@ import { apiBaseUrl } from "../../utils/constants";
 import Pagination from "../../components/pagination/Pagination";
 import { fetchPaginatedJobs, searchJobs } from "../../utils/firebaseService";
 import { SearchIcon } from "../../assets/images";
+import ConfirmModal from "../../components/confirmModal/ConfirmModal";
 
 const JobPostingsPage = (props) => {
   const tableHeader = ["Job Title", "Status", "Company", "Industry", "Location", "Actions"];
@@ -29,7 +29,7 @@ const JobPostingsPage = (props) => {
   const [job, setJob] = useState([]);
   const [formData, setFormData] = useState({
     job_title: '',
-    staus: '',
+    status: '',
     company_name: '',
     industry: '',
     location: '',
@@ -37,6 +37,7 @@ const JobPostingsPage = (props) => {
   });
   const [generatedDescription, setGeneratedDescription] = useState('');
   const [tags, setTags] = useState([]);
+  const [language, setLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isGenerateModalOpen, setAIGenerateModalOpen] = useState(false);
@@ -50,6 +51,9 @@ const JobPostingsPage = (props) => {
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
   const [messageType, setMessageType] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [jobId, setJobId] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const pageSize = 5;
 
   const loadJobs = async (page) => {
@@ -72,7 +76,6 @@ const JobPostingsPage = (props) => {
 
   const searchAndLoadJobs = async () => {
     if (!searchQuery) {
-      // If search query is empty, reset to paginated jobs
       setCurrentPage(1);
       setLastVisibleDocs([]);
       await loadJobs(1);
@@ -81,7 +84,7 @@ const JobPostingsPage = (props) => {
 
     try {
       const data = await searchJobs(searchQuery, userId);
-      searchJobs(data);
+      setJobs(data);
       setTotalPages(1); // Since search results are not paginated
     } catch (error) {
       console.error("Error searching contacts:", error);
@@ -115,12 +118,19 @@ const JobPostingsPage = (props) => {
 
   // Delete a job
   const deleteJob = async (id) => {
+    setConfirming(true);
     try {
       const jobDoc = doc(db, "jobs", id);
       await deleteDoc(jobDoc);
+      setTimeout(() => setConfirming(false), 500);
+      setShowConfirm(false);
+      updateMessage("Job deleted successfully!", "success", true);
       setJobs(jobs.filter((job) => job.id !== id));
     } catch (error) {
+      setTimeout(() => setConfirming(false), 500);
+      setShowConfirm(false);
       console.error("Error deleting job:", error);
+      updateMessage("An error occurred while deleting job", "error", true);
     }
   };
 
@@ -168,6 +178,7 @@ const JobPostingsPage = (props) => {
       // Parse and set tags
       const tagsData = JSON.parse(data.tags);
       setTags(tagsData.tags || []);
+      setLanguage(data.language);
 
     } catch (error) {
       console.error('Error:', error);
@@ -191,6 +202,7 @@ const JobPostingsPage = (props) => {
         initialDescription: formData.description,
         description: generatedDescription,
         tags: tags.join(','),
+        language,
         userId: userId,
         timestamp: serverTimestamp(),
       };
@@ -215,6 +227,7 @@ const JobPostingsPage = (props) => {
       setGeneratedDescription('');
       setAIGenerateModalOpen(false);
       setTags([]);
+      setLanguage('en');
       
       // Show success message
       setError(null);
@@ -291,6 +304,18 @@ const JobPostingsPage = (props) => {
     }
   };
 
+  const handleDeleteJob = (id) => {
+    setJobId(id);
+    setShowConfirm(true);
+  };
+
+  // Watch for changes in searchQuery
+  useEffect(() => {
+    if (searchQuery === "" || searchQuery.length >= 3) {
+      handleSearchSubmit({ preventDefault: () => {} }); // Simulate form submission
+    }
+  }, [searchQuery]);
+
   (function setHeaderTitle () {
     props.title("Job Definitions");
     props.subtitle("Centralized page to add new jobs and manage all existing ones.");
@@ -304,8 +329,9 @@ const JobPostingsPage = (props) => {
           <div className="card-row">
             <div className="row-title">Job Title:</div>
             <input 
+              required // Add required attribute
               placeholder="Enter job title"
-              className="job-info-input"
+              className={`job-info-input ${!formData.job_title ? 'required-field' : ''}`} // Add class for visual feedback
               name="job_title"
               value={formData.job_title}
               onChange={handleInputChange}
@@ -314,8 +340,9 @@ const JobPostingsPage = (props) => {
           <div className="card-row">
             <div className="row-title">Company Name:</div>
             <input 
+              required // Add required attribute
               placeholder="Enter company name"
-              className="job-info-input"
+              className={`job-info-input ${!formData.company_name ? 'required-field' : ''}`} // Add class for visual feedback
               name="company_name"
               value={formData.company_name}
               onChange={handleInputChange}
@@ -354,7 +381,11 @@ const JobPostingsPage = (props) => {
             onChange={handleInputChange}
           />
         </div>
-        <button disabled={loading} onClick={handleAICreateJob} className="add-job-button">
+        <button 
+          disabled={loading || !formData.job_title || !formData.company_name} // Disable if fields are empty
+          onClick={handleAICreateJob} 
+          className="add-job-button"
+        >
           {loading && <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} />}
           {`${loading ? 'Generating...' : 'AI Create Job'}`}
         </button>
@@ -471,7 +502,7 @@ const JobPostingsPage = (props) => {
                   >
                     Edit
                   </button>
-                  <button onClick={() => deleteJob(job.id)} className="delete-button">Delete</button>
+                  <button onClick={() => handleDeleteJob(job.id)} className="delete-button">Delete</button>
                 </td>
               </tr>
             )) : 
@@ -484,6 +515,13 @@ const JobPostingsPage = (props) => {
           </tbody>
         </table>
       </div>
+      <ConfirmModal
+        open={showConfirm}
+        close={() => setShowConfirm(false)}
+        delete={() => deleteJob(jobId)}
+        item={"job"}
+        loading={confirming}
+      />
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}

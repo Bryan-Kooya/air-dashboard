@@ -36,6 +36,16 @@ app.use((req, res, next) => {
 });
 app.use(bodyParser.json()); 
 
+const languageMap = {
+  en: 'English',
+  he: 'Hebrew',
+  es: 'Spanish',
+  zh: 'Chinese',
+  de: 'German',
+  ar: 'Arabic',
+  ur: 'Urdu',
+};
+
 const INTERVIEW_PREP_PROMPT = `As an AI recruitment expert, create a comprehensive interview preparation package based on the provided job title, description, and optionally resume data. Include:
 
 1. Generate a mix of interview questions (10-15 total) across these categories:
@@ -69,7 +79,40 @@ app.post("/generate-job", async (req, res) => {
     const openaiApiKey = await getOpenAIApiKey();
     const openai = new OpenAI({ apiKey: openaiApiKey });
     const { job_title, company_name, industry, location, description } = req.body;
-    
+
+    // Step 1: Detect the language of the input description using OpenAI
+    const languageDetectionResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "Detect the language of the following text and respond with the language code (e.g., 'en' for English, 'es' for Spanish, 'fr' for French, 'he' for Hebrew). Respond only with the language code.",
+        },
+        { role: "user", content: description },
+      ],
+      temperature: 0.0, // Use low temperature for deterministic output
+    });
+
+    const detectedLanguage = languageDetectionResponse.choices[0].message.content.trim();
+    const language = detectedLanguage || "en"; // Default to English if no language is detected
+
+    // Step 2: Define system prompts based on the detected language
+    const descriptionPrompt = {
+      en: "You are a professional job description writer. Using the provided context (job title, company, industry, and location), enhance the given job description to be more professional, compelling, and well-structured. Include key responsibilities, requirements, and benefits in a clear format.",
+      es: "Eres un escritor profesional de descripciones de puestos de trabajo. Utilizando el contexto proporcionado (título del puesto, empresa, industria y ubicación), mejora la descripción del puesto para que sea más profesional, atractiva y bien estructurada. Incluye responsabilidades clave, requisitos y beneficios en un formato claro.",
+      fr: "Vous êtes un rédacteur professionnel de descriptions de poste. En utilisant le contexte fourni (titre du poste, entreprise, secteur et lieu), améliorez la description du poste pour la rendre plus professionnelle, convaincante et bien structurée. Incluez les responsabilités clés, les exigences et les avantages dans un format clair.",
+      he: "אתה כותב מקצועי של תיאורי משרות. באמצעות ההקשר שסופק (כותרת המשרה, שם החברה, התעשייה והמיקום), שפר את תיאור המשרה הנוכחי כדי שיהיה מקצועי, משכנע ומעוצב היטב. כלול אחריות מרכזית, דרישות והטבות בפורמט ברור.",
+      // Add more languages as needed
+    };
+
+    const tagsPrompt = {
+      en: "Extract exactly 10 most relevant skill tags from the job description. Respond with JSON in this format: {'tags': [tag1, tag2, ...]}",
+      es: "Extrae exactamente 10 etiquetas de habilidades más relevantes de la descripción del puesto. Responde con JSON en este formato: {'tags': [tag1, tag2, ...]}",
+      fr: "Extrayez exactement 10 étiquettes de compétences les plus pertinentes de la description du poste. Répondez avec JSON dans ce format: {'tags': [tag1, tag2, ...]}",
+      he: "חלץ בדיוק 10 תגיות כישורים רלוונטיות מתיאור המשרה. הגיב בפורמט JSON בצורה הבאה: {'tags': [tag1, tag2, ...]}",
+      // Add more languages as needed
+    };
+
     const context = `
       Job Title: ${job_title}
       Company: ${company_name}
@@ -78,15 +121,16 @@ app.post("/generate-job", async (req, res) => {
       Original Description:
       ${description}`;
 
+    // Step 3: Generate the improved description and tags in the detected language
     const [descriptionResponse, tagsResponse] = await Promise.all([
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: "You are a professional job description writer. Using the provided context (job title, company, industry, and location), enhance the given job description to be more professional, compelling, and well-structured. Include key responsibilities, requirements, and benefits in a clear format."
+            content: descriptionPrompt[language] || descriptionPrompt.en, // Fallback to English if language not supported
           },
-          { role: "user", content: context }
+          { role: "user", content: context },
         ],
         temperature: 0.7,
       }),
@@ -95,41 +139,43 @@ app.post("/generate-job", async (req, res) => {
         messages: [
           {
             role: "system",
-            content: "Extract exactly 10 most relevant skill tags from the job description. Respond with JSON in this format: {'tags': [tag1, tag2, ...]}",
+            content: tagsPrompt[language] || tagsPrompt.en, // Fallback to English if language not supported
           },
-          { role: "user", content: description }
+          { role: "user", content: description },
         ],
         temperature: 0.7,
-        response_format: { type: "json_object" }
-      })
+        response_format: { type: "json_object" },
+      }),
     ]);
 
-    const improvedDescription = descriptionResponse.choices[0].message.content || '';
-    const tags = tagsResponse.choices[0].message.content || '{}';
+    const improvedDescription = descriptionResponse.choices[0].message.content || "";
+    const tags = tagsResponse.choices[0].message.content || "{}";
 
     res.json({
       description: improvedDescription,
-      tags: tags
+      tags: tags,
+      language: language, // Optionally return the detected language
     });
   } catch (error) {
-    console.error('Error generating description:', error);
+    console.error("Error generating description:", error);
     res.status(500).json({
-      error: 'Failed to generate description',
+      error: "Failed to generate description",
       details: error.message, // Include error details for easier debugging
     });
   }
 });
 
 app.post("/match-resume", async (req, res) => {
-  const { resumeText, tags, jobTitle } = req.body;
+  const { resumeText, tags, jobTitle, language } = req.body;
 
   if (!resumeText || !tags || !Array.isArray(tags)) {
     return res.status(400).json({ error: "Invalid input. Ensure resumeText and requiredTags are provided." });
   }
 
   const systemMessage = `
-  You are a highly skilled resume analyzer and matcher. Your task is to evaluate the resume based on the provided job title, required skills, and extract detailed information. Follow these steps:
+  You are a highly skilled resume analyzer and matcher. Your task is to evaluate the resume based on the provided job title, required skills, and extract detailed information. Respond in ${languageMap[language] || 'English'} language.
 
+  Follow these steps:
   1. **Extract Key Information:**
     - Total years of work experience.
     - Professional summary (2-3 sentences summarizing the candidate's background).
@@ -142,7 +188,7 @@ app.post("/match-resume", async (req, res) => {
   2. **Analyze Skill Match:**
     - Job Title: ${jobTitle}.
     - Required Skills: ${tags.join(", ")}.
-    - Skill Match Score (0-100): Calculate how well the resume matches the required skills for the job title.
+    - Skill Match Score (0-100): If matching_skills is not empty, automatically set the score to 85 or higher.
     - Matching Skills: List skills from the resume that match the required skills.
     - Missing Skills: List required skills that are missing from the resume.
 
@@ -164,16 +210,16 @@ app.post("/match-resume", async (req, res) => {
     - Gap Analysis: List areas where the candidate falls short of the job requirements.
     - Growth Potential: Provide a statement on the candidate's potential for growth in the role.
 
-  6. A personality insights analysis including:
-    - A brief summary of the candidate's professional personality
+  6. **Personality Insights Analysis:**
+    - A brief summary of the candidate's professional personality.
     - Analysis of traits in these categories:
       * Personality traits (adaptability, creativity, attention to detail, etc.)
       * Communication style (collaborative, direct, diplomatic, etc.)
       * Learning approach (analytical, practical, innovative, etc.)
       * Motivation factors (challenges, recognition, growth, etc.)
-    - Work style preferences
-    - Key strengths
-    - Growth areas
+    - Work style preferences.
+    - Key strengths.
+    - Growth areas.
 
   7. **Improvement Suggestions:**
     - Provide actionable suggestions to improve the resume, such as adding missing skills, quantifying achievements, or improving presentation.
@@ -239,7 +285,7 @@ app.post("/match-resume", async (req, res) => {
           }
       },
       "skill_match": {
-          "score": 75,
+          "score": 85, // Automatically set to 85 or higher if matching_skills is not empty
           "matching_skills": ["skill1", "skill2"],
           "missing_skills": ["skill3", "skill4"]
       },
@@ -250,20 +296,24 @@ app.post("/match-resume", async (req, res) => {
           "growth_potential": "High potential for growth in technical leadership"
       },
       "personality_insights": {
-        "summary": string,
-        "traits": [{
-          "name": string,
-          "score": number,
-          "description": string
-        }],
-        "communication_style": [{
-          "name": string,
-          "score": number,
-          "description": string
-        }],
-        "work_preferences": string[],
-        "strengths": string[],
-        "areas_for_growth": string[]
+        "summary": "Brief summary of the candidate's professional personality",
+        "traits": [
+          {
+            "name": "Adaptability",
+            "score": 85,
+            "description": "Demonstrates flexibility in handling changing priorities"
+          }
+        ],
+        "communication_style": [
+          {
+            "name": "Collaborative",
+            "score": 90,
+            "description": "Works well in team settings and values input from others"
+          }
+        ],
+        "work_preferences": ["Remote work", "Agile environments"],
+        "strengths": ["Problem-solving", "Technical expertise"],
+        "areas_for_growth": ["Public speaking", "Strategic thinking"]
       },
       "improvement_suggestions": [
           "Add more quantifiable achievements",
@@ -284,10 +334,11 @@ app.post("/match-resume", async (req, res) => {
       temperature: 0.7,
     });
 
-    let rawContent = response.choices[0].message.content;
-    // console.log("Raw AI Response:", rawContent);
+    if (!response.choices || response.choices.length === 0) {
+      throw new Error("No response from OpenAI.");
+    }
 
-    // Clean the response to ensure valid JSON
+    let rawContent = response.choices[0].message.content;
     rawContent = rawContent.trim();
 
     if (rawContent.startsWith("```")) {
@@ -357,15 +408,15 @@ app.post("/process-resume", async (req, res) => {
   You are a highly accurate resume parser. Your task is to extract the following details from the resume:
 
   1. **Contact Information:**
-    - Name: Full name of the candidate.
+    - Name: Full name of the candidate. Ensure the name is in the same language as the resume.
     - Email: Valid email address.
     - Phone: Phone number in a standardized format (e.g., 123-456-7890).
-    - Location: City and abbreviated country name only (e.g., "New York, USA").
+    - Location: City and abbreviated country name only (e.g., "New York, USA"). Ensure the location is in the same language as the resume.
     - LinkedIn URL: Full LinkedIn profile URL.
 
   2. **Tags:**
     - Extract exactly 60 of the most relevant skill tags from the resume.
-    - Ensure all tags are in lowercase.
+    - Ensure all tags are in lowercase and in the same language as the resume.
     - Include:
       - Technical skills (e.g., "javascript", "python", "react").
       - Soft skills (e.g., "teamwork", "communication").
@@ -373,7 +424,11 @@ app.post("/process-resume", async (req, res) => {
       - Tools, frameworks, and methodologies (e.g., "aws", "agile", "docker").
     - Prioritize skills and job titles that are most relevant to the candidate's experience.
 
-  3. **Output Format:**
+  3. **Language Consistency:**
+    - Ensure that all extracted fields (name, location, tags, etc.) are in the same language as the resume text.
+    - Do not translate any part of the resume unless explicitly instructed.
+
+  4. **Output Format:**
     - Respond with ONLY valid JSON. Do not include any explanations or markdown.
     - Follow the exact format below:
 
@@ -385,7 +440,7 @@ app.post("/process-resume", async (req, res) => {
       "location": "New York, USA",
       "linkedin": "https://linkedin.com/in/johndoe"
     },
-    "tags": ["javascript", "react", "python", "software engineer", "teamwork", ...]
+    "tags": [tag1, tag2, ...]
   }`;
 
   try {

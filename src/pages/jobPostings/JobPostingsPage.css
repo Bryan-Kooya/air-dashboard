@@ -72,3 +72,7 @@
 .job-description::-webkit-scrollbar {
   width: 0px;
 }
+
+.required-field {
+  border: 1px solid red; /* Add red border for required fields */
+}

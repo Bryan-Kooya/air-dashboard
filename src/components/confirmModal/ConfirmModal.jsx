@@ -6,18 +6,21 @@ import { InfoIcon } from '../../assets/images';
 const ConfirmModal = (props) => {
   const open = props.open;
   const close = props.close;
-  const deleteConvo = props.delete;
+  const confirm = props.delete;
+  const item = props.item;
+  const loading = props.loading;
+
   return (
     <Modal open={open} onClose={close}>
       <div className='confirm-container'>
         <img src={InfoIcon} alt='Info'/>
         <div>
           <div className='card-title'>Delete</div>
-          <div className='confirm-message'>Are you sure that you want to delete this message? All data about this message will be lost.</div>
+          <div className='confirm-message'>Are you sure that you want to delete this {item}? All data about this {item} will be lost.</div>
         </div>
         <div className='button-container'>
           <button onClick={close} className='secondary-button'>Cancel</button>
-          <button onClick={deleteConvo} className='primary-button'>Delete</button>
+          <button disabled={loading} onClick={confirm} className='primary-button'>{loading ? 'Deleting...' : 'Delete'}</button>
         </div>
       </div>
     </Modal>

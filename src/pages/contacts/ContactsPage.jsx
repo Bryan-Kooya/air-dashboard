@@ -40,7 +40,7 @@ const ContactsPage = (props) => {
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
-    accept: ".pdf, .doc, .docx",
+    accept: ".pdf, .docx",
     multiple: true,
   });
 
@@ -91,153 +91,143 @@ const ContactsPage = (props) => {
   
     const updatedStatus = { ...uploadStatus };
   
-    // Create an array of promises for all file uploads and processing
-    const uploadPromises = filesToUpload.map(async (file) => {
-      const storageRef = ref(storage, `resumes/${userInfo.name}/${file.name}`);
-
-      const metadata = { customMetadata: { userId } };
-      const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+    try {
+      // Filter out unsupported files
+      const validFiles = filesToUpload.filter((file) => {
+        const fileType = file.name.split(".").pop().toLowerCase();
+        if (!["pdf", "docx"].includes(fileType)) {
+          updateMessage(`Skipping ${file.name} file. Only PDF and DOCX files are allowed.`, "warning", true);
+          updatedStatus[file.name] = "Failed";
+          setUploadStatus({ ...updatedStatus });
+          return false; // Exclude this file
+        }
+        return true; // Include this file
+      });
   
-      return new Promise((resolve, reject) => {
-        uploadTask.on(
-          "state_changed",
-          (snapshot) => {
-            const progress = Math.round(
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-            );
-            updatedStatus[file.name] = progress;
-            setUploadStatus({ ...updatedStatus });
-          },
-          (error) => {
-            console.error("Upload failed for", file.name, error);
-            updatedStatus[file.name] = "Failed";
-            setUploadStatus({ ...updatedStatus });
-            reject(error); // Reject the promise if upload fails
-          },
-          async () => {
-            // Upload complete
-            console.log("Upload complete for", file.name);
+      if (validFiles.length === 0) {
+        updateMessage("No valid files to upload. Only PDF and DOCX files are allowed.", "warning", true);
+        setLoading(false);
+        return;
+      }
   
-            try {
-              // Get the download URL
-              const downloadUrl = await getDownloadURL(storageRef);
+      const uploadPromises = validFiles.map(async (file) => {
+        const fileType = file.name.split(".").pop().toLowerCase();
+        const storageRef = ref(storage, `resumes/${userInfo.name}/${file.name}`);
+        const metadata = { customMetadata: { userId } };
+        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
   
-              // Extract text from the file
-              const fileType = file.name.split(".").pop().toLowerCase();
-              let resumeText = "";
-  
-              if (fileType === "pdf") {
-                resumeText = await extractTextFromPDF(downloadUrl);
-              } else if (fileType === "docx") {
-                resumeText = await extractTextFromDocx(downloadUrl);
-              } else {
-                throw new Error("Unsupported file type");
-              }
-  
-              // Send extracted text to the API
-              const response = await fetch(`${apiBaseUrl}/process-resume`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ resumeText }),
-              });
-  
-              if (!response.ok) {
-                throw new Error("Failed to process resume");
-              }
-  
-              const apiData = await response.json();
-  
-              // Check if a contact with the same name and userId already exists
-              const contactsRef = collection(db, "contacts");
-              const querySnapshot = await getDocs(
-                query(
-                  contactsRef,
-                  where("name", "==", apiData.contact.name),
-                  where("userId", "==", userId)
-                )
+        return new Promise((resolve, reject) => {
+          uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+              const progress = Math.round(
+                (snapshot.bytesTransferred / snapshot.totalBytes) * 100
               );
-  
-              if (!querySnapshot.empty) {
-                // Update the existing contact
-                const existingContactDoc = querySnapshot.docs[0];
-                const existingContactRef = doc(db, "contacts", existingContactDoc.id);
-  
-                await updateDoc(existingContactRef, {
-                  email: apiData.contact.email || existingContactDoc.data().email,
-                  phone: apiData.contact.phone || existingContactDoc.data().phone,
-                  location: apiData.contact.location || existingContactDoc.data().location,
-                  linkedin: apiData.contact.linkedin || existingContactDoc.data().linkedin,
-                  tags: apiData.tags || existingContactDoc.data().tags,
-                  fileName: file.name,
-                  url: downloadUrl,
-                  resumeText: resumeText,
-                  status: "Active",
-                  timestamp: serverTimestamp(),
-                });
-  
-                console.log("Contact updated in Firestore:", existingContactDoc.id);
-                updatedStatus[file.name] = "Complete";
-                setUploadStatus({ ...updatedStatus });
-  
-                // Update the local contacts state
-                setContacts((prevContacts) =>
-                  prevContacts.map((contact) =>
-                    contact.name === existingContactDoc.data().name
-                      ? { ...contact, ...apiData, fileName: file.name, url: downloadUrl, resumeText }
-                      : contact
-                  )
-                );
-              } else {
-                // Save the response in Firestore as a new contact
-                const formattedName = file.name
-                  .replace(/\.[^/.]+$/, "")
-                  .replace(/[_-]+/g, " ")
-                  .replace(/\b(resume|cv|curriculum vitae)\b/gi, "")
-                  .trim();
-  
-                const newContact = {
-                  name: apiData.contact.name || capitalizeFirstLetter(formattedName),
-                  email: apiData.contact.email || "",
-                  phone: apiData.contact.phone || "",
-                  location: apiData.contact.location || "N/A",
-                  linkedin: apiData.contact.linkedin || "",
-                  tags: apiData.tags || [],
-                  fileName: file.name,
-                  url: downloadUrl,
-                  jobs: [],
-                  resumeText: resumeText,
-                  status: "Active",
-                  userId: userId,
-                  timestamp: serverTimestamp(),
-                };
-  
-                await addDoc(collection(db, "contacts"), newContact);
-                updatedStatus[file.name] = "Complete";
-                setUploadStatus({ ...updatedStatus });
-                console.log("Contact added to Firestore:", newContact);
-  
-                // Update the local contacts state
-                setContacts((prevContacts) => [newContact, ...prevContacts]);
-              }
-  
-              resolve(); // Resolve the promise if everything is successful
-            } catch (error) {
-              console.error("Error processing and saving contact:", error);
+              updatedStatus[file.name] = progress;
+              setUploadStatus({ ...updatedStatus });
+            },
+            (error) => {
+              console.error("Upload failed for", file.name, error);
               updatedStatus[file.name] = "Failed";
               setUploadStatus({ ...updatedStatus });
-              reject(error); // Reject the promise if processing fails
-            }
-          }
-        );
-      });
-    });
+              reject(error);
+            },
+            async () => {
+              try {
+                const downloadUrl = await getDownloadURL(storageRef);
+                let resumeText = "";
   
-    // Wait for all upload promises to resolve
-    await Promise.all(uploadPromises);
-    updateMessage("All files uploaded and processed successfully!", "success", true);
-    setLoading(false);
+                if (fileType === "pdf") {
+                  resumeText = await extractTextFromPDF(downloadUrl);
+                } else if (fileType === "docx") {
+                  resumeText = await extractTextFromDocx(downloadUrl);
+                }
+  
+                const response = await fetch(`${apiBaseUrl}/process-resume`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ resumeText }),
+                });
+  
+                if (!response.ok) {
+                  throw new Error("Failed to process resume");
+                }
+  
+                const apiData = await response.json();
+                const contactsRef = collection(db, "contacts");
+                const querySnapshot = await getDocs(
+                  query(
+                    contactsRef,
+                    where("name", "==", apiData.contact.name),
+                    where("userId", "==", userId)
+                  )
+                );
+  
+                if (!querySnapshot.empty) {
+                  const existingContactDoc = querySnapshot.docs[0];
+                  const existingContactRef = doc(db, "contacts", existingContactDoc.id);
+                  await updateDoc(existingContactRef, {
+                    email: apiData.contact.email || existingContactDoc.data().email,
+                    phone: apiData.contact.phone || existingContactDoc.data().phone,
+                    location: apiData.contact.location || existingContactDoc.data().location,
+                    linkedin: apiData.contact.linkedin || existingContactDoc.data().linkedin,
+                    tags: apiData.tags || existingContactDoc.data().tags,
+                    fileName: file.name,
+                    url: downloadUrl,
+                    resumeText: resumeText,
+                    status: "Active",
+                    timestamp: serverTimestamp(),
+                  });
+                  console.log("Contact updated in Firestore:", existingContactDoc.id);
+                } else {
+                  const formattedName = file.name
+                    .replace(/\.[^/.]+$/, "")
+                    .replace(/[_-]+/g, " ")
+                    .replace(/\b(resume|cv|curriculum vitae)\b/gi, "")
+                    .trim();
+  
+                  const newContact = {
+                    name: apiData.contact.name || capitalizeFirstLetter(formattedName),
+                    email: apiData.contact.email || "",
+                    phone: apiData.contact.phone || "",
+                    location: apiData.contact.location || "N/A",
+                    linkedin: apiData.contact.linkedin || "",
+                    tags: apiData.tags || [],
+                    fileName: file.name,
+                    url: downloadUrl,
+                    jobs: [],
+                    resumeText: resumeText,
+                    status: "Active",
+                    userId: userId,
+                    timestamp: serverTimestamp(),
+                  };
+  
+                  await addDoc(collection(db, "contacts"), newContact);
+                  console.log("Contact added to Firestore:", newContact);
+                }
+  
+                updatedStatus[file.name] = "Complete";
+                setUploadStatus({ ...updatedStatus });
+                resolve();
+              } catch (error) {
+                console.error("Error processing and saving contact:", error);
+                updatedStatus[file.name] = "Failed";
+                setUploadStatus({ ...updatedStatus });
+                reject(error);
+              }
+            }
+          );
+        });
+      });
+  
+      await Promise.all(uploadPromises);
+      updateMessage("All valid files uploaded and processed successfully!", "success", true);
+    } catch (error) {
+      console.error("Error in uploadFiles:", error);
+      updateMessage(`Error: ${error.message}`, "error", true);
+    } finally {
+      setLoading(false);
+    }
   };
   
   const handleSortedBy = (sortOption) => {
@@ -289,6 +279,13 @@ const ContactsPage = (props) => {
     }
   }, [currentPage]);
 
+  // Watch for changes in searchQuery
+  useEffect(() => {
+    if (searchQuery === "" || searchQuery.length >= 3) {
+      handleSearchSubmit({ preventDefault: () => {} }); // Simulate form submission
+    }
+  }, [searchQuery]);
+
   (function setHeaderTitle() {
     props.title("Contacts");
     props.subtitle("Centralized page to view and manage all contacts");
@@ -302,7 +299,7 @@ const ContactsPage = (props) => {
         <div className="upload-row">
           <div className="label-container">
             <div className="row1-label">Drag and Drop or choose your file for upload</div>
-            <div className="row2-label">Upload multiple resumes for comparison (PDF, DOC, DOCX)</div>
+            <div className="row2-label">Upload multiple resumes for comparison (PDF, DOCX)</div>
           </div>
           {loading ?
           <div className="progress-container">

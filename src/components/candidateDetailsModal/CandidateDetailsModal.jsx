@@ -5,14 +5,14 @@ import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, Expe
 import { capitalizeFirstLetter, handleRedirectToLinkedIn } from '../../utils/utils';
 import ConfirmModal from '../confirmModal/ConfirmModal';
 import { db } from '../../firebaseConfig';
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import ScoreGauge from '../scoreGauge/ScoreGauge';
 import IntroEmailModal from '../introEmailModal/IntroEmailModal';
 import InterviewPrepModal from '../interviewPrepModal/InterviewPrepModal';
 import { apiBaseUrl } from '../../utils/constants';
 
 const CandidateDetailsModal = (props) => {
-  const statusList = ['Waiting for approval', 'Selected', 'Interviewed', 'Salary draft'];
+  const statusList = ['Selected', 'Irrelevant', 'Waiting for approval', 'Interviewed', 'Salary draft'];
   const open = props.open;
   const close = props.close;
   const candidate = props.candidate;
@@ -23,6 +23,7 @@ const CandidateDetailsModal = (props) => {
   const handleRejectCandidate = props.handleRejectCandidate;
   const updateChanges = props.updateChanges;
   const updateMessage = props.updateMessage;
+  const updateTable = props.updateTable;
   const email = candidate.contact?.email?.toLowerCase();
   const [showSelectStatus, setShowSelectStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(candidate.status);
@@ -34,6 +35,7 @@ const CandidateDetailsModal = (props) => {
   const [saving, setSaving] = useState(false);
   const [loadSaveButton, setLoadSaveButton] = useState(false);
   const [status, setStatus] = useState(candidate.status); 
+  const [confirming, setConfirming] = useState(false);
 
   const handleIconClick = async () => {
     if (isEditable) setShowConfirm(true);
@@ -73,6 +75,7 @@ const CandidateDetailsModal = (props) => {
     if (isEditable && showSelectStatus) {
         setSaving(true);
         await updateChanges(candidate, selectedStatus);
+        candidate.status = selectedStatus;
         setShowSelectStatus(false);
         setSaving(false);
     } else {
@@ -142,6 +145,24 @@ const CandidateDetailsModal = (props) => {
   const handleInterviewPrep = async () => {
     await generatePrep();
     setTimeout(() => setShowInterviewPrep(true), 800);
+  };
+
+  const deleteCandidate = async (id) => {
+    setConfirming(true);
+    try {
+      const candidateDoc = doc(db, "candidates", id);
+      await deleteDoc(candidateDoc);
+      await updateTable();
+      setTimeout(() => setConfirming(false), 500);
+      setShowConfirm(false);
+      handleClose();
+      updateMessage("Candidate deleted successfully!", "success", true);
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      setTimeout(() => setConfirming(false), 500);
+      setShowConfirm(false);
+      updateMessage("An error occurred while deleting candidate", "error", true);
+    }
   };
 
   return (
@@ -549,6 +570,9 @@ const CandidateDetailsModal = (props) => {
         <ConfirmModal
           open={showConfirm}
           close={() => setShowConfirm(false)}
+          delete={() => deleteCandidate(candidate.id)}
+          item={"candidate"}
+          loading={confirming}
         />
         <IntroEmailModal 
           open={showGeneratedEmail} 

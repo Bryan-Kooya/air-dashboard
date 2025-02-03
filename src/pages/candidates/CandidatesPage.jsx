@@ -3,7 +3,7 @@ import "./CandidatesPage.css";
 import { Select, Menu, MenuItem, Snackbar, Alert, Slide } from "@mui/material";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { db } from '../../firebaseConfig';
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
 import { fetchPaginatedCandidates, searchCandidates } from "../../utils/firebaseService";
 import Pagination from "../../components/pagination/Pagination";
 import { SearchIcon, FilterIcon } from "../../assets/images";
@@ -67,6 +67,25 @@ const CandidatesPage = (props) => {
       if (!candidate?.id) {
         updateMessage("Candidate ID is missing. Unable to update status.", "error", true);
         return;
+      }
+
+    const contactsRef = collection(db, "contacts");
+      const querySnapshot = await getDocs(
+        query(
+          contactsRef,
+          where("name", "==", candidate.contact.name),
+          where("userId", "==", userId)
+        )
+      );
+
+      if (!querySnapshot.empty) {
+        const existingContactDoc = querySnapshot.docs[0];
+        const existingContactRef = doc(db, "contacts", existingContactDoc.id);
+        await updateDoc(existingContactRef, {
+          status: status === "Irrelevant" ? "Irrelevant" : "Active",
+          timestamp: serverTimestamp(),
+        });
+        console.log("Contact updated in Firestore:", existingContactDoc.id);
       }
   
       const candidateRef = doc(db, "candidates", candidate.id);
@@ -167,6 +186,13 @@ const CandidatesPage = (props) => {
   useEffect(() => {
     if (!searchQuery) loadCandidates(currentPage);
   }, [currentPage]);
+
+  // Watch for changes in searchQuery
+  useEffect(() => {
+    if (searchQuery === "" || searchQuery.length >= 3) {
+      handleSearchSubmit({ preventDefault: () => {} }); // Simulate form submission
+    }
+  }, [searchQuery]);
 
   (function setHeaderTitle() {
     props.title("Candidates");
@@ -276,6 +302,7 @@ const CandidatesPage = (props) => {
         userInfo={userInfo}
         updateChanges={handleUpdateChanges}
         updateMessage={updateMessage}
+        updateTable={loadCandidates}
       />
       <Snackbar
         autoHideDuration={5000}

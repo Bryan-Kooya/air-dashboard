@@ -232,7 +232,8 @@ img {
   background-color: #FFB20D;
 }
 
-.status-badge.low {
+.status-badge.low,
+.status-badge.irrelevant {
   background-color: #f97316;
 }
 
