@@ -48,6 +48,12 @@
 .jobs {
   width: -webkit-fill-available;
   min-height: 137px;
+  max-height: 357px;
+  overflow-y: auto;
+}
+
+.jobs::-webkit-scrollbar {
+  width: 0px;
 }
 
 .edit-button,

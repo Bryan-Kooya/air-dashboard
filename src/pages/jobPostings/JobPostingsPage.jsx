@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   collection,
   addDoc,
@@ -10,14 +10,14 @@ import {
 import "./JobPostingsPage.css"
 import { useNavigate } from "react-router-dom";
 import { db } from "../../firebaseConfig";
-import { Select, MenuItem, CircularProgress, Snackbar, Slide, Alert } from '@mui/material';
+import { Select, MenuItem, CircularProgress, Snackbar, Slide, Alert, Tooltip } from '@mui/material';
 import AIGeneratedJobModal from "../../components/aiGeneratedJobModal/AIGeneratedJobModal";
 import EditJobModal from "../../components/editJobModal/EditJobModal";
 import { apiBaseUrl } from "../../utils/constants";
-import Pagination from "../../components/pagination/Pagination";
 import { fetchPaginatedJobs, searchJobs } from "../../utils/firebaseService";
-import { SearchIcon } from "../../assets/images";
+import { SearchIcon, EditIcon, Delete } from "../../assets/images";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
+import CircularLoading from "../../components/circularLoading/CircularLoading";
 
 const JobPostingsPage = (props) => {
   const tableHeader = ["Job Title", "Status", "Company", "Industry", "Location", "Actions"];
@@ -54,48 +54,83 @@ const JobPostingsPage = (props) => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [jobId, setJobId] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastVisible, setLastVisible] = useState(null);
+  const observer = useRef();
   const pageSize = 5;
 
-  const loadJobs = async (page) => {
-    try {
-      const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
-      const { data, lastVisible, total } = await fetchPaginatedJobs(pageSize, lastVisibleDoc, userId);
-      setJobs(data);
+  const lastJobElementRef = useCallback(node => {
+    if (loadingMessages) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreJobs();
+      }
+    }, { threshold: 0.5 });
 
-      // Store the lastVisibleDoc for the current page
-      setLastVisibleDocs((prev) => {
-        const updatedDocs = [...prev];
-        updatedDocs[page - 1] = lastVisible; // Update lastVisible for the current page
-        return updatedDocs;
-      });
-      setTotalPages(Math.ceil(total / pageSize));
+    if (node) observer.current.observe(node);
+  }, [loadingMessages, hasMore]);
+
+  const loadJobs = async () => {
+    try {
+      const { data, lastVisible: last, total } = await fetchPaginatedJobs(pageSize, null, userId);
+      setJobs(data);
+      setLastVisible(last);
+      setHasMore(data.length < total);
     } catch (error) {
-      console.error("Error fetching contacts:", error);
+      console.error("Error fetching jobs:", error);
+      updateMessage("Error loading jobs", "error", true);
+    }
+  };
+
+  const loadMoreJobs = async () => {
+    if (!hasMore || loadingMessages) return;
+    
+    setLoadingMessages(true);
+    try {
+      const { data, lastVisible: last, total } = await fetchPaginatedJobs(
+        pageSize,
+        lastVisible,
+        userId
+      );
+      
+      if (data.length > 0) {
+        setJobs([...jobs, ...data]);
+        setLastVisible(last);
+        setHasMore(jobs.length + data.length < total);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("Error loading more jobs:", error);
+      updateMessage("Error loading more jobs", "error", true);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
   const searchAndLoadJobs = async () => {
     if (!searchQuery) {
-      setCurrentPage(1);
-      setLastVisibleDocs([]);
-      await loadJobs(1);
+      setJobs([]);
+      setLastVisible(null);
+      setHasMore(true);
+      await loadJobs();
       return;
     }
-
     try {
+      setLoadingMessages(true);
       const data = await searchJobs(searchQuery, userId);
       setJobs(data);
-      setTotalPages(1); // Since search results are not paginated
+      setHasMore(false);
     } catch (error) {
-      console.error("Error searching contacts:", error);
+      console.error("Error searching jobs:", error);
+      updateMessage("Error searching jobs", "error", true);
+    } finally {
+      setLoadingMessages(false);
     }
   };
-
-  useEffect(() => {
-    if (!searchQuery) {
-      loadJobs(currentPage);
-    }
-  }, [currentPage]);
 
   // Update a job
   const updateJob = async (updatedJob) => {
@@ -243,10 +278,6 @@ const JobPostingsPage = (props) => {
     setEditModalOpen(true);
     const selectedJob = jobs.find(job => job.id === id);
     setJob(selectedJob);
-  };
-
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
   };
 
   const handleSortedBy = (sortOption) => {
@@ -450,31 +481,11 @@ const JobPostingsPage = (props) => {
           <tbody>
             {jobs.length > 0 ?
             jobs.map((job, index) => (
-              <tr key={job.id}>
+              <tr key={job.id} ref={index === jobs.length - 1 ? lastJobElementRef : null}>
                 <td>{job.job_title}</td>
                 <td>
-                  {loadingJobId === job.id ? (
-                  <div className="progress-container">
-                    {/* Background Circle (Track) */}
-                    <CircularProgress
-                      variant="determinate"
-                      size={30}
-                      thickness={6}
-                      value={100}
-                      sx={{
-                        color: "#6E6E6E2B", // Gray color for the background track
-                      }}
-                    />
-                    {/* Foreground Progress */}
-                    <CircularProgress
-                      size={30}
-                      thickness={6}
-                      sx={{
-                        color: "#02B64A", // Green color for the actual progress
-                        position: "absolute", // Place on top of the track
-                      }}
-                    />
-                  </div>) : 
+                  {loadingJobId === job.id ? 
+                  <CircularLoading color={"#02B64A"}/> : 
                   (<Select
                     id="select-input"
                     sx={{ width: 140 }}
@@ -496,24 +507,24 @@ const JobPostingsPage = (props) => {
                 <td>{job.industry}</td>
                 <td>{job.location}</td>
                 <td>
-                  <button
-                    className="edit-button"
-                    onClick={() => handleEditJob(job.id)}
-                  >
-                    Edit
-                  </button>
-                  <button onClick={() => handleDeleteJob(job.id)} className="delete-button">Delete</button>
+                  <Tooltip title="Edit">
+                    <img style={{marginRight: 20}} onClick={() => handleEditJob(job.id)} src={EditIcon} alt="Edit" />
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <img onClick={() => handleDeleteJob(job.id)} src={Delete} alt="Delete" />
+                  </Tooltip>
                 </td>
               </tr>
             )) : 
             <tr>
-              <td style={{ marginTop: 10 }} className="no-data">
+              <td style={{ marginTop: 10 }} className="no-data" colSpan={tableHeader.length}>
                 No jobs available
               </td>
             </tr>
             }
           </tbody>
         </table>
+        {loadingMessages && <CircularLoading/>}
       </div>
       <ConfirmModal
         open={showConfirm}
@@ -521,11 +532,6 @@ const JobPostingsPage = (props) => {
         delete={() => deleteJob(jobId)}
         item={"job"}
         loading={confirming}
-      />
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
       />
       <Snackbar
         autoHideDuration={5000}

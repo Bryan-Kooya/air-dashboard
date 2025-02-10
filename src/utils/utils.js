@@ -40,3 +40,17 @@ export const truncateText = (text, maxLength) => {
   if (!text) return "";
   return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
 };
+
+export const scoreColor = (score) => {
+  if (score >= 80) {
+    return '#2AD324';
+  } else if (score > 49 && score < 80) {
+    return '#FFB20D';
+  } else if (score > 29 && score < 50) {
+    return '#f97316';
+  } else if (score >= 0 && score < 30) {
+    return '#F91E24';
+  } else {
+    return '#0A66C2';
+  }
+};

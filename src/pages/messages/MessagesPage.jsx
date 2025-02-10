@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import "./MessagesPage.css";
-import { Select, MenuItem, Snackbar, Slide, Alert } from '@mui/material';
+import { Select, MenuItem, Snackbar, Slide, Alert, Tooltip } from '@mui/material';
 import { truncateText, convertDateFormat } from "../../utils/utils";
+import { db } from "../../firebaseConfig";
+import { doc, updateDoc } from "firebase/firestore";
 import { fetchPaginatedConversations, searchConversations, deleteConversation } from "../../utils/firebaseService";
 import { Delete, SearchIcon } from "../../assets/images";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
 import MessageModal from "../../components/messageModal/MessageModal";
-import Pagination from "../../components/pagination/Pagination";
+import CircularLoading from "../../components/circularLoading/CircularLoading";
 
 const MessagesPage = (props) => {
   const tableHeader = ["Sender", "Message Preview", "Date & Time", "Attachments", 'Actions'];
@@ -17,8 +19,6 @@ const MessagesPage = (props) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [lastVisibleDocs, setLastVisibleDocs] = useState([]);
-  const [totalPages, setTotalPages] = useState(0);
   const pageSize = 10;
   const [searchQuery, setSearchQuery] = useState("");
   const [convoId, setConvoId] = useState("");
@@ -27,23 +27,81 @@ const MessagesPage = (props) => {
   const [open, setOpen] = useState(false);
   const [messageType, setMessageType] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastVisible, setLastVisible] = useState(null);
+  const observer = useRef();
 
-  const loadConversations = async (page) => {
+  const lastConversationElementRef = useCallback(node => {
+    if (loadingMessages) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreConversations();
+      }
+    }, { threshold: 0.5 });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMessages, hasMore]);
+
+  const loadConversations = async () => {
     try {
-      const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
-      const { data, lastVisible, total } = await fetchPaginatedConversations(pageSize, lastVisibleDoc, userId);
+      const { data, lastVisible: last, total } = await fetchPaginatedConversations(pageSize, null, userId);
 
       setConversations(data);
-
-      // Store the lastVisibleDoc for the current page
-      setLastVisibleDocs((prev) => {
-        const updatedDocs = [...prev];
-        updatedDocs[page - 1] = lastVisible;
-        return updatedDocs;
-      });
-      setTotalPages(Math.ceil(total / pageSize));
+      setLastVisible(last);
+      setHasMore(data.length < total);
     } catch (error) {
       console.error("Error fetching conversations:", error);
+      updateMessage("Error loading conversations", "error", true);
+    }
+  };
+
+  const loadMoreConversations = async () => {
+      if (!hasMore || loadingMessages) return;
+      
+      setLoadingMessages(true);
+      try {
+        const { data, lastVisible: last, total } = await fetchPaginatedConversations(
+          pageSize,
+          lastVisible,
+          userId
+        );
+        
+        if (data.length > 0) {
+          setConversations([...conversations, ...data]);
+          setLastVisible(last);
+          setHasMore(conversations.length + data.length < total);
+        } else {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error loading more conversations:", error);
+        updateMessage("Error loading more conversations", "error", true);
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+
+  const searchAndLoadConversations = async () => {
+    if (!searchQuery) {
+      setConversations([])
+      setLastVisible(null);
+      setHasMore(true);
+      await loadConversations();
+      return;
+    }
+    try {
+      setLoadingMessages(true);
+      const data = await searchConversations(searchQuery, userId);
+      setConversations(data);
+      setHasMore(false);
+    } catch (error) {
+      console.error("Error searching conversations:", error);
+      updateMessage("Error searching conversations", "error", true);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -61,29 +119,6 @@ const MessagesPage = (props) => {
     }
     setOpen(false);
   };
-
-  const searchAndLoadConversations = async () => {
-    if (!searchQuery) {
-      setCurrentPage(1);
-      setLastVisibleDocs([]);
-      await loadConversations(1);
-      return;
-    }
-
-    try {
-      const data = await searchConversations(searchQuery, userId);
-      setConversations(data);
-      setTotalPages(1);
-    } catch (error) {
-      console.error("Error searching conversations:", error);
-    }
-  };
-
-  useEffect(() => {
-    if (!searchQuery) {
-      loadConversations(currentPage);
-    }
-  }, [currentPage]);
 
   const getLatestMessage = (conversation) => {
     const messagesByDate = conversation.messagesByDate;
@@ -109,37 +144,40 @@ const MessagesPage = (props) => {
 
   const getResumeFiles = (conversation) => {
     const messagesByDate = conversation.messagesByDate;
-
+  
     if (!messagesByDate) return [];
-
+  
     const resumeFiles = [];
-
+    const uniqueFileUrls = new Set(); // Track unique file URLs
+  
     for (const date of Object.keys(messagesByDate)) {
       const messages = messagesByDate[date];
       for (const message of messages) {
         const resumeFilesInMessage = message.attachments.filter((file) => file.isResume === true);
-        resumeFiles.push(...resumeFilesInMessage); // Add all resume files to the array
+        for (const resumeFile of resumeFilesInMessage) {
+          if (!uniqueFileUrls.has(resumeFile.url)) {
+            uniqueFileUrls.add(resumeFile.url); // Add to the Set to track uniqueness
+            resumeFiles.push(resumeFile); // Add to the array if it's unique
+          }
+        }
       }
     }
-
-    return resumeFiles; // Return the array of resume files
+  
+    return resumeFiles; // Return the array of unique resume files
   };
 
   // Precompute resume files to avoid recalculating during rendering
   const conversationsWithResumeFiles = useMemo(() => {
     return conversations.map((conversation) => ({
       ...conversation,
-      resumeFiles: getResumeFiles(conversation), // Store all resume files
+      resumeFiles: getResumeFiles(conversation), // Store unique resume files
     }));
   }, [conversations]);
   
   const handleShowMessage = (convo) => {
     setSelectedConvo(convo);
     setShowMessage(true);
-  };
-
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
+    markConversationAsRead(`${userId}_${convo.connection}`);
   };
 
   const handleSearchChange = (event) => {
@@ -196,6 +234,28 @@ const MessagesPage = (props) => {
     }
   };
 
+  const markConversationAsRead = async (conversationId) => {
+    try {
+      const conversationRef = doc(db, "linkedinConversations", conversationId);
+      await updateDoc(conversationRef, { read: true });
+      setConversations((prevConversations) =>
+        prevConversations.map((conv) =>
+          conv.id === conversationId ? { ...conv, read: true } : conv
+        )
+      );
+      console.log("Conversation marked as read:", conversationId);
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+    }
+  };
+
+  // Watch for changes in searchQuery
+  useEffect(() => {
+    if (searchQuery === "" || searchQuery.length >= 3) {
+      handleSearchSubmit({ preventDefault: () => {} }); // Simulate form submission
+    }
+  }, [searchQuery]);
+
   (function setHeaderTitle() {
     props.title("Messages");
     props.subtitle("Manage your conversations effectively with pagination.");
@@ -246,8 +306,11 @@ const MessagesPage = (props) => {
           </thead>
           <tbody>
             {conversationsWithResumeFiles && conversationsWithResumeFiles.length > 0 ? (
-              conversationsWithResumeFiles.map((conversation) => (
-                <tr key={conversation.id}>
+              conversationsWithResumeFiles.map((conversation, index) => (
+                <tr 
+                  className={`${conversation.read ? '' : 'unread'}`} key={conversation.id}
+                  ref={index === conversations.length - 1 ? lastConversationElementRef : null}
+                >
                   <td onClick={() => handleShowMessage(conversation)}>{conversation.connection}</td>
                   <td>{truncateText(getLatestMessage(conversation).messageText, 80)}</td>
                   <td>
@@ -269,25 +332,23 @@ const MessagesPage = (props) => {
                     )}
                   </td>
                   <td onClick={() => handleShowConfirmation(conversation.id)} style={{ textAlign: "center" }}>
-                    <img src={Delete} alt="Delete" />
+                    <Tooltip title="Delete">
+                      <img src={Delete} alt="Delete" />
+                    </Tooltip>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td style={{ marginTop: 10 }} className="no-data">
+                <td style={{ marginTop: 10 }} className="no-data" colSpan={tableHeader.length}>
                   No message available
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        {loadingMessages && <CircularLoading/>}
       </div>
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
       <MessageModal
         open={showMessage}
         close={() => setShowMessage(false)}

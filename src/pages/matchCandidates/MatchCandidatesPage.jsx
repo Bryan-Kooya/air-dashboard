@@ -18,7 +18,8 @@ const MatchCandidatesPage = (props) => {
   const [jobs, setJobs] = useState([]); // List of jobs
   const [selectedJob, setSelectedJob] = useState(''); // Currently selected job
   const [selectedJobTitle, setSelectedJobTitle] = useState('');
-  const [language, setLanguage] = useState('en');
+  const [jobLanguage, setJobLanguage] = useState('en');
+  const [resumeLanguage, setResumeLanguage] = useState('en');
   const [location, setLocation] = useState('');
   const [company, setCompany] = useState('');
   const [tags, setTags] = useState([]); // Tags related to the selected job
@@ -73,6 +74,7 @@ const MatchCandidatesPage = (props) => {
     setShowCandidate(false);
     setTags([]);
     setSelectedJobTitle("");
+    setCandidateCountInput(parseInt(1, 10));
   }, [company])
 
   const handleJobSelect = async (jobId) => {
@@ -88,7 +90,7 @@ const MatchCandidatesPage = (props) => {
         setTags(tagsData ? tagsData.split(',') : []);
         setJobDescription(jobDescription);
         setSelectedJobTitle(jobTitle);
-        setLanguage(language);
+        setJobLanguage(language);
         setLocation(jobDoc.data().location);
         setCompany(jobDoc.data().company_name);
       } else {
@@ -242,6 +244,7 @@ const MatchCandidatesPage = (props) => {
               fileName: contact.fileName,
               url: contact.url,
             },
+            language: contact.language,
             ...job,
           });
         } else {
@@ -283,7 +286,7 @@ const MatchCandidatesPage = (props) => {
         const contact = unprocessedContacts.shift();
 
         try {
-          const { resumeText, name, email, phone, linkedin, location, fileName, url, id } = contact;
+          const { resumeText, name, email, phone, linkedin, location, fileName, url, id, language } = contact;
 
           if (processedContactIds.has(id)) {
             console.log(`Skipping already processed contact: ${name}`);
@@ -293,12 +296,13 @@ const MatchCandidatesPage = (props) => {
           if (!resumeText) {
             throw new Error("Resume text is missing for contact: " + contact.name);
           }
+          setResumeLanguage(language);
           setResumeData(resumeText);
 
           const res = await fetch(`${apiBaseUrl}/match-resume`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ resumeText, tags: updatedTags, jobTitle: selectedJobTitle, language }),
+            body: JSON.stringify({ resumeText, tags: updatedTags, jobTitle: selectedJobTitle, jobLanguage }),
           });
 
           if (!res.ok) {
@@ -320,6 +324,7 @@ const MatchCandidatesPage = (props) => {
               jobTags: updatedTags,
               jobDescription: jobDescription,
               interviewPrep: [],
+              language
             }),
           });
 
@@ -337,6 +342,7 @@ const MatchCandidatesPage = (props) => {
               jobTitle: selectedJobTitle,
               jobDescription: jobDescription,
               interviewPrep: [],
+              language
             };
 
             processedCandidates.push(newCandidate);
@@ -391,9 +397,6 @@ const MatchCandidatesPage = (props) => {
       }
   
       console.log(`Successfully processed and retrieved ${processedCandidates.length} candidates.`);
-      if (candidateCountInput > candidates.length) {
-        updateMessage("No additional resumes matching the requested position were found in your database", "warning", true);
-      }
       setDisabledMatching(true);
     } catch (error) {
       console.error("Error during candidate matching process:", error.message);
@@ -412,7 +415,11 @@ const MatchCandidatesPage = (props) => {
   
       // Check if the contact with the same name already exists
       const querySnapshot = await getDocs(
-        query(contactsRef, where("name", "==", candidate.contact.name))
+        query(
+          contactsRef, 
+          where("name", "==", candidate.contact.name),
+          where("userId", "==", userId)
+        )
       );
   
       if (querySnapshot.empty) {
@@ -427,7 +434,7 @@ const MatchCandidatesPage = (props) => {
       const existingJobs = contactDoc.data().jobs || [];
   
       // Check if the job already exists in the 'jobs' field
-      const jobIndex = existingJobs.findIndex((job) => job.jobTitle === selectedJobTitle);
+      const jobIndex = existingJobs.findIndex((job) => job.jobTitle === selectedJobTitle && job.company === company);
   
       if (jobIndex >= 0) {
         // If the job exists, update its status
@@ -448,7 +455,7 @@ const MatchCandidatesPage = (props) => {
       setCandidates((prevCandidates) =>
         prevCandidates.map((c) =>
           c.contact.name === candidate.contact.name
-            ? { ...c, status, interviewPrep, jobDescription, resumeText: resumeData } // Update the status and interviewPrep of the matched candidate
+            ? { ...c, status, interviewPrep, jobDescription, resumeText: resumeData, language: resumeLanguage } // Update the status and interviewPrep of the matched candidate
             : c // Leave other candidates unchanged
         )
       );
@@ -546,6 +553,10 @@ const MatchCandidatesPage = (props) => {
     }
   };
 
+  const matchingCandidates = async () => {
+    await handleMatchCandidates(false);
+  };
+
   (function setHeaderTitle() {
     props.title("Match Candidates");
     props.subtitle("Choose the job title and paste tags below to find the best candidates.");
@@ -598,12 +609,13 @@ const MatchCandidatesPage = (props) => {
               type="number"
               min="1"
               max="10"
+              value={candidateCountInput}
               onInput={(e) => {
                 // Ensure the input stays within range
                 if (e.target.value > 10) e.target.value = 10;
                 if (e.target.value < 1) e.target.value = 1;
                 // Update state with the value of the input
-                setCandidateCountInput(parseInt(e.target.value, 10) || null);
+                setCandidateCountInput(parseInt(e.target.value, 10));
               }}
             />
           </div>
@@ -622,7 +634,7 @@ const MatchCandidatesPage = (props) => {
           </div>
         </div>
         <button 
-          onClick={() => handleMatchCandidates(false)} 
+          onClick={matchingCandidates} 
           className='match-button' 
           disabled={loading || disabledMatching}
         >

@@ -8,6 +8,12 @@
 .candidates {
   width: -webkit-fill-available;
   min-height: 147px;
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+.candidates::-webkit-scrollbar {
+  width: 0px;
 }
 
 .candidates-row {

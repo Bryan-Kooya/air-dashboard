@@ -39,6 +39,7 @@ import EducationIcon from "./EducationIcon.svg";
 import DatabaseIcon from "./DatabaseIcon.svg";
 import PeopleIcon from "./PeopleIcon.svg";
 import TooltipIcon from "./TooltipIcon.svg";
+import EditIcon from "./EditIcon.svg";
 
 
 export {
@@ -83,4 +84,5 @@ export {
   DatabaseIcon,
   PeopleIcon,
   TooltipIcon,
+  EditIcon,
 };

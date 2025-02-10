@@ -44,40 +44,6 @@
   width: 0px;
 }
 
-.tab-container-section {
-  position: relative;
-  display: flex;
-  padding: 4px;
-  border-radius: 12px;
-  border: 1px solid #EEE;
-  background: #FFF;
-}
-
-.tab-button {
-  width: 100%;
-  border-radius: 8px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-}
-
-.tab-button:nth-child(1) {
-  border-radius: 8px 0px 0px 8px;
-}
-
-.tab-button:nth-child(2) {
-  border-radius: 0px;
-}
-
-.tab-button:nth-child(3) {
-  border-radius: 0px 8px 8px 0px;
-}
-
-.tab-button:not(.selected) {
-  background-color: #FFFFFF;
-}
-
 .card-section {
   display: flex;
   flex-direction: column;

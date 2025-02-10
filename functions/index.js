@@ -424,12 +424,16 @@ app.post("/process-resume", async (req, res) => {
       - Tools, frameworks, and methodologies (e.g., "aws", "agile", "docker").
     - Prioritize skills and job titles that are most relevant to the candidate's experience.
 
-  3. **Language Consistency:**
-    - Ensure that all extracted fields (name, location, tags, etc.) are in the same language as the resume text.
-    - Do not translate any part of the resume unless explicitly instructed.
+  3. **Language Detection:**
+    - Detect the language of the resume text and return the language code (e.g., 'en' for English, 'es' for Spanish, 'fr' for French, 'he' for Hebrew).
 
-  4. **Output Format:**
+  4. **Introduction/About Section:**
+    - Determine if the resume contains an introduction or "about" section.
+    - If present, extract the text of the introduction or "about" section.
+
+  5. **Output Format:**
     - Respond with ONLY valid JSON. Do not include any explanations or markdown.
+    - Respond in detected language
     - Follow the exact format below:
 
   {
@@ -440,7 +444,12 @@ app.post("/process-resume", async (req, res) => {
       "location": "New York, USA",
       "linkedin": "https://linkedin.com/in/johndoe"
     },
-    "tags": [tag1, tag2, ...]
+    "tags": [tag1, tag2, ...],
+    "language": "en",
+    "introduction": {
+      "present": true,
+      "text": "A brief introduction or about section text if present."
+    }
   }`;
 
   try {
@@ -471,8 +480,8 @@ app.post("/process-resume", async (req, res) => {
 
     const parsedContent = JSON.parse(rawContent);
 
-    // Validate that contact information and tags exist
-    if (!parsedContent.contact || !parsedContent.tags) {
+    // Validate that contact information, tags, language, and introduction exist
+    if (!parsedContent.contact || !parsedContent.tags || !parsedContent.language || !parsedContent.introduction) {
       throw new Error("Missing required fields in the parsed response.");
     }
 

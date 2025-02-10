@@ -1,41 +1,59 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./ContactsPage.css";
-import { Select, MenuItem, CircularProgress, Snackbar, Slide, Alert } from '@mui/material';
+import { Select, MenuItem, Snackbar, Slide, Alert, Tooltip } from '@mui/material';
 import { useDropzone } from "react-dropzone";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, doc, updateDoc } from "firebase/firestore";
-import { searchContacts, fetchPaginatedContacts } from "../../utils/firebaseService";
+import { searchContacts, fetchPaginatedContacts, deleteContact } from "../../utils/firebaseService";
 import { extractTextFromPDF, extractTextFromDocx } from "../../utils/helper";
 import { capitalizeFirstLetter } from "../../utils/utils";
-import { UploadIcon, SearchIcon } from "../../assets/images";
+import { UploadIcon, SearchIcon, Delete } from "../../assets/images";
 import { apiBaseUrl } from "../../utils/constants";
-import Pagination from "../../components/pagination/Pagination";
+import ConfirmModal from "../../components/confirmModal/ConfirmModal";
+import CircularLoading from "../../components/circularLoading/CircularLoading";
 
 const ContactsPage = (props) => {
-  const tableHeader = ["Name", "Phone Number", "Email", "Resume", "Status"];
+  const tableHeader = ["Name", "Phone Number", "Email", "Resume", "Status", 'Actions'];
   const sortOptions = ["Newest", "Oldest"];
   const userId = props.userId;
   const userInfo = props.userInfo;
-  const storage = getStorage(); // Initialize Firebase Storage
-  const db = getFirestore(); // Initialize Firestore
+  const storage = getStorage();
+  const db = getFirestore();
   const [files, setFiles] = useState([]);
-  const [uploadStatus, setUploadStatus] = useState({}); // Track upload progress for each file
+  const [uploadStatus, setUploadStatus] = useState({});
   const [contacts, setContacts] = useState([]);
   const [sortedBy, setSortedBy] = useState("");
-  const [searchQuery, setSearchQuery] = useState(""); // Search query state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastVisibleDocs, setLastVisibleDocs] = useState([]); // Track lastVisibleDoc for each page
-  const [totalPages, setTotalPages] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
   const [messageType, setMessageType] = useState("");
+  const [hasMore, setHasMore] = useState(true);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [contactId, setContactId] = useState("");
+  const observer = useRef();
   const pageSize = 5;
 
+  const lastContactElementRef = useCallback(node => {
+    if (loadingMessages) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreContacts();
+      }
+    }, { threshold: 0.5 });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMessages, hasMore]);
+
   const onDrop = async (acceptedFiles) => {
-    setFiles([...files, ...acceptedFiles]); // Allow multiple files to be added
+    setFiles([...files, ...acceptedFiles]);
     setUploadStatus({});
-    await uploadFiles(acceptedFiles); // Automatically upload the files
+    await uploadFiles(acceptedFiles);
   };
 
   const { getRootProps, getInputProps } = useDropzone({
@@ -44,40 +62,62 @@ const ContactsPage = (props) => {
     multiple: true,
   });
 
-  const loadContacts = async (page) => {
+  const loadContacts = async () => {
     try {
-      const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
-      const { data, lastVisible, total } = await fetchPaginatedContacts(pageSize, lastVisibleDoc, userId);
-
+      const { data, lastVisible: last, total } = await fetchPaginatedContacts(pageSize, null, userId);
       setContacts(data);
-
-      // Store the lastVisibleDoc for the current page
-      setLastVisibleDocs((prev) => {
-        const updatedDocs = [...prev];
-        updatedDocs[page - 1] = lastVisible; // Update lastVisible for the current page
-        return updatedDocs;
-      });
-      setTotalPages(Math.ceil(total / pageSize));
+      setLastVisible(last);
+      setHasMore(data.length < total);
     } catch (error) {
       console.error("Error fetching contacts:", error);
+      updateMessage("Error loading contacts", "error", true);
+    }
+  };
+
+  const loadMoreContacts = async () => {
+    if (!hasMore || loadingMessages) return;
+    
+    setLoadingMessages(true);
+    try {
+      const { data, lastVisible: last, total } = await fetchPaginatedContacts(
+        pageSize,
+        lastVisible,
+        userId
+      );
+      
+      if (data.length > 0) {
+        setContacts([...contacts, ...data]);
+        setLastVisible(last);
+        setHasMore(contacts.length + data.length < total);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("Error loading more contacts:", error);
+      updateMessage("Error loading more contacts", "error", true);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
   const searchAndLoadContacts = async () => {
     if (!searchQuery) {
-      // If search query is empty, reset to paginated contacts
-      setCurrentPage(1);
-      setLastVisibleDocs([]);
-      await loadContacts(1);
+      setContacts([]);
+      setLastVisible(null);
+      setHasMore(true);
+      await loadContacts();
       return;
     }
-
     try {
+      setLoadingMessages(true);
       const data = await searchContacts(searchQuery, userId);
       setContacts(data);
-      setTotalPages(1); // Since search results are not paginated
+      setHasMore(false);
     } catch (error) {
       console.error("Error searching contacts:", error);
+      updateMessage("Error searching contacts", "error", true);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -158,7 +198,7 @@ const ContactsPage = (props) => {
                 const querySnapshot = await getDocs(
                   query(
                     contactsRef,
-                    where("name", "==", apiData.contact.name),
+                    where("name", "==", capitalizeFirstLetter(apiData.contact.name)),
                     where("userId", "==", userId)
                   )
                 );
@@ -179,6 +219,14 @@ const ContactsPage = (props) => {
                     timestamp: serverTimestamp(),
                   });
                   console.log("Contact updated in Firestore:", existingContactDoc.id);
+                  // Update the local contacts state
+                  setContacts((prevContacts) =>
+                    prevContacts.map((contact) =>
+                      contact.name === existingContactDoc.data().name
+                        ? { ...contact, ...apiData, fileName: file.name, url: downloadUrl, resumeText }
+                        : contact
+                    )
+                  );  
                 } else {
                   const formattedName = file.name
                     .replace(/\.[^/.]+$/, "")
@@ -187,7 +235,7 @@ const ContactsPage = (props) => {
                     .trim();
   
                   const newContact = {
-                    name: apiData.contact.name || capitalizeFirstLetter(formattedName),
+                    name: capitalizeFirstLetter(apiData.contact.name) || capitalizeFirstLetter(formattedName),
                     email: apiData.contact.email || "",
                     phone: apiData.contact.phone || "",
                     location: apiData.contact.location || "N/A",
@@ -203,6 +251,8 @@ const ContactsPage = (props) => {
                   };
   
                   await addDoc(collection(db, "contacts"), newContact);
+                  // Update the local contacts state
+                  setContacts((prevContacts) => [newContact, ...prevContacts]);
                   console.log("Contact added to Firestore:", newContact);
                 }
   
@@ -229,6 +279,32 @@ const ContactsPage = (props) => {
       setLoading(false);
     }
   };
+
+  const handleDeleteContact = async () => {
+    setConfirming(true);
+    try {
+      // Delete from Firestore
+      await deleteContact(contactId);
+
+      // Update local state by removing the deleted contact
+      setContacts((prevContacts) =>
+        prevContacts.filter((contact) => contact.id !== contactId)
+      );
+      setTimeout(() => setConfirming(false), 500);
+      setShowConfirmation(false);
+      updateMessage("Contact deleted successfully!", "success", true);
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+      setTimeout(() => setConfirming(false), 500);
+      setShowConfirmation(false);
+      updateMessage("An error occurred while deleting contact", "error", true);
+    }
+  };
+
+  const handleShowConfirmation = (id) => {
+    setShowConfirmation(true);
+    setContactId(id);
+  };
   
   const handleSortedBy = (sortOption) => {
     setSortedBy(sortOption);
@@ -254,10 +330,6 @@ const ContactsPage = (props) => {
     await searchAndLoadContacts();
   };
 
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-  };
-
   const updateMessage = (value, type, isOpen) => {
     setMessage(value);
     setMessageType(type);
@@ -272,12 +344,6 @@ const ContactsPage = (props) => {
     }
     setOpen(false);
   };
-
-  useEffect(() => {
-    if (!searchQuery) {
-      loadContacts(currentPage);
-    }
-  }, [currentPage]);
 
   // Watch for changes in searchQuery
   useEffect(() => {
@@ -301,28 +367,8 @@ const ContactsPage = (props) => {
             <div className="row1-label">Drag and Drop or choose your file for upload</div>
             <div className="row2-label">Upload multiple resumes for comparison (PDF, DOCX)</div>
           </div>
-          {loading ?
-          <div className="progress-container">
-            {/* Background Circle (Track) */}
-            <CircularProgress
-              variant="determinate"
-              size={30}
-              thickness={6}
-              value={100}
-              sx={{
-                color: "#6E6E6E2B", // Gray color for the background track
-              }}
-            />
-            {/* Foreground Progress */}
-            <CircularProgress
-              size={30}
-              thickness={6}
-              sx={{
-                color: "#02B64A", // Green color for the actual progress
-                position: "absolute", // Place on top of the track
-              }}
-            />
-          </div> :
+          {loading ? 
+          <CircularLoading color={"#02B64A"}/> :
           <div className="button-container">
             <button
               style={{ width: "max-content" }}
@@ -364,7 +410,7 @@ const ContactsPage = (props) => {
               renderValue={() => sortedBy ? sortedBy : "Sort by"}
             >
               {sortOptions.map((option, index) => (
-                <MenuItem id="options" key={index} value={option} onChange={() => handleSortedBy(option)}>
+                <MenuItem key={index} value={option}>
                   {option}
                 </MenuItem>
               ))}
@@ -393,18 +439,21 @@ const ContactsPage = (props) => {
             </tr>
           </thead>
           <tbody>
-            {contacts && contacts.length > 0 ?
-              (contacts.map((contact) => (
-                <tr key={contact.id}>
+            {contacts && contacts.length > 0 ? (
+              contacts.map((contact, index) => (
+                <tr
+                  key={contact.id}
+                  ref={index === contacts.length - 1 ? lastContactElementRef : null}
+                >
                   <td>{contact.name}</td>
                   <td>{contact.phone}</td>
-                  <td>{contact.email?.toLowerCase()}</td>
                   <td className="cv-link">
-                    <a
-                      href={contact.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <a href={`mailto:${contact.email}?subject=Your Subject Here&body=Your message here`}>
+                      {contact.email?.toLowerCase()}
+                    </a>
+                  </td>
+                  <td className="cv-link">
+                    <a href={contact.url} target="_blank" rel="noopener noreferrer">
                       {contact.fileName || "Attachment"}
                     </a>
                   </td>
@@ -412,21 +461,30 @@ const ContactsPage = (props) => {
                     <div className={`status-badge ${contact.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
                     {contact.status}
                   </td>
+                  <td onClick={() => handleShowConfirmation(contact.id)} style={{ textAlign: "center" }}>
+                    <Tooltip title="Delete">
+                      <img src={Delete} alt="Delete" />
+                    </Tooltip>
+                  </td>
                 </tr>
-              ))) : (
+              ))
+            ) : (
               <tr>
-                <td className="no-data">
+                <td colSpan={tableHeader.length} className="no-data">
                   No contacts available
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        {loadingMessages && <CircularLoading/>}
       </div>
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
+      <ConfirmModal
+        open={showConfirmation}
+        close={() => setShowConfirmation(false)}
+        delete={handleDeleteContact}
+        item={"contact"}
+        loading={confirming}
       />
       <Snackbar
         autoHideDuration={5000}

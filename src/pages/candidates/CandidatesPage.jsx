@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./CandidatesPage.css";
 import { Select, Menu, MenuItem, Snackbar, Alert, Slide } from "@mui/material";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { db } from '../../firebaseConfig';
 import { doc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
 import { fetchPaginatedCandidates, searchCandidates } from "../../utils/firebaseService";
-import Pagination from "../../components/pagination/Pagination";
 import { SearchIcon, FilterIcon } from "../../assets/images";
 import { capitalizeFirstLetter } from "../../utils/utils";
+import CircularLoading from "../../components/circularLoading/CircularLoading";
 
 const CandidatesPage = (props) => {
   const tableHeader = ["Candidate", "Status", "Job", "Company", "Location", "Experience", "Attachments"];
@@ -15,7 +15,8 @@ const CandidatesPage = (props) => {
   const sortOptions = ["Newest", "Oldest"];
   const userId = props.userId;
   const userInfo = props.userInfo;
-  const pageSize = 5;
+  const pageSize = 10;
+  const observer = useRef();
 
   // State Management
   const [viewDetails, setViewDetails] = useState(false);
@@ -26,31 +27,88 @@ const CandidatesPage = (props) => {
   const [sortedBy, setSortedBy] = useState("");
   const [filterBy, setFilterBy] = useState("");
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastVisibleDocs, setLastVisibleDocs] = useState([]);
-  const [totalPages, setTotalPages] = useState(0);
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
   const [messageType, setMessageType] = useState("");
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastVisible, setLastVisible] = useState(null);
+
+  const lastCandidateElementRef = useCallback(node => {
+    if (loadingMessages) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreCandidates();
+      }
+    }, { threshold: 0.5 });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMessages, hasMore]);
 
   // Load candidates with pagination
-  const loadCandidates = async (page) => {
+  const loadCandidates = async () => {
     try {
-      const lastVisibleDoc = page > 1 ? lastVisibleDocs[page - 2] : null;
-      const { data, lastVisible, total } = await fetchPaginatedCandidates(pageSize, lastVisibleDoc, userId);
-
+      const { data, lastVisible: last, total } = await fetchPaginatedCandidates(pageSize, null, userId);
       setCandidates(data);
       setFilteredCandidates(data);
-
-      setLastVisibleDocs((prev) => {
-        const updatedDocs = [...prev];
-        updatedDocs[page - 1] = lastVisible;
-        return updatedDocs;
-      });
-
-      setTotalPages(Math.ceil(total / pageSize));
+      setLastVisible(last);
+      setHasMore(data.length < total);
     } catch (error) {
       console.error("Error fetching candidates:", error);
+      updateMessage("Error loading candidates", "error", true);
+    }
+  };
+
+  const loadMoreCandidates = async () => {
+    if (!hasMore || loadingMessages) return;
+    
+    setLoadingMessages(true);
+    try {
+      const { data, lastVisible: last, total } = await fetchPaginatedCandidates(
+        pageSize,
+        lastVisible,
+        userId
+      );
+      
+      if (data.length > 0) {
+        setCandidates([...candidates, ...data]);
+        setFilteredCandidates([...filteredCandidates, ...data]);
+        setLastVisible(last);
+        setHasMore(candidates.length + data.length < total);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("Error loading more candidates:", error);
+      updateMessage("Error loading more candidates", "error", true);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // Search candidates based on query
+  const searchAndLoadCandidates = async () => {
+    if (!searchQuery) {
+      setCandidates([]);
+      setFilteredCandidates([]);
+      setLastVisible(null);
+      setHasMore(true);
+      await loadCandidates();
+      return;
+    }
+    try {
+      setLoadingMessages(true);
+      const data = await searchCandidates(searchQuery, userId);
+      setCandidates(data);
+      setFilteredCandidates(data);
+      setHasMore(false);
+    } catch (error) {
+      console.error("Error searching candidates:", error);
+      updateMessage("Error searching candidates", "error", true);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -102,25 +160,6 @@ const CandidatesPage = (props) => {
     } catch (error) {
       console.error("Error updating candidate status:", error);
       updateMessage("An error occurred while updating candidate status.", "error", true);
-    }
-  };  
-
-  // Search candidates based on query
-  const searchAndLoadCandidates = async () => {
-    if (!searchQuery) {
-      setCurrentPage(1);
-      setLastVisibleDocs([]);
-      await loadCandidates(1);
-      return;
-    }
-
-    try {
-      const data = await searchCandidates(searchQuery, userId);
-      setCandidates(data);
-      setFilteredCandidates(data);
-      setTotalPages(1);
-    } catch (error) {
-      console.error("Error searching candidates:", error);
     }
   };
 
@@ -182,10 +221,6 @@ const CandidatesPage = (props) => {
     }
     setOpen(false);
   };
-
-  useEffect(() => {
-    if (!searchQuery) loadCandidates(currentPage);
-  }, [currentPage]);
 
   // Watch for changes in searchQuery
   useEffect(() => {
@@ -262,7 +297,11 @@ const CandidatesPage = (props) => {
           <tbody>
             {filteredCandidates.length > 0 ? (
               filteredCandidates.map((candidate, index) => (
-                <tr key={index} onClick={() => handleViewDetails(index)}>
+                <tr 
+                  key={index} 
+                  onClick={() => handleViewDetails(index)}
+                  ref={index === candidates.length - 1 ? lastCandidateElementRef : null}
+                >
                   <td>{capitalizeFirstLetter(candidate.contact?.name)}</td>
                   <td>
                     <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
@@ -288,12 +327,8 @@ const CandidatesPage = (props) => {
             )}
           </tbody>
         </table>
+        {loadingMessages && <CircularLoading/>}
       </div>
-      <Pagination 
-        currentPage={currentPage} 
-        totalPages={totalPages} 
-        onPageChange={setCurrentPage} 
-      />
       <CandidateDetailsModal
         open={viewDetails}
         close={() => setViewDetails(false)}

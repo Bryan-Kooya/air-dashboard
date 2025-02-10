@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import "./CandidateDetailsModal.css";
 import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem, Rating, Divider } from '@mui/material';
 import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon } from '../../assets/images';
-import { capitalizeFirstLetter, handleRedirectToLinkedIn } from '../../utils/utils';
+import { capitalizeFirstLetter, handleRedirectToLinkedIn, scoreColor } from '../../utils/utils';
 import ConfirmModal from '../confirmModal/ConfirmModal';
 import { db } from '../../firebaseConfig';
 import { doc, updateDoc, deleteDoc } from "firebase/firestore";
@@ -12,6 +12,7 @@ import InterviewPrepModal from '../interviewPrepModal/InterviewPrepModal';
 import { apiBaseUrl } from '../../utils/constants';
 
 const CandidateDetailsModal = (props) => {
+  const tabs = ["Personal", "Experience", "Education", "Certification", "Projects"];
   const statusList = ['Selected', 'Irrelevant', 'Waiting for approval', 'Interviewed', 'Salary draft'];
   const open = props.open;
   const close = props.close;
@@ -36,6 +37,9 @@ const CandidateDetailsModal = (props) => {
   const [loadSaveButton, setLoadSaveButton] = useState(false);
   const [status, setStatus] = useState(candidate.status); 
   const [confirming, setConfirming] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [activeTab, setActiveTab] = useState(0);
 
   const handleIconClick = async () => {
     if (isEditable) setShowConfirm(true);
@@ -125,14 +129,13 @@ const CandidateDetailsModal = (props) => {
           const candidateDoc = doc(db, "candidates", candidate.id);
           await updateDoc(candidateDoc, { interviewPrep: data });
           console.log("Updated Firestore with new interview prep data.");
-  
-          // Update the candidate locally
-          candidate.interviewPrep = data; // Update the local candidate object
           console.log("Updated candidate locally with new interview prep data.");
         } else {
           await updateContact(candidate, candidate.status, data);
           console.log("Updated contact with new interview prep data.");
         }
+        // Update the candidate locally
+        candidate.interviewPrep = data; // Update the local candidate object
       }
     } catch (error) {
       console.error("Error generating interview prep:", error);
@@ -349,7 +352,7 @@ const CandidateDetailsModal = (props) => {
                 value={candidate.scores?.presentation.score}
                 sx={{
                   "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
+                    backgroundColor: scoreColor(candidate.scores?.presentation.score),
                   },
                 }}
               />
@@ -366,7 +369,7 @@ const CandidateDetailsModal = (props) => {
                 value={candidate.skill_match?.score}
                 sx={{
                   "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
+                    backgroundColor: scoreColor(candidate.skill_match?.score),
                   },
                 }}
               />
@@ -383,7 +386,7 @@ const CandidateDetailsModal = (props) => {
                 value={candidate.scores?.experience.score}
                 sx={{
                   "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
+                    backgroundColor: scoreColor(candidate.scores?.experience.score),
                   },
                 }}
               />
@@ -400,7 +403,7 @@ const CandidateDetailsModal = (props) => {
                 value={candidate.scores?.education.score}
                 sx={{
                   "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
+                    backgroundColor: scoreColor(candidate.scores?.education.score),
                   },
                 }}
               />
@@ -434,7 +437,7 @@ const CandidateDetailsModal = (props) => {
                   <div className='section-info'>
                     <div className='score-row'>
                       {trait.name}
-                      <Rating sx={{marginLeft: 'auto', color: '#0A66C2'}} value={(trait.score / 2)} size='small' readOnly precision={0.5}/>
+                      <Rating sx={{marginLeft: 'auto', color: '#0A66C2'}} value={(trait.score / 20)} size='small' readOnly precision={0.5}/>
                     </div>
                     <LinearProgress
                       id='score-bar' 
@@ -458,7 +461,7 @@ const CandidateDetailsModal = (props) => {
                   <div className='section-info'>
                     <div className='score-row'>
                       {style.name}
-                      <Rating sx={{marginLeft: 'auto', color: '#0A66C2'}} value={(style.score / 2)} size='small' readOnly precision={0.5}/>
+                      <Rating sx={{marginLeft: 'auto', color: '#0A66C2'}} value={(style.score / 20)} size='small' readOnly precision={0.5}/>
                     </div>
                     <LinearProgress
                       id='score-bar' 
@@ -509,26 +512,21 @@ const CandidateDetailsModal = (props) => {
             </div>
           </div>
           <div className='contact-section'>
-            <div className='section-title'>Experience ({candidate.scores?.experience.score}%)</div>
-            <div>{candidate.scores?.experience.feedback}</div>
-            {candidate.work_experience?.map((experience) => (
-              <div className='section-label'>
-                <div>{experience.title}</div>
-                <div style={{fontWeight: 400, marginTop: 8}}>{experience.company}</div>
-                <div style={{fontWeight: 400, color: '#929292'}}>{experience.duration}</div>
-                {experience.highlights?.map((highlight) => (
-                  <ul style={{fontWeight: 400, margin: 6, paddingLeft: 20}}>
-                    <li>{highlight}</li>
-                  </ul>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className='contact-section'>
-            <div className='section-title'>Contact Information</div>
+            <div className="tab-container-section">
+              {tabs.map((tab, index) => (
+                <button
+                  key={index}
+                  className={`tab-button ${activeTab === index ? "selected" : ""}`}
+                  onClick={() => setActiveTab(index)}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            {activeTab === 0 ?
             <div className='section-info'>
               <div className='section-label'>Name: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.name)}</span></div>
-              <div className='section-label'>Email: <span style={{fontWeight: 400}}>{email}</span></div>
+              <div className='section-label'>Email: <a href={`mailto:${email}?subject=${emailSubject}&body=${emailBody}`} className='linkedin-link'>{email}</a></div>
               <div className='section-label'>Phone: <span style={{fontWeight: 400}}>{candidate.contact?.phone}</span></div>
               <div className='section-label'>Location: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.location)}</span></div>
               <div className='section-label'>LinkedIn: <a 
@@ -540,7 +538,45 @@ const CandidateDetailsModal = (props) => {
                   {capitalizeFirstLetter(candidate.contact?.name)}
                 </a>
               </div>
-            </div>
+            </div> :
+            activeTab === 1 && candidate.work_experience.length > 0 ?
+            candidate.work_experience?.map((experience) => (
+              <div className='section-label'>
+                <div>{experience.title}</div>
+                <div style={{fontWeight: 400, marginTop: 8}}>{experience.company}</div>
+                <div style={{fontWeight: 400, color: '#929292'}}>{experience.duration}</div>
+                {experience.highlights?.map((highlight) => (
+                  <ul style={{fontWeight: 400, margin: 6, paddingLeft: 20}}>
+                    <li>{highlight}</li>
+                  </ul>
+                ))}
+              </div>
+            )) :
+            activeTab === 2 && candidate.education.length > 0 ?
+            candidate.education?.map((educ) => (
+              <div className='section-label'>
+                <div>{educ.degree}</div>
+                <div className='light-label' style={{fontWeight: 400}}>
+                  {educ.institution || 'Institution not provided'} • <span>{educ.year}</span>
+                </div>
+              </div>
+            )) : 
+            activeTab === 3 && candidate.certifications.length > 0 ?
+            candidate.certifications?.map((cert) => (
+              <div className='section-label'>• {cert}</div>
+            )) :
+            activeTab === 4 && candidate.projects.length > 0 ?
+            candidate.projects?.map((project) => (
+              <div className='section-label'>
+                <div>{project.name}</div>
+                <div style={{fontWeight: 400}}>{project.description}</div>
+                {project.technologies?.map((tech) => (
+                  <div className='light-label'> • {tech}</div>
+                ))}
+              </div>
+            )) :
+            <div className='light-label'>No {tabs[activeTab]} found.</div>
+            }
           </div>
         </div>
         <div className='candidate-modal-row1'>
@@ -581,6 +617,8 @@ const CandidateDetailsModal = (props) => {
           jobTitle={candidate.jobTitle}
           userInfo={userInfo}
           hiringCompany={candidate.company}
+          emailSubject={setEmailSubject}
+          emailBody={setEmailBody}
         />
         <InterviewPrepModal
           open={showInterviewPrep} 

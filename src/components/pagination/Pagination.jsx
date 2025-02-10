@@ -25,6 +25,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
   const handlePageClick = (page) => {
     if (page !== "..." && page !== currentPage) {
+      console.log("Changing to page:", page); // Debugging log
       onPageChange(page);
     }
   };

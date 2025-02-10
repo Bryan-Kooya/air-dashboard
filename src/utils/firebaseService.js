@@ -8,7 +8,11 @@ export const getConversationCount = async (userId) => {
 
   // Create a query to filter conversations by the current userId
   const conversationsCollection = collection(db, "linkedinConversations");
-  const userQuery = query(conversationsCollection, where("userId", "==", userId));
+  const userQuery = query(
+    conversationsCollection, 
+    where("userId", "==", userId),
+    where("read" , "==", false)
+  );
 
   // Fetch the total count of documents for the user
   const countSnapshot = await getCountFromServer(userQuery);
@@ -68,15 +72,7 @@ export const fetchPaginatedConversations = async (pageSize, lastVisibleDoc = nul
 
 export const searchConversations = async (searchQuery, userId) => {
   const conversationsCollection = collection(db, "linkedinConversations");
-
-  // Search query: filter by `connection` field (or adjust as needed)
-  const q = query(
-    conversationsCollection, 
-    where("userId", "==", userId),
-    where("connection", ">=", searchQuery), 
-    where("connection", "<=", searchQuery + "\uf8ff")
-  );
-
+  const q = query(conversationsCollection, where("userId", "==", userId));
   const snapshot = await getDocs(q);
 
   const data = snapshot.docs.map((doc) => ({
@@ -84,10 +80,38 @@ export const searchConversations = async (searchQuery, userId) => {
     ...doc.data(),
   }));
 
-  return data;
+  // Filter in memory
+  const filteredData = data.filter((conversation) => {
+    // Check if the connection name matches the search query
+    if (conversation.connection.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return true;
+    }
+
+    // Flatten all messages into a single array
+    const allMessages = Object.values(conversation.messagesByDate).flat();
+
+    // Check if any message text or attachment name matches the search query
+    return allMessages.some((message) => {
+      // Check message text
+      if (message.messageText && message.messageText.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return true;
+      }
+
+      // Check attachments
+      if (message.attachments && message.attachments.some((attachment) => 
+        attachment.name && attachment.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )) {
+        return true;
+      }
+
+      return false;
+    });
+  });
+
+  return filteredData;
 };
 
-export const fetchPaginatedCandidates = async (pageSize, lastVisibleDoc = null, userId) => {
+export const fetchPaginatedCandidates = async (pageSize, lastVisibleDoc, userId) => {
   try {
     const candidatesCollection = collection(db, "candidates");
 
@@ -192,15 +216,20 @@ export const searchContacts = async (searchQuery, userId) => {
   return filteredData;
 };
 
-export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, userId) => {
+export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc, userId) => {
   try {
     const contactsCollection = collection(db, "contacts");
+
+    // Query for total count first
+    const countQuery = query(contactsCollection, where("userId", "==", userId));
+    const totalSnapshot = await getCountFromServer(countQuery);
+    const totalDocuments = totalSnapshot.data().count;
 
     // Query for paginated data
     let q = query(
       contactsCollection, 
       where("userId", "==", userId), 
-      orderBy("timestamp"), 
+      orderBy("timestamp", "desc"), // Changed to desc for newest first
       limit(pageSize)
     );
 
@@ -208,7 +237,7 @@ export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, us
       q = query(
         contactsCollection,
         where("userId", "==", userId),
-        orderBy("timestamp"),
+        orderBy("timestamp", "desc"),
         startAfter(lastVisibleDoc),
         limit(pageSize)
       );
@@ -216,13 +245,6 @@ export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, us
 
     // Fetch paginated data
     const snapshot = await getDocs(q);
-
-    // Query for counting total documents that match the userId
-    const countQuery = query(contactsCollection, where("userId", "==", userId));
-    const totalSnapshot = await getCountFromServer(countQuery);
-    const totalDocuments = totalSnapshot.data().count;
-
-    // Get the last visible document for pagination
     const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
 
     // Map the data
@@ -231,10 +253,25 @@ export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc = null, us
       ...doc.data(),
     }));
 
-    return { data, lastVisible, total: totalDocuments };
+    return { 
+      data, 
+      lastVisible, 
+      total: totalDocuments 
+    };
   } catch (error) {
     console.error("Error fetching paginated contacts:", error);
     throw new Error("Unable to fetch paginated contacts.");
+  }
+};
+
+export const deleteContact = async (contactId) => {
+  try {
+    const conversationRef = doc(db, "contacts", contactId);
+    await deleteDoc(conversationRef);
+    console.log("Contact deleted:", contactId);
+  } catch (error) {
+    console.error("Error deleting contact:", error);
+    throw error;
   }
 };
 
