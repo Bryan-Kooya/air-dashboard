@@ -14,6 +14,7 @@ import MatchCandidatesPage from "./pages/matchCandidates/MatchCandidatesPage";
 import ContactsPage from "./pages/contacts/ContactsPage";
 import BillingPage from "./pages/billing/BillingPage";
 import HelpPage from "./pages/help/HelpPage";
+import QuestionnairePage from "./pages/questionnaire/QuestionnairePage";
 import { getConversationCount } from "./utils/firebaseService";
 import { getUser } from "./utils/firebaseService";
 
@@ -32,11 +33,15 @@ const AuthObserver = ({ setAuthenticated, updateUser, onLogin, setUserInfo }) =>
         } catch (error) {
           console.error("Error during login process:", error);
         }
+        if (window.location.pathname === "/") navigate("/messages")
+        else navigate(window.location.pathname)
       } else {
-        setAuthenticated(false);
-        updateUser(null);
-        setUserInfo("");
-        navigate("/");
+        if (window.location.pathname === "/") {
+          setAuthenticated(false);
+          updateUser(null);
+          setUserInfo("");
+          navigate("/login");
+        } else navigate(window.location.pathname);
       }
     });
     return () => unsubscribe();
@@ -77,9 +82,14 @@ const App = () => {
     <div className="page-container">
       <Router>
         <AuthObserver setAuthenticated={setAuthenticated} updateUser={updateUser} onLogin={fetchAndSetMessageCount} setUserInfo={setUserInfo} />
-        {!isAuthenticated ? (
+        {!isAuthenticated ? 
+        (
           <Routes>
-            <Route path="/" element={<LoginPage updateUser={updateUser} />} />
+            <Route path="/login" element={<LoginPage updateUser={updateUser} />} />
+            <Route
+              path="/questionnaire/:token"
+              element={<QuestionnairePage isCandidate={true} />}
+            />
           </Routes>
         ) : (
           <>
@@ -122,6 +132,10 @@ const App = () => {
                 <Route
                   path="/help"
                   element={<HelpPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
+                />
+                <Route
+                  path="/questionnaire/:token"
+                  element={<QuestionnairePage isCandidate={false}/>}
                 />
               </Routes>
             </div>

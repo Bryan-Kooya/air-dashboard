@@ -40,7 +40,7 @@ import DatabaseIcon from "./DatabaseIcon.svg";
 import PeopleIcon from "./PeopleIcon.svg";
 import TooltipIcon from "./TooltipIcon.svg";
 import EditIcon from "./EditIcon.svg";
-
+import FileIcon from "./FileIcon.svg";
 
 export {
   Apple,
@@ -85,4 +85,5 @@ export {
   PeopleIcon,
   TooltipIcon,
   EditIcon,
+  FileIcon,
 };

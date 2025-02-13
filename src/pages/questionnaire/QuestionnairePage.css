@@ -1,0 +1,43 @@
+.questionnaire-page-container {
+  display: grid;
+  gap: 16px;
+  font-family: Inter;
+  color: #002041;
+  align-items: center;
+}
+
+.questionnaire-form {
+  display: grid;
+  gap: 8px;
+}
+
+.card-container {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 8px;
+  border-radius: 12px;
+  border: 1px solid #EEE;
+  background: #FFF;
+  height: max-content;
+}
+
+.card-title-2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.card-description {
+  font-size: 14px;
+  color: #78716c;
+}
+
+.radio-option {
+  width: auto;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  margin: 0px;
+  gap: 8px;
+}

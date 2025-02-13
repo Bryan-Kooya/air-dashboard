@@ -9,6 +9,7 @@
   background: #F5F5F5;
   width: 100%;
   height: 100%;
+  overflow-y: auto;
 }
 
 .view-section {
@@ -176,10 +177,10 @@ img {
 }
 
 .action-button-container {
-  margin-left: auto;
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: flex-end;
+  margin: auto 0 0 auto;
 }
 
 .action-button {
@@ -188,6 +189,7 @@ img {
   display: flex;
   align-items: center;
   gap: 8px;
+  justify-content: center;
 }
 
 .action-button:hover {
@@ -249,8 +251,18 @@ img {
 .status-badge.rejected,
 .status-badge.not-active,
 .status-badge.waiting-for-approval,
-.status-badge.very-low {
+.status-badge.very-low
+.status-badge.failed {
   background-color: #F91E24;
+  color: #F91E24;
+}
+
+.status-color.passed {
+  color: #2AD324;
+}
+
+.status-color.failed {
+  color: #F91E24;
 }
 
 .no-data {

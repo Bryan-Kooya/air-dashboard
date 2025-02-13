@@ -24,6 +24,7 @@ const MatchCandidatesPage = (props) => {
   const [company, setCompany] = useState('');
   const [tags, setTags] = useState([]); // Tags related to the selected job
   const [jobDescription, setJobDescription] = useState('');
+  const [generatedDescription, setGeneratedDescription] = useState('');
   const [inputTag, setInputTag] = useState(''); // Input for new tags
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -89,6 +90,7 @@ const MatchCandidatesPage = (props) => {
         // Convert the comma-separated string into an array
         setTags(tagsData ? tagsData.split(',') : []);
         setJobDescription(jobDescription);
+        setGeneratedDescription(jobDoc.data().description)
         setSelectedJobTitle(jobTitle);
         setJobLanguage(language);
         setLocation(jobDoc.data().location);
@@ -323,6 +325,7 @@ const MatchCandidatesPage = (props) => {
               jobTitle: selectedJobTitle,
               jobTags: updatedTags,
               jobDescription: jobDescription,
+              generatedDescription,
               interviewPrep: [],
               language
             }),
@@ -341,6 +344,7 @@ const MatchCandidatesPage = (props) => {
               resumeText,
               jobTitle: selectedJobTitle,
               jobDescription: jobDescription,
+              generatedDescription,
               interviewPrep: [],
               language
             };
@@ -443,7 +447,7 @@ const MatchCandidatesPage = (props) => {
         existingJobs[jobIndex].jobDescription = jobDescription;
       } else {
         // Add the new job if it doesn't exist
-        existingJobs.push({ jobTitle: selectedJobTitle, status: status, interviewPrep, jobDescription });
+        existingJobs.push({ jobTitle: selectedJobTitle, status: status, interviewPrep, jobDescription, generatedDescription });
       }
   
       // Update the contact's document with the updated jobs field
@@ -455,7 +459,7 @@ const MatchCandidatesPage = (props) => {
       setCandidates((prevCandidates) =>
         prevCandidates.map((c) =>
           c.contact.name === candidate.contact.name
-            ? { ...c, status, interviewPrep, jobDescription, resumeText: resumeData, language: resumeLanguage } // Update the status and interviewPrep of the matched candidate
+            ? { ...c, status, interviewPrep, jobDescription, generatedDescription, resumeText: resumeData, language: resumeLanguage } // Update the status and interviewPrep of the matched candidate
             : c // Leave other candidates unchanged
         )
       );

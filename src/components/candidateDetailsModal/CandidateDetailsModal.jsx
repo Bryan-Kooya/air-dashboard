@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import "./CandidateDetailsModal.css";
 import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem, Rating, Divider } from '@mui/material';
-import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon } from '../../assets/images';
+import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon, FileIcon, ShowPassword } from '../../assets/images';
 import { capitalizeFirstLetter, handleRedirectToLinkedIn, scoreColor } from '../../utils/utils';
 import ConfirmModal from '../confirmModal/ConfirmModal';
 import { db } from '../../firebaseConfig';
@@ -25,7 +25,10 @@ const CandidateDetailsModal = (props) => {
   const updateChanges = props.updateChanges;
   const updateMessage = props.updateMessage;
   const updateTable = props.updateTable;
+  const handleGenerateLink = props.handleGenerateLink;
+  const generating = props.generating;
   const email = candidate.contact?.email?.toLowerCase();
+
   const [showSelectStatus, setShowSelectStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(candidate.status);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -100,7 +103,6 @@ const CandidateDetailsModal = (props) => {
           candidate.interviewPrep.preparationTips?.length > 0
         )
       ) {
-        // Use existing interview prep data
         console.log("Using existing interview prep data.");
         setPrepData(candidate.interviewPrep);
       } else {
@@ -210,17 +212,31 @@ const CandidateDetailsModal = (props) => {
               <ScoreGauge title={"Resume Quality"} value={candidate.scores?.presentation.score}/>
               <ScoreGauge title={"Job Match"} value={candidate.scores?.job_title_relevance.score}/>
               <div className='action-button-container'>
-                <button disabled={loading} onClick={handleInterviewPrep} className='action-button'>
-                  {loading ? 
+                {isEditable && 
+                <button onClick={() => handleGenerateLink(candidate)} disabled={generating} className='action-button'>
+                  {generating ? 
                     <>
                       <CircularProgress thickness={5} size={10} color='black'/>Generating...
                     </> : 
                     <>
-                    <img src={InterviewIcon}/>Interview Prep
+                      <img width={16} height={16} src={candidate.questionnaireData?.isAnswered ? ShowPassword : FileIcon}/>
+                      {candidate.questionnaireData?.isAnswered ? 'View Assesment' : 'Generate Questionnaire Link'}
                     </>
                   }
-                </button>
-                <button onClick={() => setShowGeneratedEmail(true)} className='action-button'><img src={EmailIcon}/>Generate Intro Email</button>
+                </button>}
+                <div style={{display: 'flex', gap: 8}}>
+                  <button disabled={loading} onClick={handleInterviewPrep} className='action-button'>
+                    {loading ? 
+                      <>
+                        <CircularProgress thickness={5} size={10} color='black'/>Generating...
+                      </> : 
+                      <>
+                        <img src={InterviewIcon}/>Interview Prep
+                      </>
+                    }
+                  </button>
+                  <button onClick={() => setShowGeneratedEmail(true)} className='action-button'><img src={EmailIcon}/>Generate Intro Email</button>
+                </div>
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { collection, getDocs, query, orderBy, limit, startAfter, getCountFromServer, where, doc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit, startAfter, getCountFromServer, where, doc, deleteDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
 export const getConversationCount = async (userId) => {
@@ -368,5 +368,33 @@ export const getUser = async (email) => {
   } catch (error) {
     console.error("Error fetching user:", error);
     throw new Error("Failed to fetch user details.");
+  }
+};
+
+export const fetchCandidateQuestionnaire = async (candidateId) => {
+  try {
+    // Reference the candidate document
+    const candidateDocRef = doc(db, "candidates", candidateId);
+
+    // Fetch the document snapshot
+    const candidateDocSnapshot = await getDoc(candidateDocRef);
+
+    // Check if the document exists
+    if (!candidateDocSnapshot.exists()) {
+      throw new Error("Candidate document does not exist.");
+    }
+
+    // Extract the data from the document
+    const candidateData = candidateDocSnapshot.data();
+
+    // Assuming the questionnaire data is stored directly in the candidate document
+    const data = candidateData.questionnaireData;
+    const name = candidateData.contact.name;
+
+    // Return the questionnaire data
+    return {data, name};
+  } catch (error) {
+    console.error("Error fetching candidate data:", error);
+    throw new Error("Unable to fetch candidate data.");
   }
 };

@@ -16,6 +16,7 @@ async function getOpenAIApiKey() {
 // Allow requests from specific origins (update to match your frontend domain)
 const corsOptions = {
   origin: [
+    'https://dashboard.talenttap.co',
     'https://message-scanner-extension.web.app',
     'chrome-extension://colmkbooojhebbpohdddofdgpekkbdep',
     'https://www.linkedin.com',
@@ -574,6 +575,130 @@ app.post("/generate-interview-prep", async (req, res) => {
       error: "Failed to generate interview preparation materials",
       details: error instanceof Error ? error.message : "Unknown error",
     });
+  }
+});
+
+app.post("/questionnaire/generate-link", async (req, res) => {
+  try {
+    const { jobTitle, jobDescription, candidateId, language } = req.body;
+
+    const questionnaireLink = `https://message-scanner-extension.web.app/questionnaire/${candidateId}`;
+
+    // Validate request body
+    if (!jobTitle || !jobDescription || !language) {
+      return res.status(400).json({ error: "jobTitle, jobDescription, and language are required" });
+    }
+
+    // Fetch OpenAI API key
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+
+    // Get the full language name from the languageMap
+    const fullLanguage = languageMap[language] || "English"; // Default to English if language is not found
+
+    // Generate technical assessment test
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are a technical assessment generator. Generate a technical assessment test in ${fullLanguage}. Format the response as JSON: {
+            "questions": [{
+              "question": string,
+              "options": string[] or null,
+              "answer": string,
+              "explanation": string,
+              "difficulty": "Basic"|"Intermediate"|"Advanced",
+              "skillCategory": string
+            }],
+          }. Generate 5-8 relevant technical questions based on the job description: ${jobDescription}.`,
+        },
+        {
+          role: "user",
+          content: `Generate test for candidate the applying for ${jobTitle} position`,
+        },
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }, // Ensure the response is in JSON format
+    });
+
+    // Extract and parse JSON content from the response
+    let rawContent = response.choices[0].message.content;
+    if (rawContent.startsWith("```")) {
+      rawContent = rawContent.replace(/```json|```/g, "").trim();
+    }
+
+    const parsedContent = JSON.parse(rawContent);
+
+    // Validate parsed content structure
+    if (!parsedContent.questions || !Array.isArray(parsedContent.questions)) {
+      throw new Error("Invalid JSON structure: 'questions' array is missing or invalid");
+    }
+
+    // Set expiration time (e.g., 7 days from now)
+    const expirationTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    // Return the questionnaire data and metadata to the front end
+    res.status(200).json({
+      questions: parsedContent.questions,
+      timeLimit: 60,
+      passingScore: 80,
+      expirationTime,
+      link: questionnaireLink,
+      isAnswered: false,
+      totalScore: 0,
+    });
+  } catch (error) {
+    console.error("Error generating questionnaire link:", error);
+    res.status(500).json({
+      error: "Failed to generate questionnaire link",
+      details: error.message,
+    });
+  }
+});
+
+app.post("/evaluate-answer", async (req, res) => {
+  try {
+    const { userAnswer, expectedAnswer } = req.body;
+
+    // Validate input
+    if (!userAnswer || !expectedAnswer) {
+      return res.status(400).json({ error: "Both userAnswer and expectedAnswer are required." });
+    }
+
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+
+    // Use OpenAI to evaluate the answer
+    const evaluationResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert evaluator. Compare the user's answer with the expected answer and provide a score from 1 to 100 based on how well the user's answer matches the expected answer. Respond with a JSON object in this format: { "score": number, "feedback": string }.`,
+        },
+        {
+          role: "user",
+          content: `User's Answer: ${userAnswer}\n\nExpected Answer: ${expectedAnswer}`,
+        },
+      ],
+      temperature: 0.0, // Use low temperature for deterministic output
+      response_format: { type: "json_object" }, // Ensure the response is in JSON format
+    });
+
+    // Parse the response
+    const evaluationResult = JSON.parse(evaluationResponse.choices[0].message.content);
+
+    // Validate the response
+    if (typeof evaluationResult.score !== "number" || !evaluationResult.feedback) {
+      throw new Error("Invalid evaluation response from OpenAI.");
+    }
+
+    // Return the evaluation result
+    res.status(200).json(evaluationResult);
+  } catch (error) {
+    console.error("Error evaluating answer:", error);
+    res.status(500).json({ error: "Failed to evaluate the answer.", details: error.message });
   }
 });
 

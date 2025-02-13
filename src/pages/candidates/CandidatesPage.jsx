@@ -1,22 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import "./CandidatesPage.css";
-import { Select, Menu, MenuItem, Snackbar, Alert, Slide } from "@mui/material";
+import { Select, Menu, MenuItem, Snackbar, Alert, Slide, Tooltip, CircularProgress } from "@mui/material";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { db } from '../../firebaseConfig';
 import { doc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
 import { fetchPaginatedCandidates, searchCandidates } from "../../utils/firebaseService";
-import { SearchIcon, FilterIcon } from "../../assets/images";
+import { SearchIcon, FilterIcon, FileIcon, ShowPassword } from "../../assets/images";
 import { capitalizeFirstLetter } from "../../utils/utils";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
+import { apiBaseUrl } from "../../utils/constants";
 
 const CandidatesPage = (props) => {
-  const tableHeader = ["Candidate", "Status", "Job", "Company", "Location", "Experience", "Attachments"];
+  const tableHeader = ["Candidate", "Status", "Job", "Company", "Location", "Experience", "Attachments", "Score", "Actions"];
   const filterOptions = ["Job", "Status", "Experience"];
   const sortOptions = ["Newest", "Oldest"];
   const userId = props.userId;
   const userInfo = props.userInfo;
   const pageSize = 10;
   const observer = useRef();
+  const navigate = useNavigate()
 
   // State Management
   const [viewDetails, setViewDetails] = useState(false);
@@ -33,6 +36,7 @@ const CandidatesPage = (props) => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [lastVisible, setLastVisible] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
   const lastCandidateElementRef = useCallback(node => {
     if (loadingMessages) return;
@@ -60,6 +64,8 @@ const CandidatesPage = (props) => {
       updateMessage("Error loading candidates", "error", true);
     }
   };
+
+  // console.log('Candidates: ', candidates)
 
   const loadMoreCandidates = async () => {
     if (!hasMore || loadingMessages) return;
@@ -222,6 +228,66 @@ const CandidatesPage = (props) => {
     setOpen(false);
   };
 
+  const generateLink = async (candidate) => {
+    setGenerating(true);
+    console.log('candidate', candidate.questionnaireData.link)
+    try {
+      if(candidate.questionnaireData && candidate.questionnaireData.questions.length > 0) {
+        navigator.clipboard.writeText(candidate.questionnaireData.link);
+        console.log("Using existing questionnaire data link.");
+      } else {
+        const response = await fetch(`${apiBaseUrl}/questionnaire/generate-link`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            jobTitle: candidate.jobTitle,
+            jobDescription: candidate.generatedDescription,
+            candidateId: candidate.id,
+            language: candidate.language,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+      
+        const data = await response.json();
+        console.log('Data: ', data);
+
+        const candidateDoc = doc(db, "candidates", candidate.id);
+        await updateDoc(candidateDoc, { questionnaireData: data });
+        setCandidates((prevCandidates) =>
+          prevCandidates.map((c) =>
+            c.id === candidate.id
+              ? { ...c, questionnaireData: data } // Update the specific candidate
+              : c // Keep other candidates unchanged
+          )
+        );
+        // selectedCandidate.questionnaireData = data;
+        navigator.clipboard.writeText(data.link);
+        updateMessage("Questionnaire link has been copied to clipboard.", "success", true);
+      }
+    } catch (error) {
+      console.error("Error generating questionnaire data:", error);
+      updateMessage("Failed to generate questionnaire data. Please try again later.", "error", true);
+    } finally {
+      setTimeout(() => setGenerating(false), 500);
+    }
+  };
+
+  const handleGenerateLink = async (candidate) => {
+    if (candidate.questionnaireData?.isAnswered) {
+      navigate(`/questionnaire/${candidate.id}`);
+    } else {
+      await generateLink(candidate);
+      setTimeout(() => {
+        updateMessage("Questionnaire link has been copied to clipboard.", "success", true);
+      }, 800);
+    }
+  };
+
   // Watch for changes in searchQuery
   useEffect(() => {
     if (searchQuery === "" || searchQuery.length >= 3) {
@@ -298,11 +364,10 @@ const CandidatesPage = (props) => {
             {filteredCandidates.length > 0 ? (
               filteredCandidates.map((candidate, index) => (
                 <tr 
-                  key={index} 
-                  onClick={() => handleViewDetails(index)}
+                  key={index}
                   ref={index === candidates.length - 1 ? lastCandidateElementRef : null}
                 >
-                  <td>{capitalizeFirstLetter(candidate.contact?.name)}</td>
+                  <td onClick={() => handleViewDetails(index)}>{capitalizeFirstLetter(candidate.contact?.name)}</td>
                   <td>
                     <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
                     {candidate.status}
@@ -316,11 +381,24 @@ const CandidatesPage = (props) => {
                       {candidate.contact?.fileName || "Attachment"}
                     </a>
                   </td>
+                  <td style={{textAlign: 'center'}}>{candidate.questionnaireData?.totalScore || 0}%</td>
+                  <td style={{textAlign: 'center'}}>
+                    {generating && index ?
+                    <CircularProgress thickness={5} size={10} color='black'/> :
+                    <Tooltip title={candidate.questionnaireData?.isAnswered ? 'View Assesment' : 'Generate Questionnaire Link'}>
+                      <img 
+                        width={16} height={16}
+                        onClick={() => handleGenerateLink(candidate)} 
+                        src={candidate.questionnaireData?.isAnswered ? ShowPassword : FileIcon} 
+                        alt={``} 
+                      />
+                    </Tooltip>}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="no-data" colSpan={tableHeader.length}>
+                <td style={{maxWidth: "100%"}} className="no-data" colSpan={tableHeader.length}>
                   No candidates available
                 </td>
               </tr>
@@ -338,6 +416,8 @@ const CandidatesPage = (props) => {
         updateChanges={handleUpdateChanges}
         updateMessage={updateMessage}
         updateTable={loadCandidates}
+        handleGenerateLink={handleGenerateLink}
+        generating={generating}
       />
       <Snackbar
         autoHideDuration={5000}

@@ -64,6 +64,10 @@
   border-top: 1px solid #EEE;
   border-bottom: 1px solid #EEE;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
 }
 
 .candidates-table td:not(:nth-child(2)){

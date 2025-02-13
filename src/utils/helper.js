@@ -31,7 +31,6 @@ export const extractTextFromDocx = async (docxUrl) => {
   return result.value; // Extracted plain text
 }
 
-// Generate initials from the user's name
 export const getInitials = (name) => {
   if (!name) return "?";
   const names = name.split(" ");
@@ -62,3 +61,8 @@ export const translateToEnglish = async (text) => {
     return text; // Return the original text if translation fails
   }
 };
+
+export const getStatus = (value) => {
+  if (value > 79) return 'passed';
+  else return 'failed';
+}
