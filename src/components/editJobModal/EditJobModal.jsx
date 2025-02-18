@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import "./EditJobModal.css";
 import { Modal, Chip, CircularProgress } from '@mui/material';
 
@@ -9,6 +9,7 @@ const EditJobModal = (props) => {
   const handleEditInputChange = props.handleEditInputChange;
   const updateJob = props.updateJob;
   const isLoading = props.loading;
+  const mandatoryTags = selectedJob.mandatory_tags?.split(',');
 
   return (
     <Modal open={isOpen} onClose={isClose}>
@@ -57,6 +58,15 @@ const EditJobModal = (props) => {
             />
           </div>
         </div>
+        {selectedJob.enableMandatory &&
+        <div className='card-row'>
+          <div className='row-title'>Mandatory tags:</div>
+          <div>
+            {mandatoryTags?.map((tag, index) => (
+              <Chip id='tags' key={index} label={tag}/>
+            ))}
+          </div>
+        </div>}
         <div className="card-row">
           <div className="row-title">Job Description:</div>
           <textarea

@@ -114,6 +114,22 @@ app.post("/generate-job", async (req, res) => {
       // Add more languages as needed
     };
 
+    const mandatoryTagsPrompt = {
+      en: "Based on the job description, generate exactly 3 mandatory tags that capture the core skills or requirements of the position. Respond with JSON in the following format: {'mandatory_tags': [tag1, tag2, tag3]}",
+      es: "Basándote en la descripción del puesto, genera exactamente 3 etiquetas obligatorias que capturen las habilidades o requisitos fundamentales de la posición. Responde en formato JSON de la siguiente manera: {'mandatory_tags': [tag1, tag2, tag3]}",
+      fr: "En vous basant sur la description du poste, générez exactement 3 étiquettes obligatoires qui reflètent les compétences ou exigences essentielles du poste. Répondez en JSON dans le format suivant : {'mandatory_tags': [tag1, tag2, tag3]}",
+      he: "בהתבסס על תיאור המשרה, צור בדיוק 3 תגיות חובה המשקפות את הכישורים או הדרישות המרכזיות של התפקיד. הגיב בפורמט JSON בצורה הבאה: {'mandatory_tags': [tag1, tag2, tag3]}",
+      // Add more languages as needed
+    };
+
+    const jobTitleTagPrompt = {
+      en: "Generate a specific tag based on the job title provided. Respond with JSON in the following format: {'job_title_tag': 'tag'}",
+      es: "Genera una etiqueta específica basada en el título del puesto proporcionado. Responde en formato JSON de la siguiente manera: {'job_title_tag': 'etiqueta'}",
+      fr: "Générez une étiquette spécifique basée sur le titre du poste fourni. Répondez en JSON dans le format suivant : {'job_title_tag': 'étiquette'}",
+      he: "צור תגית ספציפית בהתבסס על כותרת המשרה שסופקה. הגיב בפורמט JSON בצורה הבאה: {'job_title_tag': 'תגית'}",
+      // Add more languages as needed
+    };
+
     const context = `
       Job Title: ${job_title}
       Company: ${company_name}
@@ -122,8 +138,8 @@ app.post("/generate-job", async (req, res) => {
       Original Description:
       ${description}`;
 
-    // Step 3: Generate the improved description and tags in the detected language
-    const [descriptionResponse, tagsResponse] = await Promise.all([
+    // Step 3: Generate the improved description, tags, mandatory tags, and job title tag in the detected language
+    const [descriptionResponse, tagsResponse, mandatoryTagsResponse, jobTitleTagResponse] = await Promise.all([
       openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -147,14 +163,42 @@ app.post("/generate-job", async (req, res) => {
         temperature: 0.7,
         response_format: { type: "json_object" },
       }),
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: mandatoryTagsPrompt[language] || mandatoryTagsPrompt.en, // Fallback to English if language not supported
+          },
+          { role: "user", content: description }, // Only refer to description
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+      }),
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: jobTitleTagPrompt[language] || jobTitleTagPrompt.en, // Fallback to English if language not supported
+          },
+          { role: "user", content: job_title },
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+      }),
     ]);
 
     const improvedDescription = descriptionResponse.choices[0].message.content || "";
     const tags = tagsResponse.choices[0].message.content || "{}";
+    const mandatoryTags = mandatoryTagsResponse.choices[0].message.content || "{}";
+    const jobTitleTag = jobTitleTagResponse.choices[0].message.content || "{}";
 
     res.json({
       description: improvedDescription,
       tags: tags,
+      mandatory_tags: mandatoryTags,
+      job_title_tag: jobTitleTag,
       language: language, // Optionally return the detected language
     });
   } catch (error) {

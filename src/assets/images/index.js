@@ -41,6 +41,7 @@ import PeopleIcon from "./PeopleIcon.svg";
 import TooltipIcon from "./TooltipIcon.svg";
 import EditIcon from "./EditIcon.svg";
 import FileIcon from "./FileIcon.svg";
+import Question from "./Question.svg";
 
 export {
   Apple,
@@ -86,4 +87,5 @@ export {
   TooltipIcon,
   EditIcon,
   FileIcon,
+  Question,
 };

@@ -213,6 +213,8 @@ const ContactsPage = (props) => {
                     linkedin: apiData.contact.linkedin || existingContactDoc.data().linkedin,
                     tags: apiData.tags || existingContactDoc.data().tags,
                     fileName: file.name,
+                    language: apiData.language || "en",
+                    introduction: apiData.introduction || [],
                     url: downloadUrl,
                     resumeText: resumeText,
                     status: "Active",
@@ -242,6 +244,8 @@ const ContactsPage = (props) => {
                     linkedin: apiData.contact.linkedin || "",
                     tags: apiData.tags || [],
                     fileName: file.name,
+                    language: apiData.language || "en",
+                    introduction: apiData.introduction || [],
                     url: downloadUrl,
                     jobs: [],
                     resumeText: resumeText,
@@ -470,7 +474,7 @@ const ContactsPage = (props) => {
               ))
             ) : (
               <tr>
-                <td colSpan={tableHeader.length} className="no-data">
+                <td style={{maxWidth: "100%"}} colSpan={tableHeader.length} className="no-data">
                   No contacts available
                 </td>
               </tr>

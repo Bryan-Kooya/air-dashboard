@@ -22,7 +22,10 @@ const MatchCandidatesPage = (props) => {
   const [resumeLanguage, setResumeLanguage] = useState('en');
   const [location, setLocation] = useState('');
   const [company, setCompany] = useState('');
-  const [tags, setTags] = useState([]); // Tags related to the selected job
+  const [tags, setTags] = useState([]);
+  const [mandatoryTags, setMandatoryTags] = useState([]);
+  const [jobTitleTag, setJobTitleTag] = useState('');
+  const [enableTags, setEnableTags] = useState(false);
   const [jobDescription, setJobDescription] = useState('');
   const [generatedDescription, setGeneratedDescription] = useState('');
   const [inputTag, setInputTag] = useState(''); // Input for new tags
@@ -74,6 +77,9 @@ const MatchCandidatesPage = (props) => {
     setCandidates([]);
     setShowCandidate(false);
     setTags([]);
+    setMandatoryTags([]);
+    setJobTitleTag('');
+    setEnableTags(false);
     setSelectedJobTitle("");
     setCandidateCountInput(parseInt(1, 10));
   }, [company])
@@ -84,11 +90,15 @@ const MatchCandidatesPage = (props) => {
       const jobDoc = await getDoc(doc(db, 'jobs', jobId));
       if (jobDoc.exists()) {
         const tagsData = jobDoc.data().tags;
+        const mandatoryTagsData = jobDoc.data().mandatory_tags;
         const jobTitle = jobDoc.data().job_title;
         const jobDescription = jobDoc.data().initialDescription;
         const language = jobDoc.data().language;
         // Convert the comma-separated string into an array
         setTags(tagsData ? tagsData.split(',') : []);
+        setMandatoryTags(mandatoryTagsData ? mandatoryTagsData.split(',') : []);
+        setJobTitleTag(jobDoc.data().jobTitleTag);
+        setEnableTags(jobDoc.data().enableMandatory);
         setJobDescription(jobDescription);
         setGeneratedDescription(jobDoc.data().description)
         setSelectedJobTitle(jobTitle);
@@ -98,6 +108,9 @@ const MatchCandidatesPage = (props) => {
       } else {
         console.error('No such document!');
         setTags([]);
+        setMandatoryTags([]);
+        setJobTitleTag('');
+        setEnableTags(false);
       }
     } catch (error) {
       console.error('Error fetching tags:', error);
@@ -122,8 +135,9 @@ const MatchCandidatesPage = (props) => {
     try {
       const candidateCount = isRejected ? 1 : candidateCountInput || 1;
       const translatedJob = await translateToEnglish(selectedJobTitle);
+      const baseTags = enableTags ? mandatoryTags : [...tags, selectedJobTitle, translatedJob];
   
-      let updatedTags = [...tags, selectedJobTitle, translatedJob].map(tag => tag.toLowerCase());
+      let updatedTags = baseTags.map(tag => tag.toLowerCase());
       const translatedTags = await Promise.all(
         updatedTags.map(async (tag) => {
           return await translateToEnglish(tag);
@@ -186,28 +200,35 @@ const MatchCandidatesPage = (props) => {
           contactsRef,
           where("userId", "==", userId),
           where("status", "==", "Active"),
-          where("tags", "array-contains-any", updatedTags),
+          where("tags", "array-contains", jobTitleTag.toLocaleLowerCase()),
           orderBy("timestamp", "desc")
         );
       
         const additionalSnapshot = await getDocs(additionalQuery);
+
+        let additionalContacts = additionalSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          ref: doc.ref,
+        }));
+
+        // Filter to ensure that, when enableTags is true, contacts include ALL updatedTags
+        if (enableTags) {
+          additionalContacts = additionalContacts.filter(contact =>
+            contact.tags && contact.tags.includes(jobTitleTag.toLocaleLowerCase())
+          );
+        }
       
-        const additionalContacts = additionalSnapshot.docs
-          .filter((doc) => {
-            const contactData = doc.data();
-            const hasRelevantJob = contactData.jobs?.some((job) => 
-              job.jobTitle === selectedJobTitle &&
-              job.company === company && 
-              areArraysEqual(job.jobTags || [], updatedTags)
-            );
-            return !hasRelevantJob;
-          })
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            ref: doc.ref,
-          }))
-          .slice(0, isRejected ? 1 : candidateCount - prioritizedContacts.length);
+        // Filter out contacts that already have a relevant job
+        additionalContacts = additionalContacts.filter((contact) => {
+          const hasRelevantJob = contact.jobs?.some((job) =>
+            job.jobTitle === selectedJobTitle &&
+            job.company === company &&
+            areArraysEqual(job.jobTags || [], updatedTags)
+          );
+          return !hasRelevantJob;
+        })
+        .slice(0, isRejected ? 1 : candidateCount - prioritizedContacts.length);
       
         prioritizedContacts = [...prioritizedContacts, ...additionalContacts];
         console.log(`Added new contacts, total prioritized count: ${prioritizedContacts.length}`);
@@ -335,7 +356,7 @@ const MatchCandidatesPage = (props) => {
 
           processedContactIds.add(id);
 
-          if (processedCandidate.skill_match?.matching_skills.length > 0) {
+          // if (processedCandidate.skill_match?.matching_skills.length > 0) {
             const newCandidate = {
               contact: { name, email, phone, linkedin, location, fileName, url },
               status: "Pending",
@@ -360,7 +381,7 @@ const MatchCandidatesPage = (props) => {
               return sortedCandidates.slice(0, candidateCount); // Limit to candidateCount
             });
             setShowCandidate(true);
-          } else {
+          if(processedContactIds.size != candidateCount) {
             console.log(`Low skill match score (${processedCandidate.skill_match?.score}) for ${contact.name}. Fetching another resume...`);
 
             // Fetch additional contacts if the current one doesn't meet the score requirement
@@ -373,23 +394,30 @@ const MatchCandidatesPage = (props) => {
             );
             const additionalSnapshot = await getDocs(additionalQuery);
 
-            const additionalContacts = additionalSnapshot.docs
-              .filter((doc) => {
-                const contactData = doc.data();
-                const hasRelevantJob = contactData.jobs?.some((job) => 
-                  job.jobTitle === selectedJobTitle &&
-                  job.scores?.qualification.score >= 85 &&
-                  job.company === company &&
-                  areArraysEqual(job.jobTags || [], updatedTags)
-                );
-                const isAlreadyProcessed = processedContactIds.has(doc.id);
-                return !hasRelevantJob && !isAlreadyProcessed;
-              })
-              .map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-                ref: doc.ref,
-              }));
+            let additionalContacts = additionalSnapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+              ref: doc.ref,
+            }));
+  
+            // Filter to ensure that, when enableTags is true, contacts include ALL updatedTags
+            if (enableTags) {
+              additionalContacts = additionalContacts.filter(contact =>
+                updatedTags.every(tag => contact.tags && contact.tags.includes(tag))
+              );
+            }
+
+            // Then filter out contacts with a high qualification score job or those already processed
+            additionalContacts = additionalContacts.filter((contact) => {
+              const hasRelevantJob = contact.jobs?.some((job) =>
+                job.jobTitle === selectedJobTitle &&
+                job.scores?.qualification.score >= 85 &&
+                job.company === company &&
+                areArraysEqual(job.jobTags || [], updatedTags)
+              );
+              const isAlreadyProcessed = processedContactIds.has(contact.id);
+              return !hasRelevantJob && !isAlreadyProcessed;
+            });
 
             // Add the newly fetched contacts to the unprocessedContacts array
             unprocessedContacts.push(...additionalContacts);

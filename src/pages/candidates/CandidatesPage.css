@@ -45,6 +45,7 @@
 
 .candidates-table th:last-child {
   border-radius: 0px 8px 8px 0px;
+  text-align: center;
 }
 
 .candidates-table tbody tr td:first-child {

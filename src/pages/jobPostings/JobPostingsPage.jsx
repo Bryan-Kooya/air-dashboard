@@ -10,17 +10,17 @@ import {
 import "./JobPostingsPage.css"
 import { useNavigate } from "react-router-dom";
 import { db } from "../../firebaseConfig";
-import { Select, MenuItem, CircularProgress, Snackbar, Slide, Alert, Tooltip } from '@mui/material';
+import { Select, MenuItem, CircularProgress, Snackbar, Slide, Alert, Tooltip, Switch } from '@mui/material';
 import AIGeneratedJobModal from "../../components/aiGeneratedJobModal/AIGeneratedJobModal";
 import EditJobModal from "../../components/editJobModal/EditJobModal";
 import { apiBaseUrl } from "../../utils/constants";
 import { fetchPaginatedJobs, searchJobs } from "../../utils/firebaseService";
-import { SearchIcon, EditIcon, Delete } from "../../assets/images";
+import { SearchIcon, EditIcon, Delete, Question } from "../../assets/images";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
 
 const JobPostingsPage = (props) => {
-  const tableHeader = ["Job Title", "Status", "Company", "Industry", "Location", "Actions"];
+  const tableHeader = ["Job Title", "Tags",  "Status", "Company", "Industry", "Location", "Actions"];
   const statusList = ["Active", "Not Active"];
   const sortOptions = ["Newest", "Oldest"];
   const userId = props.userId;
@@ -37,12 +37,15 @@ const JobPostingsPage = (props) => {
   });
   const [generatedDescription, setGeneratedDescription] = useState('');
   const [tags, setTags] = useState([]);
+  const [mandatoryTags, setMandatoryTags] = useState([]);
+  const [enableTags, setEnableTags] = useState(false);
+  const [jobTitleTag, setJobTitleTag] = useState('');
   const [language, setLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isGenerateModalOpen, setAIGenerateModalOpen] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
-  const [loadingJobId, setLoadingJobId] = useState(null); // Tracks the job currently being updated
+  const [loadingJobId, setLoadingJobId] = useState(null);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,7 +135,6 @@ const JobPostingsPage = (props) => {
     }
   };
 
-  // Update a job
   const updateJob = async (updatedJob) => {
     try {
       setLoading(true);
@@ -151,7 +153,6 @@ const JobPostingsPage = (props) => {
     }
   };
 
-  // Delete a job
   const deleteJob = async (id) => {
     setConfirming(true);
     try {
@@ -214,7 +215,8 @@ const JobPostingsPage = (props) => {
       const tagsData = JSON.parse(data.tags);
       setTags(tagsData.tags || []);
       setLanguage(data.language);
-
+      setMandatoryTags(data.mandatory_tags || []);
+      setJobTitleTag(data.job_title_tag);
     } catch (error) {
       console.error('Error:', error);
       setError(error.message || 'Failed to generate description');
@@ -237,6 +239,9 @@ const JobPostingsPage = (props) => {
         initialDescription: formData.description,
         description: generatedDescription,
         tags: tags.join(','),
+        mandatory_tags: mandatoryTags.join(','),
+        jobTitleTag,
+        enableMandatory: false,
         language,
         userId: userId,
         timestamp: serverTimestamp(),
@@ -262,6 +267,8 @@ const JobPostingsPage = (props) => {
       setGeneratedDescription('');
       setAIGenerateModalOpen(false);
       setTags([]);
+      setMandatoryTags([]);
+      setJobTitleTag('');
       setLanguage('en');
       
       // Show success message
@@ -319,6 +326,26 @@ const JobPostingsPage = (props) => {
       setLoadingJobId(null); // Reset the loading state
     }
   };  
+
+  const handleMandatoryTags = async (jobId, isOn) => {
+    try {
+      setEnableTags(true);
+      const jobDoc = doc(db, "jobs", jobId);
+      console.log(`Turning mandatory tags of job Id: ${jobId} to ${isOn}`);
+      await updateDoc(jobDoc, { enableMandatory: isOn }); // Update enableMandatory in Firestore
+      setJobs((prevJobs) =>
+        prevJobs.map((job) =>
+          job.id === jobId ? { ...job, enableMandatory: isOn } : job
+        )
+      );
+      updateMessage(`${isOn ? 'Enabled' : 'Disabled'} mandatory tag for this job!`, "success", true);
+    } catch (error) {
+      updateMessage("An error occurred while updating mandatory tags status.", "error", true);
+      console.error("Error updating mandatory tags status:", error);
+    } finally {
+      setEnableTags(false);
+    }
+  };
 
   const handleClose = (event, reason) => {
     if (reason === 'clickaway') {
@@ -418,7 +445,7 @@ const JobPostingsPage = (props) => {
           className="add-job-button"
         >
           {loading && <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} />}
-          {`${loading ? 'Generating...' : 'AI Create Job'}`}
+          {`${loading ? 'Generating...' : 'Create Job Using AI-Powered Generator'}`}
         </button>
       </div>
       <AIGeneratedJobModal
@@ -484,6 +511,16 @@ const JobPostingsPage = (props) => {
               <tr key={job.id} ref={index === jobs.length - 1 ? lastJobElementRef : null}>
                 <td>{job.job_title}</td>
                 <td>
+                <Tooltip title={`${job.enableMandatory ? 'Disable' : 'Enable'} mandatory tags`}>
+                  <Switch
+                    disabled={enableTags}
+                    checked={job.enableMandatory || false}
+                    onChange={(e) => handleMandatoryTags(job.id, e.target.checked)}
+                    size="small"
+                  />
+                </Tooltip>
+                </td>
+                <td>
                   {loadingJobId === job.id ? 
                   <CircularLoading color={"#02B64A"}/> : 
                   (<Select
@@ -508,11 +545,14 @@ const JobPostingsPage = (props) => {
                 <td>{job.location}</td>
                 <td>
                   <Tooltip title="Edit">
-                    <img style={{marginRight: 20}} onClick={() => handleEditJob(job.id)} src={EditIcon} alt="Edit" />
+                    <img onClick={() => handleEditJob(job.id)} src={EditIcon} alt="Edit" />
                   </Tooltip>
                   <Tooltip title="Delete">
-                    <img onClick={() => handleDeleteJob(job.id)} src={Delete} alt="Delete" />
+                    <img style={{margin: "0 8px"}} onClick={() => handleDeleteJob(job.id)} src={Delete} alt="Delete" />
                   </Tooltip>
+                  {/* <Tooltip title="Generate Questionnaire Link">
+                    <img style={{height: 16}} src={Question} alt="Delete" />
+                  </Tooltip> */}
                 </td>
               </tr>
             )) : 
