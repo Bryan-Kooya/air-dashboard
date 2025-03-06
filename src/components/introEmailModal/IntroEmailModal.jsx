@@ -1,16 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./IntroEmailModal.css";
 import { Modal, IconButton } from "@mui/material";
 import { Close, CopyIcon, CheckIcon } from "../../assets/images";
 
 const IntroEmailModal = (props) => {
-  const open = props.open;
-  const close = props.close;
-  const candidate = props.candidate;
-  const jobTitle = props.jobTitle;
-  const userInfo = props.userInfo;
-  const hiringCompany = props.hiringCompany;
-
+  const { open, close, candidate, jobTitle, userInfo, hiringCompany, questionnaireLink, includeLink } = props;
   const [copied, setCopied] = useState(false);
 
   // Translation mapping for subject and email content
@@ -31,6 +25,7 @@ const IntroEmailModal = (props) => {
       bestRegards: "Best regards,",
       talentAcquisition: "Talent Acquisition Team",
       your: "Your",
+      questionnaireLinkText: "Please complete the questionnaire using the following link: "
     },
     es: {
       subject: `Seguimiento de tu solicitud para el puesto de ${jobTitle}`,
@@ -48,6 +43,7 @@ const IntroEmailModal = (props) => {
       bestRegards: "Saludos cordiales,",
       talentAcquisition: "Equipo de Adquisición de Talento",
       your: "Tus",
+      questionnaireLinkText: "Por favor, completa el cuestionario utilizando el siguiente enlace: "
     },
     fr: {
       subject: `Suivi de votre candidature pour le poste de ${jobTitle}`,
@@ -65,6 +61,7 @@ const IntroEmailModal = (props) => {
       bestRegards: "Cordialement,",
       talentAcquisition: "Équipe de Recrutement",
       your: "Votre",
+      questionnaireLinkText: "Veuillez compléter le questionnaire en utilisant le lien suivant: "
     },
     he: {
       subject: `מעקב אחר בקשתך לתפקיד ${jobTitle}`,
@@ -81,7 +78,8 @@ const IntroEmailModal = (props) => {
       lookingForward: "מחכה לשוחח איתך!",
       bestRegards: "בברכה,",
       talentAcquisition: "צוות רכישת כישרונות",
-      your: "שלך", // Adjust as needed for proper context in Hebrew
+      your: "שלך",
+      questionnaireLinkText: "אנא מלא את השאלון באמצעות הקישור הבא: "
     },
     // Add more languages as needed
   };
@@ -94,7 +92,7 @@ const IntroEmailModal = (props) => {
   };
 
   const generateEmail = () => {
-    const name = candidate.contact?.name || "candidate";
+    const name = candidate.contact?.name || "Candidate";
     const position = candidate?.work_experience?.[0]?.title || "professional";
     const company = candidate?.work_experience?.[0]?.company || "current company";
     const skills = candidate?.skills?.slice(0, 3).join(", ") || "relevant skills";
@@ -108,7 +106,7 @@ ${t.thankYou} ${jobTitle} ${t.positionAt} ${hiringCompany}. ${t.impressedBy} ${p
 ${t.your} ${experience} ${t.experienceYears} ${t.strongTrackRecord} ${t.scheduleConversation}
 
 ${t.availableForCall}
-
+${includeLink ? '\n' + t.questionnaireLinkText + questionnaireLink + '\n' : ""}
 ${t.lookingForward}
 
 ${t.bestRegards}
@@ -147,6 +145,7 @@ TalentTap`;
         <div className="email-modal-row2">
           <div className="generated-email-section">
             {generateSubject()}
+            <br />
             {generateEmail()}
             <IconButton
               size="large"

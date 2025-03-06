@@ -40,6 +40,10 @@
 .save-button {
   background-color: #0A66C2;
   color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
 }
 
 .cancel-button {

@@ -1,5 +1,6 @@
 .questionnaire-page-container {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   font-family: Inter;
   color: #002041;
@@ -9,9 +10,11 @@
 .questionnaire-form {
   display: grid;
   gap: 8px;
+  width: 100%;
 }
 
 .card-container {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 20px;
@@ -20,6 +23,7 @@
   border: 1px solid #EEE;
   background: #FFF;
   height: max-content;
+  width: -webkit-fill-available;
 }
 
 .card-title-2 {

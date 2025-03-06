@@ -28,7 +28,7 @@ const AIGeneratedJobModal = ({
         <div className='button-container'>
           <button className='cancel-button' onClick={onClose}>Cancel</button>
           <button className='save-button' onClick={handleSave} disabled={loading}>
-            {loading ? <CircularProgress thickness={6} size={20} sx={{ color: '#C3C3C3' }} /> : 'Save Description'}
+            {loading && <CircularProgress thickness={6} size={15} sx={{ color: '#C3C3C3' }} />} {loading ? 'Saving...' : 'Save Job'}
           </button>
         </div>
       </div>

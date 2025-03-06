@@ -6,9 +6,10 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, doc, updateDoc } from "firebase/firestore";
 import { searchContacts, fetchPaginatedContacts, deleteContact } from "../../utils/firebaseService";
 import { extractTextFromPDF, extractTextFromDocx } from "../../utils/helper";
-import { capitalizeFirstLetter } from "../../utils/utils";
-import { UploadIcon, SearchIcon, Delete } from "../../assets/images";
+import { capitalizeFirstLetter, convertArrayToLowercase } from "../../utils/utils";
+import { UploadIcon, SearchIcon, Delete, EditIcon } from "../../assets/images";
 import { apiBaseUrl } from "../../utils/constants";
+import EditContactModal from "../../components/editContactModal/EditContactModal";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
 
@@ -22,6 +23,7 @@ const ContactsPage = (props) => {
   const [files, setFiles] = useState([]);
   const [uploadStatus, setUploadStatus] = useState({});
   const [contacts, setContacts] = useState([]);
+  const [contactsCount, setContactsCount] = useState(0);
   const [sortedBy, setSortedBy] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,6 +36,9 @@ const ContactsPage = (props) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [contactId, setContactId] = useState("");
+  const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [contact, setContact] = useState([]);
+  
   const observer = useRef();
   const pageSize = 5;
 
@@ -68,9 +73,10 @@ const ContactsPage = (props) => {
       setContacts(data);
       setLastVisible(last);
       setHasMore(data.length < total);
+      setContactsCount(total);
     } catch (error) {
       console.error("Error fetching contacts:", error);
-      updateMessage("Error loading contacts", "error", true);
+      updateMessage("An error occurred while loading contacts", "error", true);
     }
   };
 
@@ -94,7 +100,7 @@ const ContactsPage = (props) => {
       }
     } catch (error) {
       console.error("Error loading more contacts:", error);
-      updateMessage("Error loading more contacts", "error", true);
+      updateMessage("An error occurred while loading more contacts", "error", true);
     } finally {
       setLoadingMessages(false);
     }
@@ -115,7 +121,7 @@ const ContactsPage = (props) => {
       setHasMore(false);
     } catch (error) {
       console.error("Error searching contacts:", error);
-      updateMessage("Error searching contacts", "error", true);
+      updateMessage("An error occurred while searching contacts", "error", true);
     } finally {
       setLoadingMessages(false);
     }
@@ -183,7 +189,7 @@ const ContactsPage = (props) => {
                   resumeText = await extractTextFromDocx(downloadUrl);
                 }
   
-                const response = await fetch(`${apiBaseUrl}/process-resume`, {
+                const response = await fetch(`${apiBaseUrl}/ai-process-resume`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ resumeText }),
@@ -207,11 +213,16 @@ const ContactsPage = (props) => {
                   const existingContactDoc = querySnapshot.docs[0];
                   const existingContactRef = doc(db, "contacts", existingContactDoc.id);
                   await updateDoc(existingContactRef, {
-                    email: apiData.contact.email || existingContactDoc.data().email,
+                    email: apiData.contact.email?.toLowerCase() || existingContactDoc.data().email?.toLowerCase(),
                     phone: apiData.contact.phone || existingContactDoc.data().phone,
                     location: apiData.contact.location || existingContactDoc.data().location,
                     linkedin: apiData.contact.linkedin || existingContactDoc.data().linkedin,
-                    tags: apiData.tags || existingContactDoc.data().tags,
+                    job_title_tags: convertArrayToLowercase(apiData.job_title_tags) || convertArrayToLowercase(existingContactDoc.data().job_title_tags),
+                    mandatory_tags: convertArrayToLowercase(apiData.mandatory_tags) || convertArrayToLowercase(existingContactDoc.data().mandatory_tags),
+                    alternative_job_title_tags_en: convertArrayToLowercase(apiData.alternative_job_title_tags_en) || convertArrayToLowercase(existingContactDoc.data().alternative_job_title_tags_en),
+                    alternative_job_title_tags_he: convertArrayToLowercase(apiData.alternative_job_title_tags_he) || convertArrayToLowercase(existingContactDoc.data().alternative_job_title_tags_he),
+                    alternative_mandatory_tags_en: convertArrayToLowercase(apiData.alternative_mandatory_tags_en) || convertArrayToLowercase(existingContactDoc.data().alternative_mandatory_tags_en),
+                    alternative_mandatory_tags_he: convertArrayToLowercase(apiData.alternative_mandatory_tags_he) || convertArrayToLowercase(existingContactDoc.data().alternative_mandatory_tags_he),
                     fileName: file.name,
                     language: apiData.language || "en",
                     introduction: apiData.introduction || [],
@@ -238,11 +249,16 @@ const ContactsPage = (props) => {
   
                   const newContact = {
                     name: capitalizeFirstLetter(apiData.contact.name) || capitalizeFirstLetter(formattedName),
-                    email: apiData.contact.email || "",
+                    email: apiData.contact.email?.toLowerCase() || "",
                     phone: apiData.contact.phone || "",
                     location: apiData.contact.location || "N/A",
                     linkedin: apiData.contact.linkedin || "",
-                    tags: apiData.tags || [],
+                    job_title_tags: convertArrayToLowercase(apiData.job_title_tags) || [],
+                    mandatory_tags: convertArrayToLowercase(apiData.mandatory_tags) || [],
+                    alternative_job_title_tags_en: convertArrayToLowercase(apiData.alternative_job_title_tags_en) || [],
+                    alternative_job_title_tags_he: convertArrayToLowercase(apiData.alternative_job_title_tags_he) || [],
+                    alternative_mandatory_tags_en: convertArrayToLowercase(apiData.alternative_mandatory_tags_en) || [],
+                    alternative_mandatory_tags_he: convertArrayToLowercase(apiData.alternative_mandatory_tags_he) || [],
                     fileName: file.name,
                     language: apiData.language || "en",
                     introduction: apiData.introduction || [],
@@ -296,6 +312,7 @@ const ContactsPage = (props) => {
       );
       setTimeout(() => setConfirming(false), 500);
       setShowConfirmation(false);
+      setContactsCount(contactsCount - 1);
       updateMessage("Contact deleted successfully!", "success", true);
     } catch (error) {
       console.error("Error deleting contact:", error);
@@ -349,6 +366,34 @@ const ContactsPage = (props) => {
     setOpen(false);
   };
 
+  const handleEditContact = (id) => {
+    setEditModalOpen(true);
+    const selectedContact = contacts.find(contact => contact.id === id);
+    setContact(selectedContact);
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setContact((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const updateContact = async (updatedContact) => {
+    try {
+      setLoading(true);
+      const contactDoc = doc(db, "contacts", updatedContact.id);
+      console.log('Updating contact data:', updatedContact);
+      await updateDoc(contactDoc, updatedContact);
+      setContacts(contacts.map((contact) => (contact.id === updatedContact.id ? { ...contact, ...updatedContact } : contact)));
+      setEditModalOpen(false);
+      updateMessage("Contact updated successfully!", "success", true);
+    } catch (error) {
+      console.error("Error updating contact:", error);
+      updateMessage("An error occurred while updating contact!", "error", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Watch for changes in searchQuery
   useEffect(() => {
     if (searchQuery === "" || searchQuery.length >= 3) {
@@ -368,8 +413,8 @@ const ContactsPage = (props) => {
         <img className="upload-icon" src={UploadIcon} alt="Upload" />
         <div className="upload-row">
           <div className="label-container">
-            <div className="row1-label">Drag and Drop or choose your file for upload</div>
-            <div className="row2-label">Upload multiple resumes for comparison (PDF, DOCX)</div>
+            <div className="row1-label">Drag and drop your resume/cv here or click to upload </div>
+            <div className="row2-label">(Supports PDF and DOCX)</div>
           </div>
           {loading ? 
           <CircularLoading color={"#02B64A"}/> :
@@ -403,7 +448,7 @@ const ContactsPage = (props) => {
       </div>
       <div className="candidates card">
         <div className="title-container">
-          <div className="card-title">All Contacts</div>
+          <div className="card-title">All Contacts ({contactsCount})</div>
           <div className="flex">
             <Select
               id="select-input"
@@ -465,9 +510,12 @@ const ContactsPage = (props) => {
                     <div className={`status-badge ${contact.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
                     {contact.status}
                   </td>
-                  <td onClick={() => handleShowConfirmation(contact.id)} style={{ textAlign: "center" }}>
+                  <td className="action-column">
+                    <Tooltip onClick={() => handleEditContact(contact.id)} title="Edit">
+                      <img src={EditIcon} alt="Edit" />
+                    </Tooltip>
                     <Tooltip title="Delete">
-                      <img src={Delete} alt="Delete" />
+                      <img onClick={() => handleShowConfirmation(contact.id)} src={Delete} alt="Delete" />
                     </Tooltip>
                   </td>
                 </tr>
@@ -489,6 +537,14 @@ const ContactsPage = (props) => {
         delete={handleDeleteContact}
         item={"contact"}
         loading={confirming}
+      />
+      <EditContactModal 
+        open={isEditModalOpen}
+        close={() => setEditModalOpen(false)}
+        contact={contact}
+        loading={loading}
+        handleEditInputChange={handleEditInputChange}
+        updateContact={updateContact}
       />
       <Snackbar
         autoHideDuration={5000}

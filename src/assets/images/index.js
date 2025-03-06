@@ -42,6 +42,11 @@ import TooltipIcon from "./TooltipIcon.svg";
 import EditIcon from "./EditIcon.svg";
 import FileIcon from "./FileIcon.svg";
 import Question from "./Question.svg";
+import CirclePlus from "./CirclePlus.svg";
+import ListIcon from "./ListIcon.svg";
+import Questionnaire from "./Questionnaire.svg";
+import Link from "./Link.svg";
+
 
 export {
   Apple,
@@ -88,4 +93,8 @@ export {
   EditIcon,
   FileIcon,
   Question,
+  CirclePlus,
+  ListIcon,
+  Questionnaire,
+  Link,
 };

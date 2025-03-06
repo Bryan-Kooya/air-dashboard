@@ -18,6 +18,7 @@ const MessagesPage = (props) => {
   const [showMessage, setShowMessage] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [conversations, setConversations] = useState([]);
+  const [conversationsCount, setConversationsCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,10 +49,10 @@ const MessagesPage = (props) => {
   const loadConversations = async () => {
     try {
       const { data, lastVisible: last, total } = await fetchPaginatedConversations(pageSize, null, userId);
-
       setConversations(data);
       setLastVisible(last);
       setHasMore(data.length < total);
+      setConversationsCount(total);
     } catch (error) {
       console.error("Error fetching conversations:", error);
       updateMessage("Error loading conversations", "error", true);
@@ -225,6 +226,7 @@ const MessagesPage = (props) => {
       );
       setTimeout(() => setConfirming(false), 500);
       setShowConfirmation(false);
+      setConversationsCount(conversationsCount - 1);
       updateMessage("Conversation deleted successfully!", "success", true);
     } catch (error) {
       console.error("Error deleting conversation:", error);
@@ -265,7 +267,7 @@ const MessagesPage = (props) => {
     <div className="messages-container">
       <div className="messages card">
         <div className="title-container">
-          <div className="card-title">All Messages</div>
+          <div className="card-title">All Messages ({conversationsCount})</div>
           <div className="flex">
             <Select
               id="select-input"

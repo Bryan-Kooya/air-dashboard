@@ -1,4 +1,4 @@
-import { collection, getDocs, query, orderBy, limit, startAfter, getCountFromServer, where, doc, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit, startAfter, getCountFromServer, where, doc, deleteDoc, getDoc, deleteField, updateDoc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
 export const getConversationCount = async (userId) => {
@@ -390,11 +390,186 @@ export const fetchCandidateQuestionnaire = async (candidateId) => {
     // Assuming the questionnaire data is stored directly in the candidate document
     const data = candidateData.questionnaireData;
     const name = candidateData.contact.name;
+    const jobTitle = candidateData.jobTitle;
 
     // Return the questionnaire data
-    return {data, name};
+    return {data, name, jobTitle};
   } catch (error) {
     console.error("Error fetching candidate data:", error);
     throw new Error("Unable to fetch candidate data.");
+  }
+};
+
+export const fetchJobQuestionnaire = async (jobId) => {
+  try {
+    // Reference the job document
+    const jobDocRef = doc(db, "jobs", jobId);
+
+    // Fetch the document snapshot
+    const jobDocSnapshot = await getDoc(jobDocRef);
+
+    // Check if the document exists
+    if (!jobDocSnapshot.exists()) {
+      throw new Error("Job document does not exist.");
+    }
+
+    // Extract the data from the document
+    const jobData = jobDocSnapshot.data();
+
+    // Assuming the questionnaire data is stored directly in the job document
+    const data = jobData.questionnaireData;
+    const jobTitle = jobData.job_title;
+
+    // Return the questionnaire data
+    return {data, jobTitle};
+  } catch (error) {
+    console.error("Error fetching job data:", error);
+    throw new Error("Unable to fetch job data.");
+  }
+};
+
+// Helper function to filter jobs based on search query
+const filterJobs = (jobs, searchQuery) => {
+  return jobs.filter((job) => {
+    return (
+      job.job_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.location.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+};
+
+// Helper function to extract questionnaires from jobs
+const extractQuestionnaires = (jobs) => {
+  return jobs.map((job) => ({
+    id: job.id,
+    job_title: job.job_title,
+    company_name: job.company_name,
+    data: job.questionnaireData,
+    timestamp: job.timestamp,
+  }));
+};
+
+// Main function to search questionnaires
+export const searchQuestionnaires = async (searchQuery, userId) => {
+  try {
+    const jobsCollection = collection(db, "jobs");
+    const q = query(jobsCollection, where("userId", "==", userId));
+    const snapshot = await getDocs(q);
+
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    const filteredData = filterJobs(data, searchQuery);
+    const questionnaires = extractQuestionnaires(filteredData);
+
+    return questionnaires;
+  } catch (error) {
+    console.error("Error searching questionnaires:", error);
+    throw new Error("Unable to search questionnaires.");
+  }
+};
+
+// Main function to fetch paginated questionnaires
+export const fetchPaginatedQuestionnaires = async (pageSize, lastVisibleDoc = null, userId) => {
+  try {
+    const jobsCollection = collection(db, "jobs");
+
+    // Query for jobs that have questionnaireData
+    let q = query(
+      jobsCollection,
+      where("userId", "==", userId),
+      where("questionnaireData", "!=", null), // Filter jobs with questionnaireData
+      orderBy("timestamp"),
+      limit(pageSize)
+    );
+
+    if (lastVisibleDoc) {
+      q = query(
+        jobsCollection,
+        where("userId", "==", userId),
+        where("questionnaireData", "!=", null), // Filter jobs with questionnaireData
+        orderBy("timestamp"),
+        startAfter(lastVisibleDoc),
+        limit(pageSize)
+      );
+    }
+
+    const snapshot = await getDocs(q);
+
+    // Query for counting total documents that match the userId and have questionnaireData
+    const countQuery = query(jobsCollection, where("userId", "==", userId), where("questionnaireData", "!=", null));
+    const totalSnapshot = await getCountFromServer(countQuery);
+    const totalDocuments = totalSnapshot.data().count;
+
+    const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    const jobs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    const data = extractQuestionnaires(jobs);
+
+    return { data, lastVisible, total: totalDocuments };
+  } catch (error) {
+    console.error("Error fetching paginated questionnaires:", error);
+    throw new Error("Unable to fetch paginated questionnaires.");
+  }
+};
+
+export const deleteQuestionnaire = async (jobId) => {
+  try {
+    const jobDocRef = doc(db, "jobs", jobId);
+
+    await updateDoc(jobDocRef, {
+      questionnaireData: deleteField(),
+    });
+
+    console.log("Questionnaire data deleted successfully:", jobId);
+  } catch (error) {
+    console.error("Error deleting questionnaire data:", error);
+    throw new Error("Unable to delete questionnaire data.");
+  }
+};
+
+export const getSkillCategories = async (jobId) => {
+  try {
+    // Reference the job document
+    const jobDocRef = doc(db, "jobs", jobId);
+
+    // Fetch the document snapshot
+    const jobDocSnapshot = await getDoc(jobDocRef);
+
+    // Check if the document exists
+    if (!jobDocSnapshot.exists()) {
+      throw new Error("Job document does not exist.");
+    }
+
+    // Extract the data from the document
+    const jobData = jobDocSnapshot.data();
+
+    // Initialize a Set to store unique skill categories
+    const skillCategories = new Set();
+
+    // Check if the job has questionnaireData
+    if (jobData.questionnaireData && jobData.questionnaireData.questions) {
+      // Iterate through each question in the questionnaireData
+      jobData.questionnaireData.questions.forEach((question) => {
+        if (question.skillCategory) {
+          // Add the skillCategory to the Set
+          skillCategories.add(question.skillCategory);
+        }
+      });
+    }
+
+    // Convert the Set to an array and return it
+    return Array.from(skillCategories);
+  } catch (error) {
+    console.error("Error fetching skill categories:", error);
+    throw new Error("Unable to fetch skill categories.");
   }
 };

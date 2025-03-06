@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import "./CandidateDetailsModal.css";
 import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem, Rating, Divider } from '@mui/material';
 import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon, FileIcon, ShowPassword } from '../../assets/images';
@@ -28,6 +28,7 @@ const CandidateDetailsModal = (props) => {
   const handleGenerateLink = props.handleGenerateLink;
   const generating = props.generating;
   const email = candidate.contact?.email?.toLowerCase();
+  const questionnaireLink = props.questionnaireLink;
 
   const [showSelectStatus, setShowSelectStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(candidate.status);
@@ -43,6 +44,7 @@ const CandidateDetailsModal = (props) => {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [activeTab, setActiveTab] = useState(0);
+  const [includeLink, setIncludeLink] = useState(false);
 
   const handleIconClick = async () => {
     if (isEditable) setShowConfirm(true);
@@ -212,7 +214,7 @@ const CandidateDetailsModal = (props) => {
               <ScoreGauge title={"Resume Quality"} value={candidate.scores?.presentation.score}/>
               <ScoreGauge title={"Job Match"} value={candidate.scores?.job_title_relevance.score}/>
               <div className='action-button-container'>
-                {isEditable && 
+                {/* {isEditable && 
                 <button onClick={() => handleGenerateLink(candidate)} disabled={generating} className='action-button'>
                   {generating ? 
                     <>
@@ -223,7 +225,7 @@ const CandidateDetailsModal = (props) => {
                       {candidate.questionnaireData?.isAnswered ? 'View Assesment' : 'Generate Questionnaire Link'}
                     </>
                   }
-                </button>}
+                </button>} */}
                 <div style={{display: 'flex', gap: 8}}>
                   <button disabled={loading} onClick={handleInterviewPrep} className='action-button'>
                     {loading ? 
@@ -237,6 +239,16 @@ const CandidateDetailsModal = (props) => {
                   </button>
                   <button onClick={() => setShowGeneratedEmail(true)} className='action-button'><img src={EmailIcon}/>Generate Intro Email</button>
                 </div>
+                {isEditable &&
+                <div className='checkbox-container'>
+                  <input 
+                    className='input-checkbox' 
+                    type="checkbox"
+                    checked={includeLink}
+                    onChange={(e) => setIncludeLink(e.target.checked)}
+                  />
+                  <span>Include questionnaire link in email template</span>
+                </div>}
               </div>
             </div>
           </div>
@@ -635,6 +647,8 @@ const CandidateDetailsModal = (props) => {
           hiringCompany={candidate.company}
           emailSubject={setEmailSubject}
           emailBody={setEmailBody}
+          includeLink={includeLink}
+          questionnaireLink={questionnaireLink}
         />
         <InterviewPrepModal
           open={showInterviewPrep} 

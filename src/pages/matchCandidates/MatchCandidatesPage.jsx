@@ -7,7 +7,7 @@ import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion, query, where, 
 import CandidateCard from "../../components/candidateCard/CandidateCard";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { capitalizeFirstLetter } from "../../utils/utils";
-import { translateToEnglish } from "../../utils/helper";
+import { translateToEnglish, translateToHebrew } from "../../utils/helper";
 import { apiBaseUrl } from "../../utils/constants";
 
 const MatchCandidatesPage = (props) => {
@@ -24,6 +24,8 @@ const MatchCandidatesPage = (props) => {
   const [company, setCompany] = useState('');
   const [tags, setTags] = useState([]);
   const [mandatoryTags, setMandatoryTags] = useState([]);
+  const [requiredTags, setRequiredTags] = useState([]);
+  const [jobTitleTags, setJobTitleTags] = useState('');
   const [jobTitleTag, setJobTitleTag] = useState('');
   const [enableTags, setEnableTags] = useState(false);
   const [jobDescription, setJobDescription] = useState('');
@@ -78,7 +80,9 @@ const MatchCandidatesPage = (props) => {
     setShowCandidate(false);
     setTags([]);
     setMandatoryTags([]);
-    setJobTitleTag('');
+    // setJobTitleTags([]);
+    setRequiredTags([]);
+    // setJobTitleTag('');
     setEnableTags(false);
     setSelectedJobTitle("");
     setCandidateCountInput(parseInt(1, 10));
@@ -90,14 +94,16 @@ const MatchCandidatesPage = (props) => {
       const jobDoc = await getDoc(doc(db, 'jobs', jobId));
       if (jobDoc.exists()) {
         const tagsData = jobDoc.data().tags;
-        const mandatoryTagsData = jobDoc.data().mandatory_tags;
+        // const mandatoryTagsData = jobDoc.data().mandatory_tags;
         const jobTitle = jobDoc.data().job_title;
         const jobDescription = jobDoc.data().initialDescription;
         const language = jobDoc.data().language;
         // Convert the comma-separated string into an array
         setTags(tagsData ? tagsData.split(',') : []);
-        setMandatoryTags(mandatoryTagsData ? mandatoryTagsData.split(',') : []);
-        setJobTitleTag(jobDoc.data().jobTitleTag);
+        setMandatoryTags(jobDoc.data().mandatory_tags);
+        setRequiredTags(jobDoc.data().required_tags || []);
+        // setJobTitleTags(jobDoc.data().job_title_tags);
+        // setJobTitleTag(jobDoc.data().jobTitleTag);
         setEnableTags(jobDoc.data().enableMandatory);
         setJobDescription(jobDescription);
         setGeneratedDescription(jobDoc.data().description)
@@ -109,7 +115,9 @@ const MatchCandidatesPage = (props) => {
         console.error('No such document!');
         setTags([]);
         setMandatoryTags([]);
-        setJobTitleTag('');
+        // setJobTitleTags([]);
+        setRequiredTags([]);
+        // setJobTitleTag('');
         setEnableTags(false);
       }
     } catch (error) {
@@ -135,9 +143,61 @@ const MatchCandidatesPage = (props) => {
     try {
       const candidateCount = isRejected ? 1 : candidateCountInput || 1;
       const translatedJob = await translateToEnglish(selectedJobTitle);
-      const baseTags = enableTags ? mandatoryTags : [...tags, selectedJobTitle, translatedJob];
-  
-      let updatedTags = baseTags.map(tag => tag.toLowerCase());
+      const translatedRequiredTagsEn = await Promise.all(
+        requiredTags.map(async (tag) => {
+          return await translateToEnglish(tag);
+        })
+      );
+      const translatedRequiredTagsHe = await Promise.all(
+        requiredTags.map(async (tag) => {
+          return await translateToHebrew(tag);
+        })
+      );
+      const translatedRequiredTags = await Promise.all(
+        requiredTags.map(async (tag) => {
+          return await translateToEnglish(tag);
+        })
+      );
+      const baseTags = enableTags
+        ? [...translatedRequiredTagsEn, ...translatedRequiredTagsHe, selectedJobTitle, translatedJob]
+        : [...mandatoryTags, selectedJobTitle, translatedJob];
+
+      // Function to generate two-word tags from a given tag
+      const generateTwoWordTags = (tag) => {
+        // Split the tag by spaces or special characters
+        const words = tag.split(/[\s\/\-_]+/);
+
+        // If the tag has more than two words, generate two-word combinations
+        if (words.length > 2) {
+          const twoWordTags = [];
+          for (let i = 0; i < words.length - 1; i++) {
+            // Take two consecutive words and join them with a space
+            const twoWordTag = `${words[i]} ${words[i + 1]}`;
+            twoWordTags.push(twoWordTag.toLowerCase());
+          }
+          return twoWordTags;
+        }
+
+        // If the tag already has two or fewer words, return it as is
+        return [tag.toLowerCase()];
+      };
+
+      // Generate updated tags by adding two-word tags to the baseTags
+      let updatedTags = baseTags.flatMap(tag => {
+        // Keep the original tag
+        const originalTag = tag.toLowerCase();
+
+        // Generate two-word tags from the original tag
+        const twoWordTags = generateTwoWordTags(tag);
+
+        // Combine the original tag and the two-word tags
+        return [originalTag, ...twoWordTags];
+      });
+
+      // Remove duplicates (if any)
+      updatedTags = [...new Set(updatedTags)];
+
+      // console.log('updatedTags', updatedTags)
       const translatedTags = await Promise.all(
         updatedTags.map(async (tag) => {
           return await translateToEnglish(tag);
@@ -188,7 +248,7 @@ const MatchCandidatesPage = (props) => {
   
       // Step 3: Filter contacts that skill_match score is greater than or equal to 85
       let prioritizedContacts = allContacts.filter((contact) => {
-        const job = contact.jobs?.find((job) => job.skill_match?.matching_skills.length > 0 && job.company === company);
+        const job = contact.jobs?.find((job) => job.scores?.job_title_relevance.score >= 85 && job.company === company);
         return Boolean(job);
       });
 
@@ -200,7 +260,7 @@ const MatchCandidatesPage = (props) => {
           contactsRef,
           where("userId", "==", userId),
           where("status", "==", "Active"),
-          where("tags", "array-contains", jobTitleTag.toLocaleLowerCase()),
+          where("job_title_tags", "array-contains-any", updatedTags),
           orderBy("timestamp", "desc")
         );
       
@@ -211,13 +271,6 @@ const MatchCandidatesPage = (props) => {
           ...doc.data(),
           ref: doc.ref,
         }));
-
-        // Filter to ensure that, when enableTags is true, contacts include ALL updatedTags
-        if (enableTags) {
-          additionalContacts = additionalContacts.filter(contact =>
-            contact.tags && contact.tags.includes(jobTitleTag.toLocaleLowerCase())
-          );
-        }
       
         // Filter out contacts that already have a relevant job
         additionalContacts = additionalContacts.filter((contact) => {
@@ -251,7 +304,6 @@ const MatchCandidatesPage = (props) => {
           (job) =>
             job.jobTitle === selectedJobTitle &&
             job.status === "Pending" &&
-            job.skill_match?.matching_skills.length > 0 &&
             job.company === company && 
             areArraysEqual(job.jobTags || [], updatedTags)
         );
@@ -325,7 +377,7 @@ const MatchCandidatesPage = (props) => {
           const res = await fetch(`${apiBaseUrl}/match-resume`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ resumeText, tags: updatedTags, jobTitle: selectedJobTitle, jobLanguage }),
+            body: JSON.stringify({ resumeText, tags: mandatoryTags, jobTitle: selectedJobTitle, jobLanguage }),
           });
 
           if (!res.ok) {
@@ -356,7 +408,7 @@ const MatchCandidatesPage = (props) => {
 
           processedContactIds.add(id);
 
-          // if (processedCandidate.skill_match?.matching_skills.length > 0) {
+          if (processedCandidate.scores?.job_title_relevance.score >= 85) {
             const newCandidate = {
               contact: { name, email, phone, linkedin, location, fileName, url },
               status: "Pending",
@@ -381,15 +433,16 @@ const MatchCandidatesPage = (props) => {
               return sortedCandidates.slice(0, candidateCount); // Limit to candidateCount
             });
             setShowCandidate(true);
-          if(processedContactIds.size != candidateCount) {
-            console.log(`Low skill match score (${processedCandidate.skill_match?.score}) for ${contact.name}. Fetching another resume...`);
+          // if(processedContactIds.size != candidateCount) {
+          } else {
+            console.log(`Low job title relevance score (${processedCandidate.scores?.job_title_relevance.score}) for ${contact.name}. Fetching another resume...`);
 
             // Fetch additional contacts if the current one doesn't meet the score requirement
             const additionalQuery = query(
               contactsRef,
               where("userId", "==", userId),
               where("status", "==", "Active"),
-              where("tags", "array-contains-any", updatedTags),
+              where("alternative_job_title_tags_en", "array-contains-any", updatedTags),
               orderBy("timestamp", "desc")
             );
             const additionalSnapshot = await getDocs(additionalQuery);
@@ -399,19 +452,13 @@ const MatchCandidatesPage = (props) => {
               ...doc.data(),
               ref: doc.ref,
             }));
-  
-            // Filter to ensure that, when enableTags is true, contacts include ALL updatedTags
-            if (enableTags) {
-              additionalContacts = additionalContacts.filter(contact =>
-                updatedTags.every(tag => contact.tags && contact.tags.includes(tag))
-              );
-            }
+
+            console.log('else additionalContacts', additionalContacts)
 
             // Then filter out contacts with a high qualification score job or those already processed
             additionalContacts = additionalContacts.filter((contact) => {
               const hasRelevantJob = contact.jobs?.some((job) =>
                 job.jobTitle === selectedJobTitle &&
-                job.scores?.qualification.score >= 85 &&
                 job.company === company &&
                 areArraysEqual(job.jobTags || [], updatedTags)
               );
@@ -535,6 +582,7 @@ const MatchCandidatesPage = (props) => {
         company: company,
         location: location,
         searchKeywords,
+        jobId: selectedJob,
         timestamp: serverTimestamp(), // Add server-side timestamp
       };
   
@@ -654,7 +702,7 @@ const MatchCandidatesPage = (props) => {
           <div className="card-row">
             <div className="card-title">Job Description (tags):</div>
             <Box>
-              {tags.map((tag, index) => (
+              {mandatoryTags.map((tag, index) => (
                 <Chip
                   id='tags'
                   key={index}

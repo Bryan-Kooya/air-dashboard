@@ -91,16 +91,7 @@ a:hover {
 .checkbox-container {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
-}
-
-.checkbox-container input[type="checkbox"] {
-  margin-right: 8px;
-}
-
-.checkbox-container label {
-  color: #666;
-  font-size: 14px;
+  gap: 4px;
 }
 
 /* Buttons and Links */

@@ -15,9 +15,10 @@ import AIGeneratedJobModal from "../../components/aiGeneratedJobModal/AIGenerate
 import EditJobModal from "../../components/editJobModal/EditJobModal";
 import { apiBaseUrl } from "../../utils/constants";
 import { fetchPaginatedJobs, searchJobs } from "../../utils/firebaseService";
-import { SearchIcon, EditIcon, Delete, Question } from "../../assets/images";
+import { SearchIcon, EditIcon, Delete, Question, TooltipIcon } from "../../assets/images";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
+import { convertArrayToLowercase } from "../../utils/utils";
 
 const JobPostingsPage = (props) => {
   const tableHeader = ["Job Title", "Tags",  "Status", "Company", "Industry", "Location", "Actions"];
@@ -26,6 +27,7 @@ const JobPostingsPage = (props) => {
   const userId = props.userId;
   const [sortedBy, setSortedBy] = useState("");
   const [jobs, setJobs] = useState([]);
+  const [jobsCount, setJobsCount] = useState(0);
   const [job, setJob] = useState([]);
   const [formData, setFormData] = useState({
     job_title: '',
@@ -37,12 +39,17 @@ const JobPostingsPage = (props) => {
   });
   const [generatedDescription, setGeneratedDescription] = useState('');
   const [tags, setTags] = useState([]);
+  const [requiredTags, setRequiredTags] = useState([]);
   const [mandatoryTags, setMandatoryTags] = useState([]);
+  const [jobTitleTags, setJobTitleTags] = useState([]);
+  const [alternativeMandatoryTagsEn, setAlternativeMandatoryTagsEn] = useState([]);
+  const [alternativeMandatoryTagsHe, setAlternativeMandatoryTagsHe] = useState([]);
+  const [alternativeJobTitleTagsEn, setAlternativeJobTitleTagsEn] = useState([]);
+  const [alternativeJobTitleTagsHe, setAlternativeJobTitleTagsHe] = useState([]);
   const [enableTags, setEnableTags] = useState(false);
-  const [jobTitleTag, setJobTitleTag] = useState('');
+  const [jobTitleTag, setJobTitleTag] = useState([]);
   const [language, setLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [isGenerateModalOpen, setAIGenerateModalOpen] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [loadingJobId, setLoadingJobId] = useState(null);
@@ -60,6 +67,7 @@ const JobPostingsPage = (props) => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [lastVisible, setLastVisible] = useState(null);
+  const [generating, setGenerating] = useState(false);
   const observer = useRef();
   const pageSize = 5;
 
@@ -82,9 +90,10 @@ const JobPostingsPage = (props) => {
       setJobs(data);
       setLastVisible(last);
       setHasMore(data.length < total);
+      setJobsCount(total);
     } catch (error) {
       console.error("Error fetching jobs:", error);
-      updateMessage("Error loading jobs", "error", true);
+      updateMessage("An error occurred while loading job", "error", true);
     }
   };
 
@@ -108,7 +117,7 @@ const JobPostingsPage = (props) => {
       }
     } catch (error) {
       console.error("Error loading more jobs:", error);
-      updateMessage("Error loading more jobs", "error", true);
+      updateMessage("An error occurred while loading more jobs", "error", true);
     } finally {
       setLoadingMessages(false);
     }
@@ -129,7 +138,7 @@ const JobPostingsPage = (props) => {
       setHasMore(false);
     } catch (error) {
       console.error("Error searching jobs:", error);
-      updateMessage("Error searching jobs", "error", true);
+      updateMessage("An error occurred while deleting job", "error", true);
     } finally {
       setLoadingMessages(false);
     }
@@ -138,16 +147,15 @@ const JobPostingsPage = (props) => {
   const updateJob = async (updatedJob) => {
     try {
       setLoading(true);
-      setError(null);
       const jobDoc = doc(db, "jobs", updatedJob.id);
       console.log('Updating job data:', updatedJob);
       await updateDoc(jobDoc, updatedJob);
       setJobs(jobs.map((job) => (job.id === updatedJob.id ? { ...job, ...updatedJob } : job)));
-      // Show success message
-      setError(null);
       setEditModalOpen(false);
+      updateMessage("Job updated successfully!", "success", true);
     } catch (error) {
       console.error("Error updating job:", error);
+      updateMessage("An error occurred while updating job!", "error", true);
     } finally {
       setLoading(false);
     }
@@ -160,6 +168,7 @@ const JobPostingsPage = (props) => {
       await deleteDoc(jobDoc);
       setTimeout(() => setConfirming(false), 500);
       setShowConfirm(false);
+      setJobsCount(jobsCount - 1);
       updateMessage("Job deleted successfully!", "success", true);
       setJobs(jobs.filter((job) => job.id !== id));
     } catch (error) {
@@ -188,11 +197,10 @@ const JobPostingsPage = (props) => {
   const handleAICreateJob = async () => {
     // e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       console.log('Submitting form data:', formData);
-      const response = await fetch(`${apiBaseUrl}/generate-job`, {
+      const response = await fetch(`${apiBaseUrl}/ai-generate-job`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -212,14 +220,23 @@ const JobPostingsPage = (props) => {
       setAIGenerateModalOpen(true);
       
       // Parse and set tags
-      const tagsData = JSON.parse(data.tags);
-      setTags(tagsData.tags || []);
+      // const tagsData = JSON.parse(data.tags);
+      const mandatoryTagsData = data.mandatory_tags;
+      const jobTitleTagsData = data.job_title_tags;
+      // const jobTitleTagData = JSON.parse(data.job_title_tag);
+      // setTags(tagsData.tags || []);
       setLanguage(data.language);
-      setMandatoryTags(data.mandatory_tags || []);
-      setJobTitleTag(data.job_title_tag);
+      setMandatoryTags(convertArrayToLowercase(mandatoryTagsData.mandatory_tags) || []);
+      setJobTitleTags(convertArrayToLowercase(jobTitleTagsData.job_title_tags) || [])
+      setRequiredTags(convertArrayToLowercase(jobTitleTagsData.job_title_tags.slice(0, 2)) || [])
+      setAlternativeMandatoryTagsEn(convertArrayToLowercase(mandatoryTagsData.alternative_mandatory_tags_en) || []);
+      setAlternativeMandatoryTagsHe(convertArrayToLowercase(mandatoryTagsData.alternative_mandatory_tags_he) || []);
+      setAlternativeJobTitleTagsEn(convertArrayToLowercase(jobTitleTagsData.alternative_job_title_tags_en) || []);
+      setAlternativeJobTitleTagsHe(convertArrayToLowercase(jobTitleTagsData.alternative_job_title_tags_he) || []);
+      // setJobTitleTag(jobTitleTagData.job_title_tag || []);
     } catch (error) {
       console.error('Error:', error);
-      setError(error.message || 'Failed to generate description');
+      updateMessage("An error occurred while generating description!", "error", true);
     } finally {
       setLoading(false);
     }
@@ -228,7 +245,6 @@ const JobPostingsPage = (props) => {
   const handleSave = async () => {
     try {
       setLoading(true);
-      setError(null);
 
       const jobData = {
         job_title: formData.job_title,
@@ -238,9 +254,13 @@ const JobPostingsPage = (props) => {
         location: formData.location,
         initialDescription: formData.description,
         description: generatedDescription,
-        tags: tags.join(','),
-        mandatory_tags: mandatoryTags.join(','),
-        jobTitleTag,
+        required_tags: requiredTags,
+        mandatory_tags: mandatoryTags,
+        alternative_mandatory_tags_en: alternativeMandatoryTagsEn,
+        alternative_mandatory_tags_he: alternativeMandatoryTagsHe,
+        job_title_tags: jobTitleTags,
+        alternative_job_title_tags_en: alternativeJobTitleTagsEn,
+        alternative_job_title_tags_he: alternativeJobTitleTagsHe,
         enableMandatory: false,
         language,
         userId: userId,
@@ -266,18 +286,22 @@ const JobPostingsPage = (props) => {
       });
       setGeneratedDescription('');
       setAIGenerateModalOpen(false);
-      setTags([]);
       setMandatoryTags([]);
-      setJobTitleTag('');
+      setJobTitleTags([]);
+      setRequiredTags([]);
+      setAlternativeMandatoryTagsEn([]);
+      setAlternativeMandatoryTagsHe([]);
+      setAlternativeJobTitleTagsEn([]);
+      setAlternativeJobTitleTagsHe([]);
+      // setTags([]);
+      // setJobTitleTag('');
       setLanguage('en');
-      
-      // Show success message
-      setError(null);
     } catch (error) {
       console.error('Error saving job:', error);
-      setError(error.message || 'Failed to save job');
+      updateMessage("An error occurred while saving job!", "error", true);
     } finally {
       setLoading(false);
+      updateMessage("Job saved successfully!", "success", true);
     }
   };
 
@@ -327,6 +351,26 @@ const JobPostingsPage = (props) => {
     }
   };  
 
+  const handleRequiredTags = async (jobId, tags) => {
+    try {
+      setLoadingJobId(jobId);
+      const jobDoc = doc(db, "jobs", jobId);
+      console.log(`Updating required tags of job ID: ${jobId}`);
+      await updateDoc(jobDoc, { required_tags: tags }); // Update the required_tags field
+      setJobs((prevJobs) =>
+        prevJobs.map((job) =>
+          job.id === jobId ? { ...job, required_tags: tags } : job // Update the local state
+        )
+      );
+      updateMessage("Required tag updated successfully!", "success", true);
+    } catch (error) {
+      updateMessage("An error occurred while updating required tag.", "error", true);
+      console.error("Error adding required tag:", error);
+    } finally {
+      setLoadingJobId(null); // Reset the loading state
+    }
+  };
+
   const handleMandatoryTags = async (jobId, isOn) => {
     try {
       setEnableTags(true);
@@ -338,7 +382,7 @@ const JobPostingsPage = (props) => {
           job.id === jobId ? { ...job, enableMandatory: isOn } : job
         )
       );
-      updateMessage(`${isOn ? 'Enabled' : 'Disabled'} mandatory tag for this job!`, "success", true);
+      updateMessage(`${isOn ? 'Enabled' : 'Disabled'} mandatory tags for this job!`, "success", true);
     } catch (error) {
       updateMessage("An error occurred while updating mandatory tags status.", "error", true);
       console.error("Error updating mandatory tags status:", error);
@@ -365,6 +409,75 @@ const JobPostingsPage = (props) => {
   const handleDeleteJob = (id) => {
     setJobId(id);
     setShowConfirm(true);
+  };
+
+  const generateLink = async (job) => {
+    setGenerating(true);
+    try {
+      if (job.questionnaireData && job.questionnaireData.questions.length > 0) {
+        navigator.clipboard.writeText(job.questionnaireData.link);
+        console.log("Using existing questionnaire data link.");
+      } else {
+        const response = await fetch(`${apiBaseUrl}/generate-questionnaire`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            jobTitle: job.job_title,
+            jobDescription: job.description,
+            jobId: job.id,
+            language: job.language,
+          }),
+        });
+  
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+  
+        const data = await response.json();
+  
+        // Add a timestamp to the questionnaireData
+        const questionnaireDataWithTimestamp = {
+          ...data,
+          version: "System",
+          timestamp: serverTimestamp(),
+        };
+  
+        // Update the job document in Firestore with the new questionnaireData
+        const jobDoc = doc(db, "jobs", job.id);
+        await updateDoc(jobDoc, { questionnaireData: questionnaireDataWithTimestamp });
+  
+        // Update the local state with the new questionnaireData
+        setJobs((prevJobs) =>
+          prevJobs.map((j) =>
+            j.id === job.id
+              ? { ...j, questionnaireData: questionnaireDataWithTimestamp } // Update the specific job
+              : j // Keep other jobs unchanged
+          )
+        );
+  
+        // Copy the link to the clipboard
+        navigator.clipboard.writeText(data.link);
+        updateMessage("Questionnaire link has been copied to clipboard.", "success", true);
+      }
+    } catch (error) {
+      console.error("Error generating questionnaire data:", error);
+      updateMessage("Failed to generate questionnaire data. Please try again later.", "error", true);
+    } finally {
+      setTimeout(() => setGenerating(false), 500);
+    }
+  };
+
+  const handleGenerateLink = async (job) => {
+    if (job.questionnaireData?.isAnswered) {
+      navigate(`/questionnaire/${job.id}`);
+    } else {
+      await generateLink(job);
+      setTimeout(() => {
+        updateMessage("Questionnaire's link has been copied to clipboard.", "success", true);
+      }, 800);
+    }
   };
 
   // Watch for changes in searchQuery
@@ -452,7 +565,7 @@ const JobPostingsPage = (props) => {
         open={isGenerateModalOpen}
         onClose={() => setAIGenerateModalOpen(false)}
         generatedDescription={generatedDescription}
-        tags={tags}
+        tags={mandatoryTags}
         handleSave={handleSave}
         loading={loading}
       />
@@ -463,10 +576,12 @@ const JobPostingsPage = (props) => {
         handleEditInputChange={handleEditInputChange}
         updateJob={updateJob}
         loading={loading}
+        handleRequiredTags={handleRequiredTags}
+        updateMessage={updateMessage}
       />
       <div className="jobs card">
         <div className="title-container">
-          <div className="card-title">Recently Added Jobs</div>
+          <div className="card-title">All Jobs ({jobsCount})</div>
           <div className="flex">
             <Select 
               id="select-input" 
@@ -501,7 +616,13 @@ const JobPostingsPage = (props) => {
           <thead>
             <tr>
               {tableHeader.map(header => (
-                <th>{header}</th>
+                <th>
+                  {header}
+                  {header === 'Tags' && 
+                  <Tooltip title='When enabled, the Match Candidates page will prioritize candidates with mandatory tags.'>
+                    <img style={{position: 'absolute', marginLeft: 4}} src={TooltipIcon}/>
+                  </Tooltip>}
+                </th>
               ))}
             </tr>
           </thead>
@@ -513,7 +634,7 @@ const JobPostingsPage = (props) => {
                 <td>
                 <Tooltip title={`${job.enableMandatory ? 'Disable' : 'Enable'} mandatory tags`}>
                   <Switch
-                    disabled={enableTags}
+                    disabled={enableTags || job.required_tags?.length === 0}
                     checked={job.enableMandatory || false}
                     onChange={(e) => handleMandatoryTags(job.id, e.target.checked)}
                     size="small"
@@ -550,9 +671,15 @@ const JobPostingsPage = (props) => {
                   <Tooltip title="Delete">
                     <img style={{margin: "0 8px"}} onClick={() => handleDeleteJob(job.id)} src={Delete} alt="Delete" />
                   </Tooltip>
-                  {/* <Tooltip title="Generate Questionnaire Link">
-                    <img style={{height: 16}} src={Question} alt="Delete" />
-                  </Tooltip> */}
+                  {generating ?
+                  <CircularProgress thickness={5} size={10} color='#0a66c2'/> :
+                  <Tooltip title="Generate Questionnaire Link">
+                    <img
+                      onClick={() => handleGenerateLink(job)} 
+                      src={Question} 
+                      alt="Questionnaire" 
+                    />
+                  </Tooltip>}
                 </td>
               </tr>
             )) : 

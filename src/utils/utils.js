@@ -6,6 +6,22 @@ export const capitalizeFirstLetter = (input) => {
       .join(' ');    // Join the words back into a single string
 }
 
+export const convertArrayToLowercase = (arr) => {
+  // Check if the input is an array
+  if (!Array.isArray(arr)) {
+    throw new Error("Input must be an array.");
+  }
+
+  // Use map() to create a new array with all strings converted to lowercase
+  return arr.map((item) => {
+    // Check if the item is a string
+    if (typeof item !== "string") {
+      throw new Error("All elements in the array must be strings.");
+    }
+    return item.toLowerCase();
+  });
+}
+
 export const handleRedirectToLinkedIn = (link) => {
   const profile = link.toLowerCase();
   if (!profile) {

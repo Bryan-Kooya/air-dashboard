@@ -5,14 +5,15 @@ import { Select, Menu, MenuItem, Snackbar, Alert, Slide, Tooltip, CircularProgre
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { db } from '../../firebaseConfig';
 import { doc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
-import { fetchPaginatedCandidates, searchCandidates } from "../../utils/firebaseService";
+import { fetchPaginatedCandidates, searchCandidates, fetchJobQuestionnaire } from "../../utils/firebaseService";
 import { SearchIcon, FilterIcon, FileIcon, ShowPassword } from "../../assets/images";
 import { capitalizeFirstLetter } from "../../utils/utils";
+import { getStatus } from "../../utils/helper";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
 import { apiBaseUrl } from "../../utils/constants";
 
 const CandidatesPage = (props) => {
-  const tableHeader = ["Candidate", "Status", "Job", "Company", "Location", "Experience", "Attachments", "Score", "Actions"];
+  const tableHeader = ["Candidate", "Status", "Job", "Company", "Location", "Experience", "Attachments", "Score", "Action"];
   const filterOptions = ["Job", "Status", "Experience"];
   const sortOptions = ["Newest", "Oldest"];
   const userId = props.userId;
@@ -25,6 +26,7 @@ const CandidatesPage = (props) => {
   const [viewDetails, setViewDetails] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState({});
   const [candidates, setCandidates] = useState([]);
+  const [candidatesCount, setCandidatesCount] = useState(0);
   const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortedBy, setSortedBy] = useState("");
@@ -37,6 +39,7 @@ const CandidatesPage = (props) => {
   const [hasMore, setHasMore] = useState(true);
   const [lastVisible, setLastVisible] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [questionnaireLink, setQuestionnaireLink] = useState("");
 
   const lastCandidateElementRef = useCallback(node => {
     if (loadingMessages) return;
@@ -59,6 +62,7 @@ const CandidatesPage = (props) => {
       setFilteredCandidates(data);
       setLastVisible(last);
       setHasMore(data.length < total);
+      setCandidatesCount(total);
     } catch (error) {
       console.error("Error fetching candidates:", error);
       updateMessage("Error loading candidates", "error", true);
@@ -216,7 +220,9 @@ const CandidatesPage = (props) => {
     await searchAndLoadCandidates();
   };
 
-  const handleViewDetails = (index) => {
+  const handleViewDetails = async (index) => {
+    const {data} = await fetchJobQuestionnaire(filteredCandidates[index]?.jobId);
+    setQuestionnaireLink(data.link);
     setSelectedCandidate(filteredCandidates[index]);
     setViewDetails(true);
   };
@@ -230,7 +236,6 @@ const CandidatesPage = (props) => {
 
   const generateLink = async (candidate) => {
     setGenerating(true);
-    console.log('candidate', candidate.questionnaireData.link)
     try {
       if(candidate.questionnaireData && candidate.questionnaireData.questions.length > 0) {
         navigator.clipboard.writeText(candidate.questionnaireData.link);
@@ -281,10 +286,7 @@ const CandidatesPage = (props) => {
     if (candidate.questionnaireData?.isAnswered) {
       navigate(`/questionnaire/${candidate.id}`);
     } else {
-      await generateLink(candidate);
-      setTimeout(() => {
-        updateMessage("Questionnaire link has been copied to clipboard.", "success", true);
-      }, 800);
+      updateMessage("The candidate has not yet completed the questionnaire.", "warning", true);
     }
   };
 
@@ -304,7 +306,7 @@ const CandidatesPage = (props) => {
     <div className="candidates-container">
       <div className="candidates card">
         <div className="title-container">
-          <div className="card-title">All Candidates</div>
+          <div className="card-title">All Candidates ({candidatesCount})</div>
           <div className="flex">
             <button onClick={handleFilterMenuOpen} className="filter-button">
               <img src={FilterIcon} alt="Filter" /> Filter
@@ -381,18 +383,21 @@ const CandidatesPage = (props) => {
                       {candidate.contact?.fileName || "Attachment"}
                     </a>
                   </td>
-                  <td style={{textAlign: 'center'}}>{candidate.questionnaireData?.totalScore || 0}%</td>
+                  <td
+                    style={{textAlign: 'center'}}
+                    className={`status-color ${getStatus(candidate.questionnaireData?.totalScore)}`}
+                  >
+                    {candidate.questionnaireData?.totalScore || 'NA'}
+                  </td>
                   <td style={{textAlign: 'center'}}>
-                    {generating && index ?
-                    <CircularProgress thickness={5} size={10} color='black'/> :
-                    <Tooltip title={candidate.questionnaireData?.isAnswered ? 'View Assesment' : 'Generate Questionnaire Link'}>
+                    <Tooltip title='View Assesment'>
                       <img 
                         width={16} height={16}
                         onClick={() => handleGenerateLink(candidate)} 
-                        src={candidate.questionnaireData?.isAnswered ? ShowPassword : FileIcon} 
-                        alt={``} 
+                        src={ShowPassword} 
+                        alt={`View`} 
                       />
-                    </Tooltip>}
+                    </Tooltip>
                   </td>
                 </tr>
               ))
@@ -418,6 +423,7 @@ const CandidatesPage = (props) => {
         updateTable={loadCandidates}
         handleGenerateLink={handleGenerateLink}
         generating={generating}
+        questionnaireLink={questionnaireLink}
       />
       <Snackbar
         autoHideDuration={5000}

@@ -1,0 +1,7 @@
+.details {
+  overflow-y: auto;
+}
+
+.details::-webkit-scrollbar {
+  width: 0px;
+}

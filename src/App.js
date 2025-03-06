@@ -15,6 +15,7 @@ import ContactsPage from "./pages/contacts/ContactsPage";
 import BillingPage from "./pages/billing/BillingPage";
 import HelpPage from "./pages/help/HelpPage";
 import QuestionnairePage from "./pages/questionnaire/QuestionnairePage";
+import QuestionnairesPage from "./pages/questionnaires/QuestionnairesPage";
 import { getConversationCount } from "./utils/firebaseService";
 import { getUser } from "./utils/firebaseService";
 
@@ -124,6 +125,10 @@ const App = () => {
                 <Route
                   path="/contacts"
                   element={<ContactsPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} userInfo={userInfo}/>}
+                />
+                <Route
+                  path="/questionnaires"
+                  element={<QuestionnairesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} userInfo={userInfo}/>}
                 />
                 <Route
                   path="/billing"

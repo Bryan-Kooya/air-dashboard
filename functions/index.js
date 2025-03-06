@@ -149,7 +149,7 @@ app.post("/generate-job", async (req, res) => {
           },
           { role: "user", content: context },
         ],
-        temperature: 0.7,
+        temperature: 0.0,
       }),
       openai.chat.completions.create({
         model: "gpt-4o",
@@ -160,7 +160,7 @@ app.post("/generate-job", async (req, res) => {
           },
           { role: "user", content: description },
         ],
-        temperature: 0.7,
+        temperature: 0.0,
         response_format: { type: "json_object" },
       }),
       openai.chat.completions.create({
@@ -172,7 +172,7 @@ app.post("/generate-job", async (req, res) => {
           },
           { role: "user", content: description }, // Only refer to description
         ],
-        temperature: 0.7,
+        temperature: 0.0,
         response_format: { type: "json_object" },
       }),
       openai.chat.completions.create({
@@ -184,7 +184,7 @@ app.post("/generate-job", async (req, res) => {
           },
           { role: "user", content: job_title },
         ],
-        temperature: 0.7,
+        temperature: 0.0,
         response_format: { type: "json_object" },
       }),
     ]);
@@ -199,6 +199,162 @@ app.post("/generate-job", async (req, res) => {
       tags: tags,
       mandatory_tags: mandatoryTags,
       job_title_tag: jobTitleTag,
+      language: language, // Optionally return the detected language
+    });
+  } catch (error) {
+    console.error("Error generating description:", error);
+    res.status(500).json({
+      error: "Failed to generate description",
+      details: error.message, // Include error details for easier debugging
+    });
+  }
+});
+
+app.post("/ai-generate-job", async (req, res) => {
+  try {
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+    const { job_title, company_name, industry, location, description } = req.body;
+
+    // Step 1: Detect the language of the input description using OpenAI
+    const languageDetectionResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "Detect the language of the following text and respond with the language code (e.g., 'en' for English, 'es' for Spanish, 'fr' for French, 'he' for Hebrew). Respond only with the language code.",
+        },
+        { role: "user", content: description },
+      ],
+      temperature: 0.0, // Use low temperature for deterministic output
+    });
+
+    const detectedLanguage = languageDetectionResponse.choices[0].message.content.trim();
+    const language = detectedLanguage || "en"; // Default to English if no language is detected
+
+    // Step 2: Define system prompts based on the detected language
+    const descriptionPrompt = {
+      en: "You are a professional job description writer. Using the provided context (job title, company, industry, and location), enhance the given job description to be more professional, compelling, and well-structured. Include key responsibilities, requirements, and benefits in a clear format.",
+      es: "Eres un escritor profesional de descripciones de puestos de trabajo. Utilizando el contexto proporcionado (título del puesto, empresa, industria y ubicación), mejora la descripción del puesto para que sea más profesional, atractiva y bien estructurada. Incluye responsabilidades clave, requisitos y beneficios en un formato claro.",
+      fr: "Vous êtes un rédacteur professionnel de descriptions de poste. En utilisant le contexte fourni (titre du poste, entreprise, secteur et lieu), améliorez la description du poste pour la rendre plus professionnelle, convaincante et bien structurée. Incluez les responsabilités clés, les exigences et les avantages dans un format clair.",
+      he: "אתה כותב מקצועי של תיאורי משרות. באמצעות ההקשר שסופק (כותרת המשרה, שם החברה, התעשייה והמיקום), שפר את תיאור המשרה הנוכחי כדי שיהיה מקצועי, משכנע ומעוצב היטב. כלול אחריות מרכזית, דרישות והטבות בפורמט ברור.",
+      // Add more languages as needed
+    };
+
+    const context = `
+      Job Title: ${job_title}
+      Company: ${company_name}
+      Industry: ${industry}
+      Location: ${location}
+      Original Description:
+      ${description}`;
+
+    // Step 3: Generate the improved description first
+    const descriptionResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: descriptionPrompt[language] || descriptionPrompt.en, // Fallback to English if language not supported
+        },
+        { role: "user", content: context },
+      ],
+      temperature: 0.0,
+    });
+
+    const improvedDescription = descriptionResponse.choices[0].message.content || "";
+
+    // Step 4: Define prompts for tags, mandatory tags, and job title tags
+    const jobTitleTagsPrompt = {
+      en: `Generate exactly 5 specific job title tags based on the provided job title. The tags should represent roles or positions, not skills or activities. Respond with JSON in the following format: {'job_title_tags': [tag1, tag2, ...]}`,
+      es: `Genera exactamente 5 etiquetas específicas de títulos de trabajo basadas en el título del puesto proporcionado. Las etiquetas deben representar roles o posiciones, no habilidades o actividades. Por ejemplo, si el título del puesto es "מנהל פרויקט מנתח מערכות", las etiquetas deben ser "gerente de proyectos", "analista de sistemas", etc. Responde en formato JSON de la siguiente manera: {'job_title_tags': [tag1, tag2, ...]}`,
+      fr: `Générez exactement 5 étiquettes spécifiques de titres de poste basées sur le titre du poste fourni. Les étiquettes doivent représenter des rôles ou des positions, pas des compétences ou des activités. Par exemple, si le titre du poste est "מנהל פרויקט מנתח מערכות", les étiquettes doivent être "chef de projet", "analyste système", etc. Répondez en JSON dans le format suivant : {'job_title_tags': [tag1, tag2, ...]}`,
+      he: `צור בדיוק 5 תגיות ספציפיות של תארי משרה בהתבסס על כותרת המשרה שסופקה. התגיות צריכות לייצג תפקידים או משרות, לא מיומנויות או פעילויות. לדוגמה, אם כותרת המשרה היא "מנהל פרויקט מנתח מערכות", התגיות צריכות להיות "מנהל פרויקטים", "אנליסט מערכות" וכו'. הגיב בפורמט JSON בצורה הבאה: {'job_title_tags': [tag1, tag2, ...]}`,
+      // Add more languages as needed
+    };
+
+    const mandatoryTagsPrompt = {
+      en: "Extract exactly 10 most relevant skill tags from the following job description. Respond with JSON in this format: {'tags': [tag1, tag2, ...]}",
+      es: "Extrae exactamente 10 etiquetas de habilidades más relevantes de la siguiente descripción del puesto. Responde con JSON en este formato: {'tags': [tag1, tag2, ...]}",
+      fr: "Extrayez exactement 10 étiquettes de compétences les plus pertinentes de la description du poste suivante. Répondez avec JSON dans ce format: {'tags': [tag1, tag2, ...]}",
+      he: "חלץ בדיוק 10 תגיות כישורים רלוונטיות מתיאור המשרה הבא. הגיב בפורמט JSON בצורה הבאה: {'tags': [tag1, tag2, ...]}",
+      // Add more languages as needed
+    };
+
+    // Step 5: Generate tags, mandatory tags, and job title tags using the improved description
+    const [jobTitleTagsResponse, mandatoryTagsResponse] = await Promise.all([
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: jobTitleTagsPrompt[language] || jobTitleTagsPrompt.en, // Fallback to English if language not supported
+          },
+          { role: "user", content: job_title },
+        ],
+        temperature: 0.0,
+        response_format: { type: "json_object" },
+      }),
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: mandatoryTagsPrompt[language] || mandatoryTagsPrompt.en, // Fallback to English if language not supported
+          },
+          { role: "user", content: improvedDescription }, // Use improvedDescription instead of the original description
+        ],
+        temperature: 0.0,
+        response_format: { type: "json_object" },
+      }),
+    ]);
+
+    const jobTitleTags = JSON.parse(jobTitleTagsResponse.choices[0].message.content || "{}").job_title_tags || [];
+    const mandatoryTags = JSON.parse(mandatoryTagsResponse.choices[0].message.content || "{}").tags || [];
+
+    // Step 6: Generate alternative tags for mandatory_tags and job_title_tags
+    const generateAlternativeTags = async (tags, language) => {
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `Provide 3 synonyms or alternative words for each of the following tags in ${languageMap[language] || 'English'} language. Store all alternative tags in single array. Respond with JSON in the following format: {"alternative_tags": ["synonym1", "synonym2", "synonym3", ...]}.`
+          },
+          {
+            role: "user",
+            content: `Tags: ${tags.join(", ")}`, // Fallback to English if language not supported
+          }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+      });
+
+      return JSON.parse(response.choices[0].message.content || "{}").alternative_tags || [];
+    };
+
+    // Generate alternative tags for mandatory_tags in English and Hebrew
+    const alternativeMandatoryTagsEn = await generateAlternativeTags(mandatoryTags, "en");
+    const alternativeMandatoryTagsHe = await generateAlternativeTags(mandatoryTags, "he");
+
+    // Generate alternative tags for job_title_tags in English and Hebrew
+    const alternativeJobTitleTagsEn = await generateAlternativeTags(jobTitleTags, "en");
+    const alternativeJobTitleTagsHe = await generateAlternativeTags(jobTitleTags, "he");
+
+    // Step 7: Structure the response
+    res.json({
+      description: improvedDescription,
+      mandatory_tags: {
+        mandatory_tags: mandatoryTags,
+        alternative_mandatory_tags_en: alternativeMandatoryTagsEn,
+        alternative_mandatory_tags_he: alternativeMandatoryTagsHe,
+      },
+      job_title_tags: {
+        job_title_tags: jobTitleTags,
+        alternative_job_title_tags_en: alternativeJobTitleTagsEn,
+        alternative_job_title_tags_he: alternativeJobTitleTagsHe,
+      },
       language: language, // Optionally return the detected language
     });
   } catch (error) {
@@ -376,7 +532,7 @@ app.post("/match-resume", async (req, res) => {
         { role: "system", content: systemMessage },
         { role: "user", content: `Resume Text:\n${resumeText}` },
       ],
-      temperature: 0.7,
+      temperature: 0.0,
     });
 
     if (!response.choices || response.choices.length === 0) {
@@ -507,7 +663,7 @@ app.post("/process-resume", async (req, res) => {
         { role: "system", content: systemMessage },
         { role: "user", content: `Resume Text:\n${resumeText}` },
       ],
-      temperature: 0.7,
+      temperature: 0.0,
     });
 
     let rawContent = response.choices[0].message.content.trim();
@@ -569,7 +725,7 @@ app.post("/generate-interview-prep", async (req, res) => {
           }`,
         },
       ],
-      temperature: 0.7,
+      temperature: 0.0,
     });
 
     // Parse and validate the response
@@ -662,7 +818,86 @@ app.post("/questionnaire/generate-link", async (req, res) => {
           content: `Generate test for candidate the applying for ${jobTitle} position`,
         },
       ],
-      temperature: 0.7,
+      temperature: 0.0,
+      response_format: { type: "json_object" }, // Ensure the response is in JSON format
+    });
+
+    // Extract and parse JSON content from the response
+    let rawContent = response.choices[0].message.content;
+    if (rawContent.startsWith("```")) {
+      rawContent = rawContent.replace(/```json|```/g, "").trim();
+    }
+
+    const parsedContent = JSON.parse(rawContent);
+
+    // Validate parsed content structure
+    if (!parsedContent.questions || !Array.isArray(parsedContent.questions)) {
+      throw new Error("Invalid JSON structure: 'questions' array is missing or invalid");
+    }
+
+    // Set expiration time (e.g., 7 days from now)
+    const expirationTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    // Return the questionnaire data and metadata to the front end
+    res.status(200).json({
+      questions: parsedContent.questions,
+      timeLimit: 60,
+      passingScore: 80,
+      expirationTime,
+      link: questionnaireLink,
+      isAnswered: false,
+      totalScore: 0,
+    });
+  } catch (error) {
+    console.error("Error generating questionnaire link:", error);
+    res.status(500).json({
+      error: "Failed to generate questionnaire link",
+      details: error.message,
+    });
+  }
+});
+
+app.post("/generate-questionnaire", async (req, res) => {
+  try {
+    const { jobTitle, jobDescription, jobId, language } = req.body;
+
+    const questionnaireLink = `https://message-scanner-extension.web.app/questionnaire/${jobId}`;
+
+    // Validate request body
+    if (!jobTitle || !jobDescription || !language) {
+      return res.status(400).json({ error: "jobTitle, jobDescription, and language are required" });
+    }
+
+    // Fetch OpenAI API key
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+
+    // Get the full language name from the languageMap
+    const fullLanguage = languageMap[language] || "English"; // Default to English if language is not found
+
+    // Generate technical assessment test
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are a technical assessment generator. Generate a technical assessment test in ${fullLanguage}. Format the response as JSON: {
+            "questions": [{
+              "question": string,
+              "options": string[] or null,
+              "answer": string,
+              "explanation": string,
+              "difficulty": "Basic"|"Intermediate"|"Advanced",
+              "skillCategory": string
+            }],
+          }. Generate 10 relevant technical questions based on the job description: ${jobDescription}.`,
+        },
+        {
+          role: "user",
+          content: `Generate test for the candidates applying for ${jobTitle} position`,
+        },
+      ],
+      temperature: 0.0,
       response_format: { type: "json_object" }, // Ensure the response is in JSON format
     });
 
@@ -743,6 +978,155 @@ app.post("/evaluate-answer", async (req, res) => {
   } catch (error) {
     console.error("Error evaluating answer:", error);
     res.status(500).json({ error: "Failed to evaluate the answer.", details: error.message });
+  }
+});
+
+app.post("/ai-process-resume", async (req, res) => {
+  const { resumeText } = req.body;
+
+  if (!resumeText) {
+    return res.status(400).json({ error: "Invalid input. Ensure resumeText is provided." });
+  }
+
+  const systemMessage = `
+  You are a highly accurate resume parser. Your task is to extract the following details from the resume:
+
+  1. **Contact Information:**
+    - Name: Full name of the candidate. Ensure the name is in the same language as the resume.
+    - Email: Valid email address.
+    - Phone: Phone number in a standardized format (e.g., 123-456-7890).
+    - Location: City and abbreviated country name only (e.g., "New York, USA"). Ensure the location is in the same language as the resume.
+    - LinkedIn URL: Full LinkedIn profile URL.
+
+  2. **Job Title Tags:**
+    - Extract exactly 10 'job_title_tags' based on the job positions and descriptions found in the work experience section for the last 3 years.
+    - Analyze the job experience details to suggest diverse, synonymous tags that accurately capture the role. For example, if the candidate worked as a front-end developer, consider variations such as "front-end developer", "frontend developer", "front-end programmer", and "frontend programmer", as applicable.
+    - Ensure job titles are in lowercase, in the same language as the resume, and avoid redundant repetition.
+
+  3. **Mandatory Tags:**
+    - Extract exactly 30 'mandatory_tags' based on the most relevant skill tags from the resume.
+    - Ensure all tags are in lowercase and in the same language as the resume.
+    - Include:
+      - Technical skills (e.g., "javascript", "python", "react").
+      - Soft skills (e.g., "teamwork", "communication").
+      - Tools, frameworks, and methodologies (e.g., "aws", "agile", "docker").
+    - Prioritize skills that are most relevant to the candidate's experience.
+
+  4. **Language Detection:**
+    - Detect the language of the resume text and return the language code (e.g., 'en' for English, 'es' for Spanish, 'fr' for French, 'he' for Hebrew).
+
+  5. **Introduction/About Section:**
+    - Determine if the resume contains an introduction or "about" section.
+    - If present, extract the text of the introduction or "about" section.
+
+  6. **Output Format:**
+    - Respond with ONLY valid JSON. Do not include any explanations or markdown.
+    - Respond in the detected language.
+    - Follow the exact format below:
+
+  {
+    "contact": {
+      "name": "John Doe",
+      "email": "johndoe@example.com",
+      "phone": "123-456-7890",
+      "location": "New York, USA",
+      "linkedin": "https://linkedin.com/in/johndoe"
+    },
+    "job_title_tags": ["software engineer", "data analyst", ...], // Exactly 10 tags
+    "mandatory_tags": ["javascript", "python", "teamwork", ...], // Exactly 30 tags
+    "language": "en",
+    "introduction": {
+      "present": true,
+      "text": "A brief introduction or about section text if present."
+    }
+  }`;
+
+  try {
+    const openaiApiKey = await getOpenAIApiKey();
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: `Resume Text:\n${resumeText}` },
+      ],
+      temperature: 0.7,
+    });
+
+    let rawContent = response.choices[0].message.content.trim();
+
+    // Clean the response to ensure valid JSON
+    if (rawContent.startsWith("```")) {
+      const start = rawContent.indexOf("{");
+      const end = rawContent.lastIndexOf("}");
+      if (start !== -1 && end !== -1) {
+        rawContent = rawContent.substring(start, end + 1);
+      } else {
+        throw new Error("Invalid JSON structure in AI response.");
+      }
+    }
+
+    const parsedContent = JSON.parse(rawContent);
+
+    // Validate that required fields exist
+    if (
+      !parsedContent.contact ||
+      !parsedContent.job_title_tags ||
+      !parsedContent.mandatory_tags ||
+      !parsedContent.language ||
+      !parsedContent.introduction
+    ) {
+      throw new Error("Missing required fields in the parsed response.");
+    }
+
+    // Validate the number of tags
+    // if (parsedContent.job_title_tags.length !== 10 || parsedContent.mandatory_tags.length !== 30) {
+    //   throw new Error("Incorrect number of tags generated.");
+    // }
+
+    // Function to generate alternative tags
+    const generateAlternativeTags = async (tags, language) => {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `Provide 3 synonyms or alternative words for each of the following tags in ${languageMap[language] || 'English'} language. Store all alternative tags in a single array. Respond with JSON in the following format: {"alternative_tags": ["synonym1", "synonym2", "synonym3", ...]}.`,
+          },
+          {
+            role: "user",
+            content: `Tags: ${tags.join(", ")}`,
+          },
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+      });
+
+      return JSON.parse(response.choices[0].message.content || "{}").alternative_tags || [];
+    };
+
+    // Generate alternative tags for mandatory_tags in English and Hebrew
+    const alternativeMandatoryTagsEn = await generateAlternativeTags(parsedContent.mandatory_tags, "en");
+    const alternativeMandatoryTagsHe = await generateAlternativeTags(parsedContent.mandatory_tags, "he");
+
+    // Generate alternative tags for job_title_tags in English and Hebrew
+    const alternativeJobTitleTagsEn = await generateAlternativeTags(parsedContent.job_title_tags, "en");
+    const alternativeJobTitleTagsHe = await generateAlternativeTags(parsedContent.job_title_tags, "he");
+
+    // Add alternative tags to the final response
+    const finalResponse = {
+      ...parsedContent,
+      alternative_job_title_tags_en: alternativeJobTitleTagsEn,
+      alternative_job_title_tags_he: alternativeJobTitleTagsHe,
+      alternative_mandatory_tags_en: alternativeMandatoryTagsEn,
+      alternative_mandatory_tags_he: alternativeMandatoryTagsHe,
+    };
+
+    res.status(200).json(finalResponse);
+  } catch (error) {
+    console.error("Error processing resume:", error.message);
+    res.status(500).json({ error: "Failed to process the resume.", details: error.message });
   }
 });
 

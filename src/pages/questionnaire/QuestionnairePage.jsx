@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from "react";
 import "./QuestionnairePage.css";
-import { useParams } from "react-router-dom";
-import { Snackbar, Alert, Slide, Chip, CircularProgress } from "@mui/material";
-import { doc, updateDoc } from "firebase/firestore";
+import { useParams, useLocation } from "react-router-dom";
+import { Snackbar, Alert, Slide, Chip, CircularProgress, TextField, Button, Tooltip } from "@mui/material";
+import { doc, updateDoc, getDocs, collection, where, query, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
-import { fetchCandidateQuestionnaire } from "../../utils/firebaseService";
+import { fetchJobQuestionnaire, fetchCandidateQuestionnaire, getSkillCategories } from "../../utils/firebaseService";
 import { getStatus } from "../../utils/helper";
 import { apiBaseUrl } from "../../utils/constants";
+import { DeleteIcon } from "../../assets/images";
+import AddQuestionModal from "../../components/addQuestionModal/AddQuestionModal";
+import ConfirmModal from "../../components/confirmModal/ConfirmModal";
 
 const QuestionnairePage = (props) => {
+  const location = useLocation();
+  const { token } = useParams();
+  const { isEdit } = location.state || {};
+  
   const isCandidate = props.isCandidate;
 
   const [questionnaireData, setQuestionnaireData] = useState(null);
-  const [name, setName] = useState("Applicant");
+  const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [candidateId, setCandidateId] = useState("");
   const [answers, setAnswers] = useState({});
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -20,8 +29,22 @@ const QuestionnairePage = (props) => {
   const [loading, setLoading] = useState(false);
   const [totalScore, setTotalScore] = useState(0);
   const [isAnswered, setIsAnswered] = useState(false);
-
-  const { token } = useParams();
+  const [jobTitle, setJobTitle] = useState("");
+  const [isCandidateVerified, setIsCandidateVerified] = useState(false);
+  const [editable, setEditable] = useState(false);
+  const [skillCategories, setSkillCategories] = useState([]);
+  const [question, setQuestion] = useState({
+    question: "",
+    difficulty: "",
+    skillCategory: "",
+    options: null,
+    answer: "",
+    explanation: "",
+  });
+  const [isAddModalOpen, setAddModalOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [questionIndex, setQuestionIndex] = useState(null);
 
   const updateMessage = (value, type, isOpen) => {
     setMessage(value);
@@ -39,11 +62,32 @@ const QuestionnairePage = (props) => {
   // Fetch questionnaire data
   const loadQuestionnaire = async () => {
     try {
-      const { data, name } = await fetchCandidateQuestionnaire(token);
+      let data, jobTitle, candidateName;
+
+      if (isCandidate || isEdit) {
+        const categories = await getSkillCategories(token);
+        setSkillCategories(categories);
+        const result = await fetchJobQuestionnaire(token);
+        data = result.data;
+        jobTitle = result.jobTitle;
+      } else {
+        // Fetch questionnaire data for a non-candidate (e.g., recruiter)
+        const result = await fetchCandidateQuestionnaire(token);
+        data = result.data;
+        jobTitle = result.jobTitle;
+        candidateName = result.name;
+      }
+
+      // Update state with the fetched data
       setQuestionnaireData(data);
-      setName(name);
+      setJobTitle(jobTitle);
+
+      if (candidateName) {
+        setName(candidateName);
+      }
     } catch (error) {
       console.error("Error fetching questionnaire data:", error);
+      updateMessage("Failed to load the questionnaire. Please try again.", "error", true);
     }
   };
 
@@ -123,21 +167,26 @@ const QuestionnairePage = (props) => {
           score: scores[index], // Add the score for this question
         }));
   
+        // Update the questionnaireData object with the new fields
+        const updatedQuestionnaireData = {
+          ...questionnaireData, // Keep all existing fields
+          totalScore: overallScore + '%', // Update totalScore
+          isAnswered: true, // Update isAnswered
+          questions: updatedQuestions, // Update questions with candidateAnswer and score
+        };
+  
         // Update the candidate's document in Firestore
-        const candidateDoc = doc(db, "candidates", token);
+        const candidateDoc = doc(db, "candidates", candidateId);
         await updateDoc(candidateDoc, {
-          "questionnaireData.totalScore": overallScore, // Update totalScore
-          "questionnaireData.isAnswered": true, // Update isAnswered
-          "questionnaireData.questions": updatedQuestions, // Update questions with candidateAnswer and score
+          questionnaireData: updatedQuestionnaireData, // Save the updated questionnaireData
         });
 
-        questionnaireData.totalScore = overallScore;
-        questionnaireData.isAnswered = true;
-        questionnaireData.questions = updatedQuestions;
+        // Update local state with the updated questionnaireData
+        setQuestionnaireData(updatedQuestionnaireData);
   
         // Show success message
         updateMessage(
-          `Thank you for completing the questionnaire! Your score is ${overallScore}.`,
+          `Thank you for completing the questionnaire!.`,
           "success",
           true
         );
@@ -156,85 +205,271 @@ const QuestionnairePage = (props) => {
     setTimeout(() => setLoading(false), 500);
   };
 
+  // Check if candidate details match
+  const verifyCandidate = async () => {
+    try {
+      const candidatesCollection = collection(db, "candidates");
+
+      const q = query(
+        candidatesCollection,
+        where("contact.name", "==", name),
+        where("contact.phone", "==", phoneNumber),
+        where("jobTitle", "==", jobTitle),
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        updateMessage("Full name/Phone number doesn't match! Please try again.", "error", true);
+        return;
+      }
+
+      const existingCandidateDoc = querySnapshot.docs[0];
+      setIsAnswered(existingCandidateDoc.data().questionnaireData?.isAnswered);
+      setCandidateId(existingCandidateDoc.id);
+      setIsCandidateVerified(true);
+    } catch (error) {
+      console.error("Error verifying candidate:", error);
+      updateMessage("Failed to verify candidate details. Please try again.", "error", true);
+    }
+  };
+
+  const handleAddInputChange = (e) => {
+    const { name, value } = e.target;
+    setQuestion((prev) => ({ ...prev, [name]: name === "options" ? value.split(",") : value }));
+  };
+
+  const handleAddQuestion = async () => {
+    if (!question.question || !question.answer) {
+      updateMessage("Please fill in all required fields", "warning", true);
+      return;
+    }
+  
+    try {
+      setLoading(true);
+      const updatedQuestions = [...questionnaireData.questions, question];
+      const updatedQuestionnaireData = {
+        ...questionnaireData,
+        questions: updatedQuestions,
+        version: "Customized",
+        timestamp: serverTimestamp(),
+      };
+
+      setQuestionnaireData(updatedQuestionnaireData);
+  
+      // Update the questionnaire data in Firestore
+      const jobDoc = doc(db, "jobs", token);
+      await updateDoc(jobDoc, {
+        questionnaireData: updatedQuestionnaireData,
+      });
+  
+      // Update local state
+      setQuestion({
+        question: null,
+        difficulty: null,
+        skillCategory: null,
+        options: null,
+        answer: null,
+        explanation: null,
+      });
+      setTimeout(() => setLoading(false), 300);
+      setTimeout(() => setAddModalOpen(false), 500);
+      updateMessage("Question added successfully", "success", true);
+    } catch (error) {
+      setLoading(false);
+      console.error("Error adding question:", error);
+      setTimeout(() => setLoading(false), 300);
+      setTimeout(() => setAddModalOpen(false), 500);
+      updateMessage("Failed to add question", "error", true);
+    }
+  };
+
+  const handleDeleteQuestion = async (questionIndex) => {
+    setConfirming(true);
+    try {
+      // Create a copy of the current questions array
+      const updatedQuestions = [...questionnaireData.questions];
+  
+      // Remove the question at the specified index
+      updatedQuestions.splice(questionIndex, 1);
+  
+      // Update the questionnaireData with the new questions array
+      const updatedQuestionnaireData = {
+        ...questionnaireData,
+        questions: updatedQuestions,
+        version: "Customized",
+        timestamp: serverTimestamp(),
+      };
+  
+      // Update the questionnaire data in Firestore
+      const jobDoc = doc(db, "jobs", token);
+      await updateDoc(jobDoc, {
+        questionnaireData: updatedQuestionnaireData,
+      });
+  
+      setQuestionnaireData(updatedQuestionnaireData);
+      setTimeout(() => setConfirming(false), 300);
+      setTimeout(() => setShowConfirm(false), 500);
+      updateMessage("Question deleted successfully", "success", true);
+    } catch (error) {
+      setTimeout(() => setConfirming(false), 300);
+      setTimeout(() => setShowConfirm(false), 500);
+      console.error("Error deleting question:", error);
+      updateMessage("Failed to delete question", "error", true);
+    }
+  };
+
+  const handleShowConfirmation = (index) => {
+    setShowConfirm(true);
+    setQuestionIndex(index);
+  };
+
+  const answerColor = (option, data) => {
+    if (option === data.answer) return 'status-color passed';
+    else if (option === data.candidateAnswer) return 'status-color failed';
+    else return '';
+  }
+
   // Fetch questionnaire data on component mount
   useEffect(() => {
     loadQuestionnaire();
+    setEditable(isEdit);
   }, [token]);
 
   return (
     <div className="questionnaire-page-container">
       <div className="card-container">
-        <div className="card-title">Technical Assessment Questionnaire</div>
-        {isCandidate && !questionnaireData?.isAnswered ?
+        <div className="card-title">
+          <span>Technical Assessment Questionnaire - {jobTitle}</span>
+          {editable &&
+          <button 
+            onClick={() => setAddModalOpen(true)}
+            style={{width: 'max-content', float: 'right'}} 
+            className="primary-button"
+          >
+            Add Question
+          </button>}
+        </div>
+        {isCandidate && !isAnswered ?
         <div className="card-description">
-          Welcome {name}! Please answer the following questions to the best of your ability.<br/>
+          Welcome Applicant! Please answer the following questions to the best of your ability.<br/>
           Select the most appropriate option where applicable. If a question does not have options,<br/>
           provide a detailed answer based on your knowledge and experience.
-        </div> : isCandidate && questionnaireData?.isAnswered ?
+        </div> : isCandidate && isAnswered ?
         <div>
           Thank you for completing the technical assessment. Our recruitment team will review<br/> your responses and contact you shortly regarding the status of your application.
         </div> :
+        (!editable &&
         <div className="card-title-2">
-          Total Score: <span className={`status-color ${getStatus(questionnaireData?.totalScore)}`}>{questionnaireData?.totalScore}%</span>
-        </div>}
+          Total Score: <span className={`status-color ${getStatus(questionnaireData?.totalScore)}`}>{questionnaireData?.totalScore}</span>
+        </div>)}
       </div>
-
-      {(!isCandidate || !questionnaireData?.isAnswered) &&
-      <form className="questionnaire-form" onSubmit={handleSubmit}>
-        {questionnaireData?.questions.map((data, index) => (
-          <div key={index} className="card-container">
-            <div style={{display: 'flex', justifyContent: 'space-between'}}>
-              <div>
-                <div className="card-title-2">{data.question}</div>
-                <div className="card-description">{data.skillCategory}</div>
-              </div>
-              <Chip sx={{float: 'right'}} id="tags" label={data.difficulty}/>
-            </div>
-            {data.options ? (
-              data.options.map((option, optionIndex) => (
-                <div key={optionIndex}>
-                  <label className="radio-option">
-                    <input
-                      disabled={!isCandidate}
-                      className="radio-option"
-                      type="radio"
-                      name={`question-${index}`}
-                      value={option || data.candidateAnswer}
-                      onChange={() => handleAnswerChange(data.question, option)}
-                      checked={answers[data.question] === option || data.candidateAnswer}
-                    />
-                    {option}
-                  </label>
+      {isCandidate && !isCandidateVerified && (
+        <div className="card-container">
+          <div className="card-title">Please Enter Your Details</div>
+          <input
+            required
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            required
+            placeholder="Phone Number"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+          />
+          <button
+            style={{marginTop: 10}}
+            className="primary-button"
+            onClick={verifyCandidate}
+            disabled={!name || !phoneNumber}
+          >
+            Verify
+          </button>
+        </div>
+      )}
+      {(!isCandidate || (isCandidateVerified && !isAnswered )) && (
+        <form className="questionnaire-form" onSubmit={handleSubmit}>
+          {questionnaireData?.questions.map((data, index) => (
+            <div key={index} className="card-container">
+              <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                <div>
+                  <div className="card-title-2">{data.question}</div>
+                  <div className="card-description">{data.skillCategory}</div>
                 </div>
-              ))
-            ) : (
-              <textarea
-                disabled={!isCandidate}
-                placeholder="Type your answer here..."
-                onChange={(e) =>
-                  handleAnswerChange(data.question, e.target.value)
-                }
-                value={answers[data.question] || data.candidateAnswer}
-              />
-            )}
-          </div>
-        ))}
-        {isCandidate && !questionnaireData?.isAnswered &&
-        <button
-          style={{ width: 120, marginLeft: "auto" }}
-          type="submit"
-          className="primary-button"
-          disabled={!isAllQuestionsAnswered() || loading} // Disable the button if not all questions are answered
-        >
-          {loading ?
-            <div>
-              <CircularProgress thickness={5} size={10} color='black'/>Submitting...
-            </div> :
-            "Submit"
-          }
-        </button>}
-      </form>}
-
+                <Chip sx={{float: 'right'}} id="tags" label={data.difficulty}/>
+              </div>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20}}>
+              <div style={{width: '100%'}}>
+              {data.options ? (
+                data.options.map((option, optionIndex) => (
+                  <div style={{margin: '4px 0'}} key={optionIndex}>
+                    <label className={`radio-option ${!isCandidate && answerColor(option, data)}`}>
+                      <input
+                        disabled={!isCandidate}
+                        className="radio-option"
+                        type="radio"
+                        name={`question-${index}`}
+                        value={option || data.candidateAnswer}
+                        onChange={() => handleAnswerChange(data.question, option)}
+                        checked={answers[data.question] === option || data.candidateAnswer === option}
+                      />
+                      {option}
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <textarea
+                  style={{width: '100%', minHeight: 70}}
+                  disabled={!isCandidate}
+                  placeholder="Type your answer here..."
+                  onChange={(e) =>
+                    handleAnswerChange(data.question, e.target.value)
+                  }
+                  value={answers[data.question] || data.candidateAnswer}
+                />
+              )}
+              </div>
+              {editable && 
+              <Tooltip title="Delete">
+                <img onClick={() => handleShowConfirmation(index)} src={DeleteIcon}/>
+              </Tooltip>}
+              </div>
+            </div>
+          ))}
+          {isCandidate &&
+          <button
+            style={{ width: 120, marginLeft: "auto" }}
+            type="submit"
+            className="primary-button"
+            disabled={!isAllQuestionsAnswered() || loading} // Disable the button if not all questions are answered
+          >
+            {loading ?
+              <div>
+                <CircularProgress thickness={5} size={10} color='black'/>Submitting...
+              </div> :
+              "Submit"
+            }
+          </button>}
+        </form>
+      )}
+      <AddQuestionModal
+        open={isAddModalOpen}
+        close={() => setAddModalOpen(false)}
+        loading={loading}
+        skillCategories={skillCategories}
+        question={question}
+        handleAddInputChange={handleAddInputChange}
+        handleAddQuestion={handleAddQuestion}
+      />
+      <ConfirmModal
+        open={showConfirm}
+        close={() => setShowConfirm(false)}
+        delete={() => handleDeleteQuestion(questionIndex)}
+        item={"question"}
+        loading={confirming}
+      />
       <Snackbar
         autoHideDuration={5000}
         open={open}

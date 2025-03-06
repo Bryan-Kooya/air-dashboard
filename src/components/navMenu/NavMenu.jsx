@@ -3,7 +3,7 @@ import "./NavMenu.css";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AIRIcon, AIRLogo } from "../../assets/images";
 import { Divider } from "@mui/material";
-import { AIAnalyzerIcon, DashboardIcon, MessageIcon, JobPostIcon, MatchIcon, BillingIcon, HelpIcon, CandidatesIcon, CVIcon } from "../../assets/images";
+import { AIAnalyzerIcon, DashboardIcon, MessageIcon, JobPostIcon, MatchIcon, BillingIcon, HelpIcon, CandidatesIcon, CVIcon, ListIcon, Questionnaire } from "../../assets/images";
 
 const menuList = [
   // {name: "AI Resume Analyzer", icon: AIAnalyzerIcon, path: "/ai-resume-analyzer"},
@@ -13,6 +13,7 @@ const menuList = [
   { name: "Job Definitions", icon: JobPostIcon, path: "/job-definitions" },
   { name: "Match Candidates", icon: MatchIcon, path: "/match-candidates" },
   { name: "Candidates Status", icon: CandidatesIcon, path: "/candidates-status" },
+  { name: "Questionnaires", icon: Questionnaire, path: "/questionnaires" },
   { name: "Billing", icon: BillingIcon, path: "/billing" },
   { name: "Help", icon: HelpIcon, path: "/help" },
 ];
