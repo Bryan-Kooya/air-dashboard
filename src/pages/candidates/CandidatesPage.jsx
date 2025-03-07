@@ -222,7 +222,7 @@ const CandidatesPage = (props) => {
 
   const handleViewDetails = async (index) => {
     const {data} = await fetchJobQuestionnaire(filteredCandidates[index]?.jobId);
-    setQuestionnaireLink(data.link);
+    setQuestionnaireLink(data?.link);
     setSelectedCandidate(filteredCandidates[index]);
     setViewDetails(true);
   };

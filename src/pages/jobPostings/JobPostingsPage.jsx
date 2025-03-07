@@ -673,7 +673,7 @@ const JobPostingsPage = (props) => {
                   </Tooltip>
                   {generating ?
                   <CircularProgress thickness={5} size={10} color='#0a66c2'/> :
-                  <Tooltip title="Generate Questionnaire Link">
+                  <Tooltip title="Generate questionnaire link">
                     <img
                       onClick={() => handleGenerateLink(job)} 
                       src={Question} 

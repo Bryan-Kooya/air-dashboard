@@ -241,12 +241,15 @@ const CandidateDetailsModal = (props) => {
                 </div>
                 {isEditable &&
                 <div className='checkbox-container'>
-                  <input 
-                    className='input-checkbox' 
-                    type="checkbox"
-                    checked={includeLink}
-                    onChange={(e) => setIncludeLink(e.target.checked)}
-                  />
+                  <Tooltip title={!questionnaireLink && 'Generate questionnaire link to enable'}>
+                    <input 
+                      disabled={!questionnaireLink}
+                      className='input-checkbox' 
+                      type="checkbox"
+                      checked={includeLink}
+                      onChange={(e) => setIncludeLink(e.target.checked)}
+                    />
+                  </Tooltip>
                   <span>Include questionnaire link in email template</span>
                 </div>}
               </div>
