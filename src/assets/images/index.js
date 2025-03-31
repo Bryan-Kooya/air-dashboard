@@ -46,7 +46,14 @@ import CirclePlus from "./CirclePlus.svg";
 import ListIcon from "./ListIcon.svg";
 import Questionnaire from "./Questionnaire.svg";
 import Link from "./Link.svg";
-
+import EyeIcon from "./Eye.svg";
+import EyeSlash from "./EyeSlash.svg";
+import CloudArrow from "./CloudArrow.svg";
+import LocationIcon from "./LocationIcon.svg";
+import StackDollar from "./StackDollar.svg";
+import BuildingIcon from "./BuildingIcon.svg";
+import CalendarIcon from "./CalendarIcon.svg";
+import IndustryIcon from "./IndustryIcon.svg";
 
 export {
   Apple,
@@ -97,4 +104,12 @@ export {
   ListIcon,
   Questionnaire,
   Link,
+  EyeIcon,
+  EyeSlash,
+  CloudArrow,
+  LocationIcon,
+  StackDollar,
+  BuildingIcon,
+  CalendarIcon,
+  IndustryIcon,
 };

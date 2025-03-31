@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./LoginPage.css"
 import { useNavigate } from "react-router-dom";
 import { observeAuthState, loginUser, registerUser } from "../../authService";
-import { ShowPassword, HidePassword, TalentTap } from "../../assets/images";
+import { EyeIcon, EyeSlash, TalentTap } from "../../assets/images";
 
 const LoginPage = (props) => {
   const [user, setUser] = useState(null);
@@ -64,7 +64,7 @@ const LoginPage = (props) => {
               placeholder="Password"
               value={password}
               onChange={(e) => {setError(''); setPassword(e.target.value)}}
-            /><img className="input-icon" onClick={togglePasswordVisibility} src={showPassword ? HidePassword : ShowPassword}/>
+            /><img className="input-icon" onClick={togglePasswordVisibility} src={showPassword ? EyeSlash : EyeIcon}/>
           </div>
           {error && <div className="error-message">{error}</div>}
           <button className="login-btn" type="submit">Sign in</button>

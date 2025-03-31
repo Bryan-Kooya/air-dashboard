@@ -48,19 +48,19 @@ const CandidateCard = (props) => {
       </div>
       <div className='candidate-card-row3'>
         <div>
-          <div>Resume Quality</div>
+          <div>Overall Match</div>
           <div className='score-row'>
             <LinearProgress
               id='score-bar' 
               variant="determinate" 
-              value={candidate.scores?.presentation.score}
+              value={candidate.jobMatchScore?.overallScore.finalScore}
               sx={{
                 "& .MuiLinearProgress-bar": {
                   backgroundColor: "#0A66C2",
                 },
               }}
             />
-            <span>{candidate.scores?.presentation.score}%</span>
+            <span>{candidate.jobMatchScore?.overallScore.finalScore}%</span>
           </div>
         </div>
         <div>
@@ -69,21 +69,21 @@ const CandidateCard = (props) => {
             <LinearProgress 
               id='score-bar' 
               variant="determinate" 
-              value={candidate.scores?.job_title_relevance.score}
+              value={candidate.jobMatchScore?.tagScore.finalScore}
               sx={{
                 "& .MuiLinearProgress-bar": {
-                  backgroundColor: candidate.scores?.job_title_relevance.score < 85 ? "#FFB20D" : "#22c55e",
+                  backgroundColor: candidate.jobMatchScore?.tagScore.finalScore < 85 ? "#FFB20D" : "#22c55e",
                 },
               }}
             />
-            <span>{candidate.scores?.job_title_relevance.score}%</span>
+            <span>{candidate.jobMatchScore?.tagScore.finalScore}%</span>
           </div>
         </div>
       </div>
       <div className='candidate-card-row3'>
         <div>Matched Job: <span style={{fontWeight: 600}}>{matchedJob}</span></div>
         <div style={{display: 'flex', flexWrap: 'wrap'}}>
-          {candidate.skill_match.matching_skills.map((tag, index) => (
+          {candidate.scores.skill_match.matching_skills.map((tag, index) => (
             <Chip key={index} style={{ marginLeft: 0}} id='tags' label={tag} />
           ))}
         </div>

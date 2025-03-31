@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import "./EditJobModal.css";
-import { Modal, Chip, CircularProgress, Menu, MenuItem } from '@mui/material';
+import { Modal, Chip, CircularProgress, Menu, MenuItem, Select } from '@mui/material';
 import { CirclePlus } from '../../assets/images';
 
 const EditJobModal = (props) => {
+  const years = ["<1 year", "2-4 years", "5-7 years", "8-10 years", "11+ years"]
+  const industries = ["Bank", "Health", "Insurance", "IT", "Security", "Others"];
   const isOpen = props.open;
   const selectedJob = props.job;
   const isClose = props.close;
@@ -26,6 +28,10 @@ const EditJobModal = (props) => {
       selectedJob.enableMandatory = false;
     }
   }, [selectedJob.required_tags]);
+
+  const hasYearTag = () => {
+    return tags?.some(tag => /\d+-\d+\s*(year|years|שנה|שנים)/i.test(tag));
+  };
 
   // Function to handle tag click
   const handleTagClick = async (tag) => {
@@ -95,13 +101,23 @@ const EditJobModal = (props) => {
           <div className="input-row">
             <div className="card-row">
               <div className="row-title">Company Industry:</div>
-              <input 
-                placeholder="Enter company industry"
-                className="job-info-input"
+              <Select
+                id="select-input"
+                displayEmpty
                 name="industry"
                 value={selectedJob.industry}
                 onChange={handleEditInputChange}
-              />
+                renderValue={() =>
+                  selectedJob.industry ? selectedJob.industry : "Select company industry"
+                }
+              >
+                {industries
+                  .map((industry, index) => (
+                    <MenuItem id="options" key={index} value={industry}>
+                      {industry}
+                    </MenuItem>
+                  ))}
+              </Select>
             </div>
             <div className="card-row">
               <div className="row-title">Company location:</div>
@@ -114,38 +130,61 @@ const EditJobModal = (props) => {
               />
             </div>
           </div>
-          <div className='card-row'>
-            <div className='row-title'>Mandatory Tags:</div>
-            {selectedJob.required_tags?.length === 0 && 
-            <div style={{width: 'fit-content'}} className="error-message">
-              The Mandatory Tags feature for this job will be disabled because no tags have been added.
-            </div>}
-            <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'center'}}>
-              {localRequiredTags.slice(0, 2).map((tag, index) => (
-                <Chip
-                  key={index}
-                  id='tags'
-                  label={tag}
-                  onDelete={() => handleRemoveTag(tag)} // Add delete button
-                />
-              ))}
-              <img onClick={handleMenuOpen} style={{margin: 4}} height={20} src={CirclePlus}/>
-              <Menu
-                // sx={{marginTop: '11px', left: '-32px'}}
-                anchorEl={filterAnchorEl}
-                open={Boolean(filterAnchorEl)}
-                onClose={handleMenuClose}
-              >
-                {selectedJob.job_title_tags?.map((tag, index) => (
-                  <MenuItem
-                    id="options"
-                    onClick={() => handleTagClick(tag)}
-                    disabled={localRequiredTags.includes(tag)}
-                  >
-                    {tag}
-                  </MenuItem>
+          <div className="input-row">
+            <div className='card-row'>
+              <div className='row-title'>Mandatory Tags:</div>
+              {selectedJob.required_tags?.length === 0 && 
+              <div style={{width: 'fit-content'}} className="error-message">
+                The Mandatory Tags feature for this job will be disabled because no tags have been added.
+              </div>}
+              <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'center'}}>
+                {localRequiredTags.slice(0, 2).map((tag, index) => (
+                  <Chip
+                    key={index}
+                    id='tags'
+                    label={tag}
+                    onDelete={() => handleRemoveTag(tag)} // Add delete button
+                  />
                 ))}
-              </Menu>
+                <img onClick={handleMenuOpen} style={{margin: 4}} height={20} src={CirclePlus}/>
+                <Menu
+                  // sx={{marginTop: '11px', left: '-32px'}}
+                  anchorEl={filterAnchorEl}
+                  open={Boolean(filterAnchorEl)}
+                  onClose={handleMenuClose}
+                >
+                  {selectedJob.job_title_tags?.map((tag, index) => (
+                    <MenuItem
+                      id="options"
+                      onClick={() => handleTagClick(tag)}
+                      disabled={localRequiredTags.includes(tag)}
+                    >
+                      {tag}
+                    </MenuItem>
+                  ))}
+                </Menu>
+              </div>
+            </div>
+            <div className="card-row">
+              <div className="row-title">Years of experience:</div>
+              <Select
+                id="select-input"
+                displayEmpty
+                value={selectedJob?.years}
+                name='years'
+                onChange={handleEditInputChange}
+                disabled={hasYearTag()} // Disable if years of experience tag exists
+                renderValue={() =>
+                  selectedJob?.years ? selectedJob?.years: "Select Years"
+                }
+              >
+                {years
+                  .map((year, index) => (
+                    <MenuItem id="options" key={index} value={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+              </Select>
             </div>
           </div>
           <div className='card-row'>
@@ -153,6 +192,7 @@ const EditJobModal = (props) => {
             <div>
               {tags?.map((tag, index) => (
                 <Chip
+                  onClick={() => handleTagClick(tag)}
                   id='tags'
                   key={index}
                   label={tag}

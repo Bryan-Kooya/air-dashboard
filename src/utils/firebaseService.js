@@ -445,7 +445,9 @@ const extractQuestionnaires = (jobs) => {
   return jobs.map((job) => ({
     id: job.id,
     job_title: job.job_title,
+    description: job.description,
     company_name: job.company_name,
+    language: job.language,
     data: job.questionnaireData,
     timestamp: job.timestamp,
   }));
@@ -482,7 +484,7 @@ export const fetchPaginatedQuestionnaires = async (pageSize, lastVisibleDoc = nu
     let q = query(
       jobsCollection,
       where("userId", "==", userId),
-      where("questionnaireData", "!=", null), // Filter jobs with questionnaireData
+      // where("questionnaireData", "!=", null), // Filter jobs with questionnaireData
       orderBy("timestamp"),
       limit(pageSize)
     );
@@ -491,7 +493,7 @@ export const fetchPaginatedQuestionnaires = async (pageSize, lastVisibleDoc = nu
       q = query(
         jobsCollection,
         where("userId", "==", userId),
-        where("questionnaireData", "!=", null), // Filter jobs with questionnaireData
+        // where("questionnaireData", "!=", null), // Filter jobs with questionnaireData
         orderBy("timestamp"),
         startAfter(lastVisibleDoc),
         limit(pageSize)
@@ -501,7 +503,7 @@ export const fetchPaginatedQuestionnaires = async (pageSize, lastVisibleDoc = nu
     const snapshot = await getDocs(q);
 
     // Query for counting total documents that match the userId and have questionnaireData
-    const countQuery = query(jobsCollection, where("userId", "==", userId), where("questionnaireData", "!=", null));
+    const countQuery = query(jobsCollection, where("userId", "==", userId));
     const totalSnapshot = await getCountFromServer(countQuery);
     const totalDocuments = totalSnapshot.data().count;
 

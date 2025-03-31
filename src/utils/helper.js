@@ -1,9 +1,57 @@
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import mammoth from "mammoth";
 import JSZip from 'jszip';
+import { googleApiKey, mapApiKey, israeli_universities, industries } from "./constants";
 
 // Set the worker source to the local file
 GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
+export const geocodeAddress = async (address) => {
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${mapApiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.status === 'OK' && data.results.length > 0) {
+      const location = data.results[0].geometry.location;
+      return { lat: location.lat, lng: location.lng };
+    }
+    throw new Error(`Geocoding failed: ${data.status}`);
+  } catch (error) {
+    console.error("Error geocoding address:", error);
+    throw error;
+  }
+};
+
+// Helper: Convert degrees to radians
+const toRadians = (degrees) => degrees * (Math.PI / 180);
+
+// Helper: Calculate distance in kilometers using the Haversine formula
+const calculateDistance = (loc1, loc2) => {
+  console.log('loc1, loc2', loc1, loc2)
+  const R = 6371; // Radius of the Earth in km
+  const dLat = toRadians(loc2.lat - loc1.lat);
+  const dLon = toRadians(loc2.lng - loc1.lng);
+  const lat1 = toRadians(loc1.lat);
+  const lat2 = toRadians(loc2.lat);
+  
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1) * Math.cos(lat2) *
+            Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Helper: Get location score based on distance (in km) with maximum score of 10
+const getLocationScore = (distance) => {
+  if (distance <= 10) return 10;
+  if (distance <= 15) return 9;
+  if (distance <= 20) return 8;
+  if (distance <= 25) return 7;
+  if (distance <= 30) return 6;
+  if (distance <= 40) return 5;
+  if (distance <= 50) return 2.5;
+  return 0;
+};
 
 export const extractTextFromPDF = async (pdfUrl) => {
   const loadingTask = getDocument(pdfUrl);
@@ -28,6 +76,7 @@ export const extractTextFromPDF = async (pdfUrl) => {
 
   return extractedText.trim(); // Return the extracted text
 };
+
 export const extractTextFromDocx = async (docxUrl) => {
   const response = await fetch(docxUrl);
   const arrayBuffer = await response.arrayBuffer();
@@ -62,8 +111,7 @@ export const getInitials = (name) => {
 
 export const translateToEnglish = async (text) => {
   try {
-    const apiKey = 'AIzaSyBpiGRjYvgayUj1sOg7XGj010vZanq6ZO8';
-    const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+    const url = `https://translation.googleapis.com/language/translate/v2?key=${googleApiKey}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -86,8 +134,7 @@ export const translateToEnglish = async (text) => {
 
 export const translateToHebrew = async (text) => {
   try {
-    const apiKey = 'AIzaSyBpiGRjYvgayUj1sOg7XGj010vZanq6ZO8';
-    const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+    const url = `https://translation.googleapis.com/language/translate/v2?key=${googleApiKey}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -138,7 +185,7 @@ export const formatTimestamp = (timestamp) => {
     // Format the date and time
     const options = {
       year: 'numeric',
-      month: 'long',
+      month: 'numeric',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
@@ -153,4 +200,187 @@ export const formatTimestamp = (timestamp) => {
     console.error("Error formatting timestamp:", error);
     return "N/A"; // Return a default value in case of any unexpected errors
   }
+};
+
+export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jobIndustry, filtersData, jobTags) => {
+  // Calculate tag matching score (max 50)
+  const updatedJobTags = Array.from(new Set([...jobTitleTags, ...jobTags]));
+  const scorePerTag = jobTags.length > 0 ? (50 / jobTags.length) : 0;
+  const matchedTags = [];
+  let tagTotalScore = 0;
+  
+  // List of fields to compare against for tag matching
+  const tagFields = [
+    'alternative_job_title_tags_en',
+    'alternative_job_title_tags_he',
+    'alternative_mandatory_tags_en',
+    'alternative_mandatory_tags_he',
+    'job_title_tags',
+    'mandatory_tags',
+    'skills',
+  ];
+  
+  updatedJobTags.forEach(tag => {
+    const tagExists = tagFields.some(field => {
+      const contactTags = contact[field];
+      return contactTags && contactTags.includes(tag);
+    });
+    if (tagExists) {
+      tagTotalScore += scorePerTag;
+      matchedTags.push(tag);
+    }
+  });
+
+  // Tag score breakdown
+  const finalTagScore = Math.min(tagTotalScore, 50);
+  const tagScoreFinal = Math.round(finalTagScore * 2);
+
+  // Location score breakdown
+  let locationBaseScore = 10;
+  let distance = 0;
+  let jobLocationCoords;
+  let contactLocationCoords;
+  if (filtersData?.location && jobLocation && contact.location) {
+    jobLocationCoords = typeof jobLocation === 'string' 
+      ? await geocodeAddress(jobLocation) 
+      : jobLocation;
+    contactLocationCoords = typeof contact.location === 'string' 
+      ? await geocodeAddress(contact.location) 
+      : contact.location;
+    distance = calculateDistance(jobLocationCoords, contactLocationCoords);
+    locationBaseScore = getLocationScore(distance);
+  }
+  const locationScoreFinal = Math.round(locationBaseScore * 10);
+
+  // Institution score breakdown
+  let institutionScore = 10;
+  let institutionName = null;
+  if (filtersData?.institution) {
+    institutionScore = 0;
+    const getInstitutionScore = (name) => {
+      if (!name) return 0;
+      const normalizedName = name.trim().toLowerCase();
+      const university = israeli_universities.find(u => 
+        u.name.trim().toLowerCase() === normalizedName
+      );
+      if (university) institutionName = university.name;
+      return university?.score;
+    };
+    if (contact.education?.length) {
+      for (const edu of contact.education) {
+        if (edu.institution) {
+          const scoreInstitution = getInstitutionScore(edu.institution);
+          if (scoreInstitution !== undefined) {
+            institutionScore = scoreInstitution;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Industry score breakdown
+  let industryScore = 10;
+  let industryName = null;
+  if (filtersData?.industry) {
+    industryScore = 0;
+    const getIndustryScore = (name) => {
+      if (!name || !jobIndustry) return 0;
+      const normalizedName = name.trim().toLowerCase();
+      // Normalize jobIndustry to lower case for consistent comparison
+      const industryList = industries.find(ind => ind.type.toLowerCase() === jobIndustry.toLowerCase());
+      if (!industryList) return 0;
+      // Search for a matching institution in the industry list using both English and Hebrew names
+      const industry = industryList.list.find(u => 
+        (u.name_en && u.name_en.trim().toLowerCase() === normalizedName) ||
+        (u.name_he && u.name_he.trim().toLowerCase() === normalizedName)
+      );
+      if (industry) {
+        industryName = industry.name_he || industry.name_en;
+        return industry.score;
+      }
+      return 0;
+    };
+    if (contact.education?.length) {
+      for (const edu of contact.education) {
+        if (edu.institution) {
+          const scoreIndustry = getIndustryScore(edu.institution);
+          if (scoreIndustry !== undefined) {
+            industryScore = scoreIndustry;
+            break;
+          }
+        }
+      }
+    }
+    if (contact.work_experience?.length) {
+      for (const work of contact.work_experience) {
+        if (work.company) {
+          const scoreIndustry = getIndustryScore(work.company);
+          if (scoreIndustry !== undefined) {
+            industryScore = scoreIndustry;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  const institutionScoreFinal = Math.round(institutionScore * 10);
+  const industryScoreFinal = Math.round(industryScore * 10);
+
+  // Other scores (to be implemented)
+  const salaryBase = 10;
+  const workSetupBase = 5;
+  const workShiftBase = 5;
+
+  const baseOverallScore = finalTagScore + locationBaseScore + institutionScore + industryScore + salaryBase + workSetupBase + workShiftBase;
+  const finalOverallScore = Math.round(baseOverallScore);
+
+  return {
+    tagScore: {
+      baseScore: tagTotalScore,
+      maxPossible: 50,
+      cappedScore: finalTagScore,
+      finalScore: tagScoreFinal,
+      matchedTags,
+      calculation: `min(${tagTotalScore}, 50) × 2`
+    },
+    locationScore: {
+      baseScore: locationBaseScore,
+      distanceKm: distance,
+      finalScore: locationScoreFinal,
+      calculation: `${locationBaseScore} × 10`
+    },
+    institutionScore: {
+      baseScore: institutionScore,
+      institutionName: institutionName,
+      finalScore: institutionScoreFinal,
+      calculation: `${institutionScore} × 10`
+    },
+    industryScore: {
+      baseScore: industryScore,
+      finalScore: industryScoreFinal,
+      industryName: industryName,
+      calculation: `${industryScore} × 10`
+    },
+    salaryScore: {
+      baseScore: salaryBase,
+      finalScore: Math.round(salaryBase * 10),
+      calculation: "Base score (to be implemented)"
+    },
+    workSetupScore: {
+      baseScore: workSetupBase,
+      finalScore: Math.round(workSetupBase * 20),
+      calculation: "Base score (to be implemented)"
+    },
+    workShiftScore: {
+      baseScore: workShiftBase,
+      finalScore: Math.round(workShiftBase * 20),
+      calculation: "Base score (to be implemented)"
+    },
+    overallScore: {
+      baseScore: baseOverallScore,
+      finalScore: finalOverallScore,
+    }
+  };
 };

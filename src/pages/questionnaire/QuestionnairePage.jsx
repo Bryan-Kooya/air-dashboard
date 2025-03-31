@@ -10,6 +10,7 @@ import { apiBaseUrl } from "../../utils/constants";
 import { DeleteIcon } from "../../assets/images";
 import AddQuestionModal from "../../components/addQuestionModal/AddQuestionModal";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
+import Mailgun from "mailgun.js";
 
 const QuestionnairePage = (props) => {
   const location = useLocation();
@@ -18,9 +19,15 @@ const QuestionnairePage = (props) => {
   
   const isCandidate = props.isCandidate;
 
+  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString(); // Generate a 6-digit OTP
+
   const [questionnaireData, setQuestionnaireData] = useState(null);
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [candidateId, setCandidateId] = useState("");
   const [answers, setAnswers] = useState({});
   const [message, setMessage] = useState("");
@@ -45,6 +52,28 @@ const QuestionnairePage = (props) => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(null);
+  const [currentPage, setCurrentPage] = useState('General');
+
+  // Separate General and Technical questions
+  const generalQuestions = questionnaireData?.questions.filter(q => q.skillCategory === 'General') || [];
+  const technicalQuestions = questionnaireData?.questions.filter(q => q.skillCategory !== 'General') || [];
+  const sortedQuestions = [...generalQuestions, ...technicalQuestions];
+
+  const questions = () => {
+    if(isCandidate) {
+      if(currentPage === 'General') return generalQuestions;
+      else return technicalQuestions;
+    } else return sortedQuestions;
+  }
+
+  // Function to handle the "Next" button click
+  const handleNext = () => {
+    setCurrentPage('Technical');
+  };
+
+  const handlePrevious = () => {
+    setCurrentPage('General');
+  };
 
   const updateMessage = (value, type, isOpen) => {
     setMessage(value);
@@ -212,15 +241,14 @@ const QuestionnairePage = (props) => {
 
       const q = query(
         candidatesCollection,
-        where("contact.name", "==", name),
-        where("contact.phone", "==", phoneNumber),
+        where("contact.email", "==", email),
         where("jobTitle", "==", jobTitle),
       );
 
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        updateMessage("Full name/Phone number doesn't match! Please try again.", "error", true);
+        updateMessage("Email doesn't match! Please try again.", "error", true);
         return;
       }
 
@@ -234,13 +262,46 @@ const QuestionnairePage = (props) => {
     }
   };
 
+  const sendOtp = async () => {
+    try {
+      setOtp(generatedOtp); // Store the OTP in state (for verification purposes)
+  
+      const mailgun = new Mailgun({ username: 'api', key: "a1db0f17edd7de60eef6b9fdcb4222d5-623424ea-fdb43541" });
+      const mg = mailgun.client({ username: 'api', key: "a1db0f17edd7de60eef6b9fdcb4222d5-623424ea-fdb43541" });
+  
+      const data = {
+        from: "Your Company <noreply@yourcompany.com>",
+        to: email,
+        subject: "Your OTP for Verification",
+        text: `Your OTP is: ${generatedOtp}`,
+      };
+  
+      await mg.messages.create("sandbox9447ed16a7c24cb79ae24524586c5b0f.mailgun.org", data);
+      setIsOtpSent(true);
+      updateMessage("OTP sent successfully!", "success", true);
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      updateMessage("Failed to send OTP. Please try again.", "error", true);
+    }
+  };
+
+  const verifyOtp = () => {
+    if (otp === generatedOtp) { // Compare the entered OTP with the generated OTP
+      setIsOtpVerified(true);
+      setIsCandidateVerified(true);
+      updateMessage("OTP verified successfully!", "success", true);
+    } else {
+      updateMessage("Invalid OTP. Please try again.", "error", true);
+    }
+  };
+
   const handleAddInputChange = (e) => {
     const { name, value } = e.target;
     setQuestion((prev) => ({ ...prev, [name]: name === "options" ? value.split(",") : value }));
   };
 
   const handleAddQuestion = async () => {
-    if (!question.question || !question.answer) {
+    if (!question.question || (question.skillCategory !== 'General' && !question.answer)) {
       updateMessage("Please fill in all required fields", "warning", true);
       return;
     }
@@ -366,41 +427,55 @@ const QuestionnairePage = (props) => {
       </div>
       {isCandidate && !isCandidateVerified && (
         <div className="card-container">
-          <div className="card-title">Please Enter Your Details</div>
+          <div className="card-title">Please Enter Your Email</div>
           <input
             required
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
-          <input
-            required
-            placeholder="Phone Number"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-          />
-          <button
-            style={{marginTop: 10}}
-            className="primary-button"
-            onClick={verifyCandidate}
-            disabled={!name || !phoneNumber}
-          >
-            Verify
-          </button>
+          {!isOtpSent ? (
+            <button
+              style={{ marginTop: 10 }}
+              className="primary-button"
+              onClick={sendOtp}
+              disabled={!email}
+            >
+              Send OTP
+            </button>
+          ) : (
+            <>
+              <input
+                required
+                placeholder="Enter OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                style={{ marginTop: 10 }}
+              />
+              <button
+                style={{ marginTop: 10 }}
+                className="primary-button"
+                onClick={verifyOtp}
+                disabled={!otp}
+              >
+                Verify OTP
+              </button>
+            </>
+          )}
         </div>
       )}
       {(!isCandidate || (isCandidateVerified && !isAnswered )) && (
         <form className="questionnaire-form" onSubmit={handleSubmit}>
-          {questionnaireData?.questions.map((data, index) => (
-            <div key={index} className="card-container">
-              <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                <div>
-                  <div className="card-title-2">{data.question}</div>
-                  <div className="card-description">{data.skillCategory}</div>
-                </div>
-                <Chip sx={{float: 'right'}} id="tags" label={data.difficulty}/>
+        {questions().map((data, index) => (
+          <div key={index} className="card-container">
+            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+              <div>
+                <div className="card-title-2">{data.question}</div>
+                <div className="card-description">{data.skillCategory}</div>
               </div>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20}}>
+              <Chip sx={{float: 'right'}} id="tags" label={data.difficulty}/>
+            </div>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20}}>
               <div style={{width: '100%'}}>
               {data.options ? (
                 data.options.map((option, optionIndex) => (
@@ -435,24 +510,43 @@ const QuestionnairePage = (props) => {
               <Tooltip title="Delete">
                 <img onClick={() => handleShowConfirmation(index)} src={DeleteIcon}/>
               </Tooltip>}
-              </div>
             </div>
-          ))}
-          {isCandidate &&
+          </div>
+        ))}
+
+        {isCandidate && (
+        currentPage === 'General' ?
           <button
             style={{ width: 120, marginLeft: "auto" }}
-            type="submit"
+            type="button"
             className="primary-button"
-            disabled={!isAllQuestionsAnswered() || loading} // Disable the button if not all questions are answered
+            onClick={handleNext}
           >
-            {loading ?
-              <div>
-                <CircularProgress thickness={5} size={10} color='black'/>Submitting...
-              </div> :
-              "Submit"
-            }
-          </button>}
-        </form>
+            Next
+          </button> :
+          <div style={{display: 'flex', width: 250, gap: 8, marginLeft: 'auto'}}>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handlePrevious}
+            >
+              Previous
+            </button> 
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={!isAllQuestionsAnswered() || loading || !isOtpVerified}
+            >
+              {loading ?
+                <div>
+                  <CircularProgress thickness={5} size={10} color='black'/>Submitting...
+                </div> :
+                "Submit"
+              }
+            </button>
+          </div>
+        )}
+      </form>
       )}
       <AddQuestionModal
         open={isAddModalOpen}

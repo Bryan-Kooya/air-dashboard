@@ -20,3 +20,14 @@
   font-size: 20px;
   font-weight: 600;
 }
+
+.filter-card {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 16px;
+  border-radius: 12px;
+  border: 1px solid #EEE;
+  background: #FFF;
+  font-weight: 500;
+}

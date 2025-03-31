@@ -317,7 +317,7 @@ const MessagesPage = (props) => {
                   <td>{truncateText(getLatestMessage(conversation).messageText, 80)}</td>
                   <td>
                     {convertDateFormat(getLatestMessage(conversation).date) +
-                      ` / ` +
+                      ` - ` +
                       getLatestMessage(conversation).messageTime}
                   </td>
                   <td className="cv-link">

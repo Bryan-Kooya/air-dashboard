@@ -6,7 +6,7 @@ import CandidateDetailsModal from "../../components/candidateDetailsModal/Candid
 import { db } from '../../firebaseConfig';
 import { doc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
 import { fetchPaginatedCandidates, searchCandidates, fetchJobQuestionnaire } from "../../utils/firebaseService";
-import { SearchIcon, FilterIcon, FileIcon, ShowPassword } from "../../assets/images";
+import { SearchIcon, FilterIcon, EditIcon, EyeIcon } from "../../assets/images";
 import { capitalizeFirstLetter } from "../../utils/utils";
 import { getStatus } from "../../utils/helper";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
@@ -369,7 +369,7 @@ const CandidatesPage = (props) => {
                   key={index}
                   ref={index === candidates.length - 1 ? lastCandidateElementRef : null}
                 >
-                  <td onClick={() => handleViewDetails(index)}>{capitalizeFirstLetter(candidate.contact?.name)}</td>
+                  <td>{capitalizeFirstLetter(candidate.contact?.name)}</td>
                   <td>
                     <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
                     {candidate.status}
@@ -389,12 +389,15 @@ const CandidatesPage = (props) => {
                   >
                     {candidate.questionnaireData?.totalScore || 'NA'}
                   </td>
-                  <td style={{textAlign: 'center'}}>
-                    <Tooltip title='View Assesment'>
+                  <td className="action-column">
+                    <Tooltip title="Edit">
+                      <img onClick={() => handleViewDetails(index)} src={EditIcon} alt="Edit" />
+                    </Tooltip>
+                    <Tooltip title='View assesment'>
                       <img 
                         width={16} height={16}
                         onClick={() => handleGenerateLink(candidate)} 
-                        src={ShowPassword} 
+                        src={EyeIcon} 
                         alt={`View`} 
                       />
                     </Tooltip>

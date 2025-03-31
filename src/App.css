@@ -270,7 +270,7 @@ img {
 .status-badge.rejected,
 .status-badge.not-active,
 .status-badge.waiting-for-approval,
-.status-badge.very-low
+.status-badge.very-low,
 .status-badge.failed {
   background-color: #F91E24;
   color: #F91E24;
@@ -301,7 +301,6 @@ img {
   font-weight: 400;
   font-family: Inter;
   height: 20px;
-  /* min-width: 200px; */
 } & .MuiInputBase-root {
   padding-left: 0px !important;
   font-family: Inter !important;
@@ -312,7 +311,20 @@ img {
   border: none !important;
 }
 
-#select-input:hover {
+#select-input-small {
+  border-radius: 6px;
+  padding: 4px 8px;
+  border: 1px solid #EEE;
+  box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.04);
+  font-weight: 400;
+  font-family: Inter;
+  width: 100%;
+} & .MuiSvgIcon-root-MuiSelect-icon {
+  right: unset;
+}
+
+#select-input:hover, 
+#select-input-small:hover {
   border: 1px solid var(--primary-color);
 }
 
@@ -429,4 +441,39 @@ img {
   position: absolute;
   right: 20px;
   bottom: 20px;
+}
+
+@keyframes flickerAnimation {
+  0%   { opacity:1; }
+  25%  { opacity:0.8; width: 98%; }
+  50%  { opacity:0.6; width: 95%; }
+  75%  { opacity:0.8; width: 98%; }
+  100% { opacity:1; }
+}
+@-o-keyframes flickerAnimation{
+  0%   { opacity:1; }
+  25%  { opacity:0.8; width: 98%; }
+  50%  { opacity:0.6; width: 95%; }
+  75%  { opacity:0.8; width: 98%; }
+  100% { opacity:1; }
+}
+@-moz-keyframes flickerAnimation{
+  0%   { opacity:1; }
+  25%  { opacity:0.8; width: 98%; }
+  50%  { opacity:0.6; width: 95%; }
+  75%  { opacity:0.8; width: 98%; }
+  100% { opacity:1; }
+}
+@-webkit-keyframes flickerAnimation{
+  0%   { opacity:1; }
+  25%  { opacity:0.8; width: 98%; }
+  50%  { opacity:0.6; width: 95%; }
+  75%  { opacity:0.8; width: 98%; }
+  100% { opacity:1; }
+}
+.animate-flicker {
+   -webkit-animation: flickerAnimation 0.8s infinite;
+   -moz-animation: flickerAnimation 0.8s infinite;
+   -o-animation: flickerAnimation 0.8s infinite;
+    animation: flickerAnimation 0.8s infinite;
 }

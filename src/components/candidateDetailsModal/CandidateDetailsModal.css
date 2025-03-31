@@ -8,8 +8,8 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 900px;
-  height: 75%;
+  width: 1000px;
+  height: 90%;
 }
 
 .candidate-modal-row1 {
@@ -100,6 +100,12 @@
 
 .light-label {
   font-size: 14px;
+  color: #78716c;
+}
+
+.sub-label {
+  font-size: 13px;
+  font-weight: 500;
   color: #78716c;
 }
 

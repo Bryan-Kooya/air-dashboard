@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import "./CandidateDetailsModal.css";
 import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem, Rating, Divider } from '@mui/material';
-import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon, FileIcon, ShowPassword } from '../../assets/images';
+import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon, FileIcon, ShowPassword, LocationIcon, StackDollar, BuildingIcon, CalendarIcon, IndustryIcon } from '../../assets/images';
 import { capitalizeFirstLetter, handleRedirectToLinkedIn, scoreColor } from '../../utils/utils';
 import ConfirmModal from '../confirmModal/ConfirmModal';
 import { db } from '../../firebaseConfig';
@@ -206,13 +206,13 @@ const CandidateDetailsModal = (props) => {
           <div className='contact-section'>
             <div className='section-title'>Detailed Scores</div>
             <div className='score-row' style={{marginBottom: 20, gap: 25}}>
-              <div><span className='light-label'>Job Match: </span><span>{candidate.scores?.job_title_relevance.score}%</span></div>
-              <div><span className='light-label'>Resume Quality: </span><span>{candidate.scores?.presentation.score}%</span></div>
-              <div><span className='light-label'>Skills Match: </span><span>{candidate.skill_match?.score}%</span></div>
+            <div><span className='light-label'>Overall Match: </span><span>{candidate.jobMatchScore?.overallScore.finalScore}%</span></div>
+            <div><span className='light-label'>Job Match: </span><span>{candidate.jobMatchScore?.tagScore.finalScore}%</span></div>
+              {/* <div><span className='light-label'>Skills Match: </span><span>{candidate.jobMatchScore.tagScore.finalScore}%</span></div> */}
             </div>
             <div className='metric-section'>
-              <ScoreGauge title={"Resume Quality"} value={candidate.scores?.presentation.score}/>
-              <ScoreGauge title={"Job Match"} value={candidate.scores?.job_title_relevance.score}/>
+              <ScoreGauge title={"Overall Match"} value={candidate.jobMatchScore?.overallScore.finalScore}/>
+              <ScoreGauge title={"Job Match"} value={candidate.jobMatchScore?.tagScore.finalScore}/>
               <div className='action-button-container'>
                 {/* {isEditable && 
                 <button onClick={() => handleGenerateLink(candidate)} disabled={generating} className='action-button'>
@@ -256,6 +256,160 @@ const CandidateDetailsModal = (props) => {
             </div>
           </div>
           <div className='contact-section'>
+            <div>
+              <div className='section-title'>Match Analysis ({candidate.jobMatchScore?.overallScore.finalScore}%)</div>
+              <div className='light-label'>Match assessment based on available data</div>
+            </div>
+            <div style={{padding: '10px 0px'}}>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.jobMatchScore?.overallScore.finalScore}
+                sx={{
+                  height: '12px !important',
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: "#0A66C2",
+                  },
+                }}
+              />
+              <div className='score-sublabel'>
+                <span>0%</span>
+                <span>25%</span>
+                <span>50%</span>
+                <span>75%</span>
+                <span>100%</span>
+              </div>
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={SkillsIcon}/>Skills <Tooltip placement="right" title='Relevance and depth of skills compared to job requirements'><img src={TooltipIcon}/></Tooltip>
+                <span className='sub-label' style={{alignContent: 'center'}}>{candidate.jobMatchScore?.tagScore.matchedTags.join(', ')}</span>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.tagScore.finalScore}%<span className='light-label'>(Weight: 50%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.jobMatchScore?.tagScore.finalScore}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: scoreColor(candidate.jobMatchScore?.tagScore.finalScore),
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={LocationIcon}/>Location <Tooltip placement="right" title="Proximity to job location or flexibility for relocation/remote work"><img src={TooltipIcon}/></Tooltip>
+                <span className='sub-label' style={{alignContent: 'center'}}>Lives {Math.round(candidate.jobMatchScore?.locationScore?.distanceKm || 0)} km from the job location</span>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.locationScore.finalScore}%<span className='light-label'>(Weight: 10%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.jobMatchScore?.locationScore.finalScore}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: scoreColor(candidate.jobMatchScore?.locationScore.finalScore),
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={IndustryIcon}/>Industry <Tooltip placement="right" title="Relevance of the candidate's industry experience to the job's industry"><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.industryScore.finalScore}%<span className='light-label'>(Weight: 10%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.jobMatchScore?.industryScore.finalScore}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: scoreColor(candidate.jobMatchScore?.industryScore.finalScore),
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={EducationIcon}/>Institution <Tooltip placement="right" title="Reputation and alignment of the candidate's education with the role"><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.institutionScore.finalScore}%<span className='light-label'>(Weight: 10%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.jobMatchScore?.institutionScore.finalScore}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: scoreColor(candidate.jobMatchScore?.institutionScore.finalScore),
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={StackDollar}/>Salary <Tooltip placement="right" title="Alignment between candidate's salary expectations and the role's budget"><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.salaryScore.finalScore}%<span className='light-label'>(Weight: 10%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.jobMatchScore?.salaryScore.finalScore}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: scoreColor(candidate.jobMatchScore?.salaryScore.finalScore),
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img style={{padding: '0 2.5px'}} src={BuildingIcon}/>Work Setup <Tooltip placement="right" title="Compatibility with the job's work arrangement (e.g., remote, hybrid, onsite)"><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.workSetupScore.finalScore}%<span className='light-label'>(Weight: 5%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.jobMatchScore?.workSetupScore.finalScore}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: scoreColor(candidate.jobMatchScore?.workSetupScore.finalScore),
+                  },
+                }}
+              />
+            </div>
+            <div className='section-info'>
+              <div className='score-label'>
+                <img src={CalendarIcon}/>Work Shift <Tooltip placement="right" title="Flexibility to accommodate the role's schedule (e.g., night shifts, weekends)"><img src={TooltipIcon}/></Tooltip>
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.workShiftScore.finalScore}%<span className='light-label'>(Weight: 5%)</span></span>
+              </div>
+              <LinearProgress
+                id='score-bar' 
+                variant="determinate" 
+                value={candidate.jobMatchScore?.workShiftScore.finalScore}
+                sx={{
+                  "& .MuiLinearProgress-bar": {
+                    backgroundColor: scoreColor(candidate.jobMatchScore?.workShiftScore.finalScore),
+                  },
+                }}
+              />
+            </div>
+            <Divider style={{padding: '5px 0px'}}/>
+            <div className='section-info'>
+              <div className='score-row'>Score Indicators</div>
+              <div style={{display: 'flex'}}>
+                <div style={{display: 'grid', width: '100%', gap: '5px'}} className='light-label'>
+                  <span><div className={`status-badge high`}></div>High (80-100%): Strong alignment with ideal criteria</span>
+                  <span><div className={`status-badge medium`}></div>Medium (50-79%): Meets key requirements with minor gap</span>
+                </div>
+                <div style={{display: 'grid', width: '100%', gap: '5px'}} className='light-label'>
+                  <span><div className={`status-badge low`}></div>Low (30-49%): Partial match; further review recommended</span>
+                  <span><div className={`status-badge very-low`}></div>Very Low (0-29%): Significant deviations or missing data</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* <div className='contact-section'>
             <div className='section-title'>Match Analysis</div>
             <div className='section-info'>
               <div className='score-label'>
@@ -345,8 +499,8 @@ const CandidateDetailsModal = (props) => {
               <div className='score-row'>Growth Potential</div>
               <div className='light-label'>{candidate.detailedAnalysis?.growth_potential}</div>
             </div>
-          </div>
-          <div className='contact-section'>
+          </div> */}
+          {/* <div className='contact-section'>
             <div>
               <div className='section-title'>Match Confidence ({candidate.scores?.overall}%)</div>
               <div className='light-label'>Confidence level in the match assessment based on available data</div>
@@ -453,7 +607,7 @@ const CandidateDetailsModal = (props) => {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
           <div className='contact-section'>
             <div className='section-title'>Personality Insights</div>
             <div className='section-info'>
@@ -473,7 +627,7 @@ const CandidateDetailsModal = (props) => {
                     <LinearProgress
                       id='score-bar' 
                       variant="determinate" 
-                      value={candidate.scores?.skills.score}
+                      value={candidate.scores?.skill_match.score}
                       sx={{
                         "& .MuiLinearProgress-bar": {
                           backgroundColor: "#0A66C2",
@@ -497,7 +651,7 @@ const CandidateDetailsModal = (props) => {
                     <LinearProgress
                       id='score-bar' 
                       variant="determinate" 
-                      value={candidate.scores?.skills.score}
+                      value={candidate.scores?.skill_match.score}
                       sx={{
                         "& .MuiLinearProgress-bar": {
                           backgroundColor: "#0A66C2",
@@ -570,8 +724,8 @@ const CandidateDetailsModal = (props) => {
                 </a>
               </div>
             </div> :
-            activeTab === 1 && candidate.work_experience.length > 0 ?
-            candidate.work_experience?.map((experience) => (
+            activeTab === 1 && candidate.contact.work_experience.length > 0 ?
+            candidate.contact.work_experience?.map((experience) => (
               <div className='section-label'>
                 <div>{experience.title}</div>
                 <div style={{fontWeight: 400, marginTop: 8}}>{experience.company}</div>
@@ -583,8 +737,8 @@ const CandidateDetailsModal = (props) => {
                 ))}
               </div>
             )) :
-            activeTab === 2 && candidate.education.length > 0 ?
-            candidate.education?.map((educ) => (
+            activeTab === 2 && candidate.contact.education.length > 0 ?
+            candidate.contact.education?.map((educ) => (
               <div className='section-label'>
                 <div>{educ.degree}</div>
                 <div className='light-label' style={{fontWeight: 400}}>
@@ -592,12 +746,12 @@ const CandidateDetailsModal = (props) => {
                 </div>
               </div>
             )) : 
-            activeTab === 3 && candidate.certifications.length > 0 ?
-            candidate.certifications?.map((cert) => (
+            activeTab === 3 && candidate.contact.certifications.length > 0 ?
+            candidate.contact.certifications?.map((cert) => (
               <div className='section-label'>• {cert}</div>
             )) :
-            activeTab === 4 && candidate.projects.length > 0 ?
-            candidate.projects?.map((project) => (
+            activeTab === 4 && (candidate.contact.projects.length > 0 || candidate.contact.projects != 0) ?
+            candidate.contact.projects?.map((project) => (
               <div className='section-label'>
                 <div>{project.name}</div>
                 <div style={{fontWeight: 400}}>{project.description}</div>

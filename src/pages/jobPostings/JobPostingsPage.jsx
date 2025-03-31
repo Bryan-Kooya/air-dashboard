@@ -24,6 +24,7 @@ const JobPostingsPage = (props) => {
   const tableHeader = ["Job Title", "Tags",  "Status", "Company", "Industry", "Location", "Actions"];
   const statusList = ["Active", "Not Active"];
   const sortOptions = ["Newest", "Oldest"];
+  const industries = ["Bank", "Health", "Insurance", "IT", "Security", "Others"];
   const userId = props.userId;
   const [sortedBy, setSortedBy] = useState("");
   const [jobs, setJobs] = useState([]);
@@ -38,7 +39,6 @@ const JobPostingsPage = (props) => {
     description: '',
   });
   const [generatedDescription, setGeneratedDescription] = useState('');
-  const [tags, setTags] = useState([]);
   const [requiredTags, setRequiredTags] = useState([]);
   const [mandatoryTags, setMandatoryTags] = useState([]);
   const [jobTitleTags, setJobTitleTags] = useState([]);
@@ -47,7 +47,6 @@ const JobPostingsPage = (props) => {
   const [alternativeJobTitleTagsEn, setAlternativeJobTitleTagsEn] = useState([]);
   const [alternativeJobTitleTagsHe, setAlternativeJobTitleTagsHe] = useState([]);
   const [enableTags, setEnableTags] = useState(false);
-  const [jobTitleTag, setJobTitleTag] = useState([]);
   const [language, setLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
   const [isGenerateModalOpen, setAIGenerateModalOpen] = useState(false);
@@ -55,9 +54,6 @@ const JobPostingsPage = (props) => {
   const [loadingJobId, setLoadingJobId] = useState(null);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastVisibleDocs, setLastVisibleDocs] = useState([]);
-  const [totalPages, setTotalPages] = useState(0);
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
   const [messageType, setMessageType] = useState("");
@@ -67,7 +63,6 @@ const JobPostingsPage = (props) => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [lastVisible, setLastVisible] = useState(null);
-  const [generating, setGenerating] = useState(false);
   const observer = useRef();
   const pageSize = 5;
 
@@ -186,12 +181,14 @@ const JobPostingsPage = (props) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'industry') setFormData((prev) => ({ ...prev, industry: value === 'Others' ? '' : value }));
+    else setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleEditInputChange = (e) => {
     const { name, value } = e.target;
-    setJob((prev) => ({ ...prev, [name]: value }));
+    if (name === 'industry') setJob((prev) => ({ ...prev, industry: value === 'Others' ? '' : value }));
+    else setJob((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAICreateJob = async () => {
@@ -411,75 +408,6 @@ const JobPostingsPage = (props) => {
     setShowConfirm(true);
   };
 
-  const generateLink = async (job) => {
-    setGenerating(true);
-    try {
-      if (job.questionnaireData && job.questionnaireData.questions.length > 0) {
-        navigator.clipboard.writeText(job.questionnaireData.link);
-        console.log("Using existing questionnaire data link.");
-      } else {
-        const response = await fetch(`${apiBaseUrl}/generate-questionnaire`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            jobTitle: job.job_title,
-            jobDescription: job.description,
-            jobId: job.id,
-            language: job.language,
-          }),
-        });
-  
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-  
-        const data = await response.json();
-  
-        // Add a timestamp to the questionnaireData
-        const questionnaireDataWithTimestamp = {
-          ...data,
-          version: "System",
-          timestamp: serverTimestamp(),
-        };
-  
-        // Update the job document in Firestore with the new questionnaireData
-        const jobDoc = doc(db, "jobs", job.id);
-        await updateDoc(jobDoc, { questionnaireData: questionnaireDataWithTimestamp });
-  
-        // Update the local state with the new questionnaireData
-        setJobs((prevJobs) =>
-          prevJobs.map((j) =>
-            j.id === job.id
-              ? { ...j, questionnaireData: questionnaireDataWithTimestamp } // Update the specific job
-              : j // Keep other jobs unchanged
-          )
-        );
-  
-        // Copy the link to the clipboard
-        navigator.clipboard.writeText(data.link);
-        updateMessage("Questionnaire link has been copied to clipboard.", "success", true);
-      }
-    } catch (error) {
-      console.error("Error generating questionnaire data:", error);
-      updateMessage("Failed to generate questionnaire data. Please try again later.", "error", true);
-    } finally {
-      setTimeout(() => setGenerating(false), 500);
-    }
-  };
-
-  const handleGenerateLink = async (job) => {
-    if (job.questionnaireData?.isAnswered) {
-      navigate(`/questionnaire/${job.id}`);
-    } else {
-      await generateLink(job);
-      setTimeout(() => {
-        updateMessage("Questionnaire's link has been copied to clipboard.", "success", true);
-      }, 800);
-    }
-  };
-
   // Watch for changes in searchQuery
   useEffect(() => {
     if (searchQuery === "" || searchQuery.length >= 3) {
@@ -522,24 +450,35 @@ const JobPostingsPage = (props) => {
         </div>
         <div className="input-row">
           <div className="card-row">
-            <div className="row-title">Company Industry:</div>
+            <div className="row-title">Company Location:</div>
             <input 
-              placeholder="Enter company industry"
-              className="job-info-input"
-              name="industry"
-              value={formData.industry}
-              onChange={handleInputChange}
-            />
-          </div>
-          <div className="card-row">
-            <div className="row-title">Company location:</div>
-            <input 
+              required
               placeholder="Enter company location"
-              className="job-info-input"
+              className={`job-info-input ${!formData.location ? 'required-field' : ''}`}
               name="location"
               value={formData.location}
               onChange={handleInputChange}
             />
+          </div>
+          <div className="card-row">
+            <div className="row-title">Company Industry:</div>
+            <Select
+              id="select-input"
+              displayEmpty
+              name="industry"
+              value={formData.industry}
+              onChange={handleInputChange}
+              renderValue={() =>
+                formData.industry ? formData.industry : "Select company industry"
+              }
+            >
+              {industries
+                .map((industry, index) => (
+                  <MenuItem id="options" key={index} value={industry}>
+                    {industry}
+                  </MenuItem>
+                ))}
+            </Select>
           </div>
         </div>
         <div className="card-row">
@@ -553,7 +492,7 @@ const JobPostingsPage = (props) => {
           />
         </div>
         <button 
-          disabled={loading || !formData.job_title || !formData.company_name} // Disable if fields are empty
+          disabled={loading || !formData.job_title || !formData.company_name || !formData.location} // Disable if fields are empty
           onClick={handleAICreateJob} 
           className="add-job-button"
         >
@@ -666,20 +605,11 @@ const JobPostingsPage = (props) => {
                 <td>{job.location}</td>
                 <td>
                   <Tooltip title="Edit">
-                    <img onClick={() => handleEditJob(job.id)} src={EditIcon} alt="Edit" />
+                    <img style={{marginRight: 8}} onClick={() => handleEditJob(job.id)} src={EditIcon} alt="Edit" />
                   </Tooltip>
                   <Tooltip title="Delete">
-                    <img style={{margin: "0 8px"}} onClick={() => handleDeleteJob(job.id)} src={Delete} alt="Delete" />
+                    <img onClick={() => handleDeleteJob(job.id)} src={Delete} alt="Delete" />
                   </Tooltip>
-                  {generating ?
-                  <CircularProgress thickness={5} size={10} color='#0a66c2'/> :
-                  <Tooltip title="Generate questionnaire link">
-                    <img
-                      onClick={() => handleGenerateLink(job)} 
-                      src={Question} 
-                      alt="Questionnaire" 
-                    />
-                  </Tooltip>}
                 </td>
               </tr>
             )) : 
