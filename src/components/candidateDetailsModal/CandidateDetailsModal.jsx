@@ -206,13 +206,13 @@ const CandidateDetailsModal = (props) => {
           <div className='contact-section'>
             <div className='section-title'>Detailed Scores</div>
             <div className='score-row' style={{marginBottom: 20, gap: 25}}>
-            <div><span className='light-label'>Overall Match: </span><span>{candidate.jobMatchScore?.overallScore.finalScore}%</span></div>
-            <div><span className='light-label'>Job Match: </span><span>{candidate.jobMatchScore?.tagScore.finalScore}%</span></div>
+            <div><span className='light-label'>Overall Match: </span><span>{Math.round(candidate.scores?.overall)}%</span></div>
+            <div><span className='light-label'>Job Match: </span><span>{candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}%</span></div>
               {/* <div><span className='light-label'>Skills Match: </span><span>{candidate.jobMatchScore.tagScore.finalScore}%</span></div> */}
             </div>
             <div className='metric-section'>
-              <ScoreGauge title={"Overall Match"} value={candidate.jobMatchScore?.overallScore.finalScore}/>
-              <ScoreGauge title={"Job Match"} value={candidate.jobMatchScore?.tagScore.finalScore}/>
+              <ScoreGauge title={"Overall Match"} value={Math.round(candidate.scores?.overall)}/>
+              <ScoreGauge title={"Job Match"} value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}/>
               <div className='action-button-container'>
                 {/* {isEditable && 
                 <button onClick={() => handleGenerateLink(candidate)} disabled={generating} className='action-button'>
@@ -257,14 +257,14 @@ const CandidateDetailsModal = (props) => {
           </div>
           <div className='contact-section'>
             <div>
-              <div className='section-title'>Match Analysis ({candidate.jobMatchScore?.overallScore.finalScore}%)</div>
+              <div className='section-title'>Match Analysis ({Math.round(candidate.scores?.overall)}%)</div>
               <div className='light-label'>Match assessment based on available data</div>
             </div>
             <div style={{padding: '10px 0px'}}>
               <LinearProgress
                 id='score-bar' 
                 variant="determinate" 
-                value={candidate.jobMatchScore?.overallScore.finalScore}
+                value={Math.round(candidate.scores?.overall)}
                 sx={{
                   height: '12px !important',
                   "& .MuiLinearProgress-bar": {
@@ -282,17 +282,17 @@ const CandidateDetailsModal = (props) => {
             </div>
             <div className='section-info'>
               <div className='score-label'>
-                <img src={SkillsIcon}/>Skills <Tooltip placement="right" title='Relevance and depth of skills compared to job requirements'><img src={TooltipIcon}/></Tooltip>
-                <span className='sub-label' style={{alignContent: 'center'}}>{candidate.jobMatchScore?.tagScore.matchedTags.join(', ')}</span>
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.tagScore.finalScore}%<span className='light-label'>(Weight: 50%)</span></span>
+                <img src={SkillsIcon}/>Skills <Tooltip placement="right" title={candidate.scores?.skill_match.matching_skills.join(', ')}><img src={TooltipIcon}/></Tooltip>
+                {/* <span className='sub-label' style={{alignContent: 'center'}}>{candidate.scores?.skill_match.matching_skills.join(', ')}</span> */}
+                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}%<span className='light-label'>(Weight: 50%)</span></span>
               </div>
               <LinearProgress
                 id='score-bar' 
                 variant="determinate" 
-                value={candidate.jobMatchScore?.tagScore.finalScore}
+                value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}
                 sx={{
                   "& .MuiLinearProgress-bar": {
-                    backgroundColor: scoreColor(candidate.jobMatchScore?.tagScore.finalScore),
+                    backgroundColor: scoreColor(candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)),
                   },
                 }}
               />
@@ -627,7 +627,7 @@ const CandidateDetailsModal = (props) => {
                     <LinearProgress
                       id='score-bar' 
                       variant="determinate" 
-                      value={candidate.scores?.skill_match.score}
+                      value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}
                       sx={{
                         "& .MuiLinearProgress-bar": {
                           backgroundColor: "#0A66C2",
@@ -651,7 +651,7 @@ const CandidateDetailsModal = (props) => {
                     <LinearProgress
                       id='score-bar' 
                       variant="determinate" 
-                      value={candidate.scores?.skill_match.score}
+                      value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}
                       sx={{
                         "& .MuiLinearProgress-bar": {
                           backgroundColor: "#0A66C2",

@@ -1,25 +1,24 @@
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import mammoth from "mammoth";
 import JSZip from 'jszip';
-import { googleApiKey, mapApiKey, israeli_universities, industries } from "./constants";
+import { apiBaseUrl, googleApiKey, israeli_universities, industries } from "./constants";
 
 // Set the worker source to the local file
 GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-export const geocodeAddress = async (address) => {
-  try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${mapApiKey}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    if (data.status === 'OK' && data.results.length > 0) {
-      const location = data.results[0].geometry.location;
-      return { lat: location.lat, lng: location.lng };
-    }
-    throw new Error(`Geocoding failed: ${data.status}`);
-  } catch (error) {
-    console.error("Error geocoding address:", error);
-    throw error;
+const geocodeAddress = async (address) => {
+  const response = await fetch(`${apiBaseUrl}/get-geocode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Geocoding failed with status: ${response.status}`);
   }
+  
+  const data = await response.json();
+  return data; // Expected to return an object like { lat, lng }
 };
 
 // Helper: Convert degrees to radians

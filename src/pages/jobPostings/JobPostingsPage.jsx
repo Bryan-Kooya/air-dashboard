@@ -5,7 +5,10 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  serverTimestamp
+  serverTimestamp,
+  getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 import "./JobPostingsPage.css"
 import { useNavigate } from "react-router-dom";
@@ -13,7 +16,7 @@ import { db } from "../../firebaseConfig";
 import { Select, MenuItem, CircularProgress, Snackbar, Slide, Alert, Tooltip, Switch } from '@mui/material';
 import AIGeneratedJobModal from "../../components/aiGeneratedJobModal/AIGeneratedJobModal";
 import EditJobModal from "../../components/editJobModal/EditJobModal";
-import { apiBaseUrl } from "../../utils/constants";
+import { apiBaseUrl, generalQuestions } from "../../utils/constants";
 import { fetchPaginatedJobs, searchJobs } from "../../utils/firebaseService";
 import { SearchIcon, EditIcon, Delete, Question, TooltipIcon } from "../../assets/images";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
@@ -269,6 +272,26 @@ const JobPostingsPage = (props) => {
       // Save to Firebase
       const docRef = await addDoc(collection(db, "jobs"), jobData);
       setJobs([...jobs, { id: docRef.id, ...jobData }]);
+
+      const questionnairesRef = collection(db, "questionnaires");
+      const querySnapshot = await getDocs(
+        query(
+          questionnairesRef,
+          where("company_name", "==", formData.company_name),
+          where("userId", "==", userId)
+        )
+      );
+      if (querySnapshot.empty) {
+        const newCompany = {
+          company_name: formData.company_name,
+          generalQuestions,
+          version: "System",
+          userId: userId,
+          timestamp: serverTimestamp(),
+        }
+        await addDoc(collection(db, "questionnaires"), newCompany);
+        console.log("Added general question for new company: ", formData.company_name);
+      }
       console.log("Job saved successfully with ID:", docRef.id);
       updateMessage("Job saved successfully!", "success", true);
       

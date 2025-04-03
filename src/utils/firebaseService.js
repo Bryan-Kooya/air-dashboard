@@ -344,6 +344,73 @@ export const fetchPaginatedJobs = async (pageSize, lastVisibleDoc = null, userId
   }
 };
 
+export const searchGeneralQuestions = async (searchQuery, userId) => {
+  const questionsCollection = collection(db, "questionnaires");
+  const q = query(questionsCollection, where("userId", "==", userId));
+  const snapshot = await getDocs(q);
+
+  const data = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+
+  // Filter in memory
+  const filteredData = data.filter((question) => {
+    return (
+      question.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      question.version.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
+  return filteredData;
+};
+
+export const fetchPaginatedGeneralQuestions = async (pageSize, lastVisibleDoc = null, userId) => {
+  try {
+    const questionsCollection = collection(db, "questionnaires");
+
+    // Query for paginated data
+    let q = query(
+      questionsCollection, 
+      where("userId", "==", userId), 
+      orderBy("company_name", "desc"),
+      limit(pageSize)
+    );
+
+    if (lastVisibleDoc) {
+      q = query(
+        questionsCollection,
+        where("userId", "==", userId),
+        orderBy("company_name", "desc"),
+        startAfter(lastVisibleDoc),
+        limit(pageSize)
+      );
+    }
+
+    // Fetch paginated data
+    const snapshot = await getDocs(q);
+
+    // Query for counting total documents that match the userId
+    const countQuery = query(questionsCollection, where("userId", "==", userId));
+    const totalSnapshot = await getCountFromServer(countQuery);
+    const totalDocuments = totalSnapshot.data().count;
+
+    // Get the last visible document for pagination
+    const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    // Map the data
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return { data, lastVisible, total: totalDocuments };
+  } catch (error) {
+    console.error("Error fetching paginated general questions:", error);
+    throw new Error("Unable to fetch paginated general questions.");
+  }
+};
+
 export const getUser = async (email) => {
   if (!email) {
     throw new Error("Email is required to fetch user.");

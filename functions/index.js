@@ -12,19 +12,23 @@ const documentaiClient = new DocumentProcessorServiceClient();
 const processorName = 'projects/437677363924/locations/us/processors/b998412ea06f249d';
 
 async function getOpenAIApiKey() {
-  // Ensure the environment variable is properly set
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY environment variable is not set.");
-  }
+  if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY environment variable is not set.");
   return process.env.OPENAI_API_KEY;
 }
 
 async function getMistralAIApiKey() {
-  // Ensure the environment variable is properly set
-  if (!process.env.MISTRALAI_API_KEY) {
-    throw new Error("MISTRALAI_API_KEY environment variable is not set.");
-  }
+  if (!process.env.MISTRALAI_API_KEY) throw new Error("MISTRALAI_API_KEY environment variable is not set.");
   return process.env.MISTRALAI_API_KEY;
+}
+
+async function getGoogleApiKey() {
+  if (!process.env.GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY environment variable is not set.");
+  return process.env.GOOGLE_API_KEY;
+}
+
+async function getGoogleMapApiKey() {
+  if (!process.env.GOOGLE_MAP_API_KEY) throw new Error("GOOGLE__MAP_API_KEY environment variable is not set.");
+  return process.env.GOOGLE_MAP_API_KEY;
 }
 
 // Allow requests from specific origins (update to match your frontend domain)
@@ -1826,25 +1830,29 @@ app.post("/ai-match-resume", async (req, res) => {
 
   Follow these steps:
   1. **Extract Key Information:**
-    - Total years of work experience that is related to ${jobTitle} position.
-    - Skills: List all technical and soft skills mentioned in the resume that is related to ${jobTitle} position.
+    - Total years of work experience related to ${jobTitle}
+    - Skills: List all technical/soft skills from the resume relevant to ${jobTitle}
 
-  2. **Provide Scores, feedback and analyze skill match:**
-    - Job Title: ${jobTitle}.
-    - Required Skills: ${tags.join(", ")}.
-    - Overall Quality (0-100): A holistic score based on the resume's completeness, relevance, and presentation.
-    - Presentation (0-100): Score based on the resume's structure, clarity, and professionalism.
-    - Skill Match Score (0-100): If matching_skills is not empty, automatically set the score to 85 or higher.
-    - Matching Skills: List skills from the resume that match the required skills.
-    - Missing Skills: List required skills that are missing from the resume.
+  2. **Calculate Skill Match:**
+    - Required Skills: ${tags.join(", ")} (Total ${tags.length} skills)
+    - For each required skills:
+      * Check if it exists in resume skills
+      * Add to matching_skills if present
+      * Add to missing_skills if absent
+    - Skill Match Score = (matching_skills.length / ${tags.length}) * 100
 
-  3. **Detailed Analysis:**
+  3. **Provide Scores and Feedback:**
+    - Overall Quality (0-100): Resume completeness/relevance
+    - Presentation (0-100): Structure/clarity/professionalism
+    - Skill Match Score: Calculated score from step 2
+
+  4. **Detailed Analysis:**
     - Overall Match Fitness: Provide a concise statement summarizing how well the candidate fits the job requirements.
     - Strengths Alignment: List the candidate's strengths that align with the job requirements.
     - Gap Analysis: List areas where the candidate falls short of the job requirements.
     - Growth Potential: Provide a statement on the candidate's potential for growth in the role.
 
- 4. **Personality Insights Analysis:**
+  5. **Personality Insights Analysis:**
     - A brief summary of the candidate's professional personality.
     - Analysis of traits in these categories:
       * Personality traits (adaptability, creativity, attention to detail, etc.)
@@ -1855,10 +1863,10 @@ app.post("/ai-match-resume", async (req, res) => {
     - Key strengths.
     - Growth areas.
 
-  5. **Improvement Suggestions:**
+  6. **Improvement Suggestions:**
     - Provide actionable suggestions to improve the resume, such as adding missing skills, quantifying achievements, or improving presentation.
 
-  6. **Output Format:**
+  7. **Output Format:**
     - Respond with ONLY valid JSON. Do not include any explanations or markdown.
     - Follow the exact format below:
 
@@ -1873,10 +1881,10 @@ app.post("/ai-match-resume", async (req, res) => {
         "feedback": "Well-structured resume with clear sections"
       },
       "skill_match": {
-        "score": 85,
-        "matching_skills": ["skill1", "skill2"],
-        "missing_skills": ["skill3", "skill4"]
-      },
+        "score": 50, // Calculated using (matching_skills.length / ${tags.length}) * 100
+        "matching_skills": ["tag1", "tag2"],
+        "missing_skills": ["tag3", "tag4"]
+      }
     },
     "detailedAnalysis": {
       "overall_match_fitness": "Strong match with the position requirements",
@@ -1957,7 +1965,7 @@ app.post("/ai-match-resume", async (req, res) => {
     }
 
     // Validate scores and provide defaults
-    const requiredScores = ["overall", , "skill_match", "presentation"];
+    const requiredScores = ["overall", "skill_match", "presentation"];
     for (const category of requiredScores) {
       if (!(category in parsedContent.scores)) {
         parsedContent.scores[category] = {
@@ -2014,6 +2022,30 @@ app.post("/process-pdf", async (req, res) => {
   } catch (error) {
     console.error("Error processing document:", error.message);
     res.status(500).json({ error: "Failed to process the document.", details: error.message });
+  }
+});
+
+app.post('/get-geocode', async (req, res) => {
+  const { address } = req.body;
+  if (!address) {
+    return res.status(400).json({ error: 'Address field in the request body is required.' });
+  }
+
+  try {
+    const mapApiKey = await getGoogleMapApiKey();
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${mapApiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === 'OK' && data.results.length > 0) {
+      const location = data.results[0].geometry.location;
+      return res.json({ lat: location.lat, lng: location.lng });
+    }
+
+    res.status(400).json({ error: `Geocoding failed: ${data.status}` });
+  } catch (error) {
+    console.error("Error geocoding address:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

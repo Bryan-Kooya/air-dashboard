@@ -419,6 +419,7 @@ img {
   justify-content: center;
   align-items: center;
   gap: 10px;
+  background: #ECF4FC;
 }
 
 .tab-button:first-child {

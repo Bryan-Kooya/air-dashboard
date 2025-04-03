@@ -53,14 +53,14 @@ const CandidateCard = (props) => {
             <LinearProgress
               id='score-bar' 
               variant="determinate" 
-              value={candidate.jobMatchScore?.overallScore.finalScore}
+              value={Math.round(candidate.scores?.overall)}
               sx={{
                 "& .MuiLinearProgress-bar": {
                   backgroundColor: "#0A66C2",
                 },
               }}
             />
-            <span>{candidate.jobMatchScore?.overallScore.finalScore}%</span>
+            <span>{Math.round(candidate.scores?.overall)}%</span>
           </div>
         </div>
         <div>
@@ -69,14 +69,14 @@ const CandidateCard = (props) => {
             <LinearProgress 
               id='score-bar' 
               variant="determinate" 
-              value={candidate.jobMatchScore?.tagScore.finalScore}
+              value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}
               sx={{
                 "& .MuiLinearProgress-bar": {
-                  backgroundColor: candidate.jobMatchScore?.tagScore.finalScore < 85 ? "#FFB20D" : "#22c55e",
+                  backgroundColor: (candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)) < 85 ? "#FFB20D" : "#22c55e",
                 },
               }}
             />
-            <span>{candidate.jobMatchScore?.tagScore.finalScore}%</span>
+            <span>{candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}%</span>
           </div>
         </div>
       </div>

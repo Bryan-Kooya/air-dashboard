@@ -1,6 +1,5 @@
 const apiBaseUrl = "https://api-3piee3qgbq-uc.a.run.app";
 const googleApiKey = 'AIzaSyBpiGRjYvgayUj1sOg7XGj010vZanq6ZO8';
-const mapApiKey = 'AIzaSyBinntha3tmVQi5BeQOHp5b7N8ErP_NMLA';
 
 const israeli_universities = [
   { name: 'האוניברסיטה העברית בירושלים', score: 10},
@@ -461,6 +460,13 @@ const industries = [
   { type: 'security', list: israeli_security_institutions },
 ];
 
+const generalQuestions = [
+  { question: "What is your current address?", answer: "", options: null },
+  { question: "What are your salary expectations for this role?", answer: "", options: null },
+  { question: "Please select your preferred work arrangement from the options below", answer: "", options: ["On-site", "Hybrid", "Remove"] },
+  { question: "Please choose the work shift that best fits your schedule from the options below", answer: "", options: ["Regular shift", "Mid shift", "Night shift"] },
+];
+
 export { 
   apiBaseUrl,
   googleApiKey,
@@ -468,6 +474,6 @@ export {
   israeli_security_institutions,
   israeli_health_institutions,
   israeli_insurance_institutions,
-  mapApiKey,
   industries,
+  generalQuestions,
 };

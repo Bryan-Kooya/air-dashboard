@@ -198,8 +198,7 @@ const MatchCandidatesPage = (props) => {
       // Generate updated tags with two-word combinations
       const jobTitleTags = generateUpdatedTags(baseJobTitleTags);
       const baseJobTags = enableTags ? [...mandatoryTags, ...requiredTags] : [...mandatoryTags];
-      const jobTags = baseJobTags.map(tag => tag.toLowerCase()); 
-      const tagsForScoring = [...mandatoryTags, ...requiredTags].map(tag => tag.toLowerCase());  
+      const jobTags =  Array.from(new Set(baseJobTags.map(tag => tag.toLowerCase())));
       
       // Step 2: Fetch all active contacts
       let allContacts = await fetchActiveContacts(userId);
@@ -389,7 +388,7 @@ const MatchCandidatesPage = (props) => {
         const processedCandidate = await res.json();
         console.log("Processed candidate data:", processedCandidate);
         // Custom job match scoring
-        const jobMatchScore = await customJobMatchScore(contact, jobTitleTags, jobLocation, industry, filtersData, jobTags)
+        const jobMatchScore = await customJobMatchScore(contact, jobTitleTags, jobLocation, industry, filtersData, jobTags);
   
         await updateDoc(contact.ref, {
           jobs: arrayUnion({
@@ -410,8 +409,10 @@ const MatchCandidatesPage = (props) => {
         console.log(`Added job "${selectedJobTitle}" to contact: ${contact.name}`);
   
         processedContactIds.add(id);
-  
-        if (jobMatchScore?.tagScore.finalScore >= 75) {
+
+        // Removed temporarily
+        // if (jobMatchScore?.tagScore.finalScore >= 75) {
+        if (processedCandidate.scores?.skill_match.score >= 65 || jobMatchScore?.tagScore.finalScore >= 65) {
           const newCandidate = {
             contact: { name, email, phone, linkedin, location, work_experience, certifications, projects, education, fileName, url },
             status: "Pending",
@@ -499,7 +500,9 @@ const MatchCandidatesPage = (props) => {
   
   const prioritizeContactsByScore = (contacts, company) => {
     return contacts.filter((contact) => {
-      const job = contact.jobs?.find((job) => job?.jobMatchScore?.tagScore.finalScore >= 75 && job.company === company);
+      // Removed temporarily
+      // const job = contact.jobs?.find((job) => job?.jobMatchScore?.tagScore.finalScore >= 75 && job.company === company);
+      const job = contact.jobs?.find((job) => (job?.scores?.skill_match.score >= 65 || job?.jobMatchScore?.tagScore.finalScore >= 65) && job.company === company);
       return Boolean(job);
     });
   };

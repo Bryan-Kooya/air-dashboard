@@ -5,7 +5,7 @@ import { doc, updateDoc, getDocs, collection, where, query, serverTimestamp, wri
 import { db } from "../../firebaseConfig";
 import { Select, MenuItem, Tooltip, Snackbar, Alert, Slide, CircularProgress } from "@mui/material";
 import { SearchIcon, EditIcon, Delete, TooltipIcon, Link } from "../../assets/images";
-import { fetchPaginatedQuestionnaires, searchQuestionnaires, deleteQuestionnaire } from "../../utils/firebaseService";
+import { fetchPaginatedQuestionnaires, searchQuestionnaires, deleteQuestionnaire, fetchPaginatedGeneralQuestions, searchGeneralQuestions } from "../../utils/firebaseService";
 import { formatTimestamp } from "../../utils/helper";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
@@ -15,6 +15,7 @@ import { apiBaseUrl } from "../../utils/constants";
 const QuestionnairesPage = (props) => {
   const userId = props.userId;
   const userInfo = props.userInfo;
+  const tabs = ["Companies", "Jobs"];
   const tableHeader = ["Job", "Company", "Status", "Version", "Date", "Actions"];
   const sortOptions = ["Newest", "Oldest"];
 
@@ -34,6 +35,7 @@ const QuestionnairesPage = (props) => {
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
   const [questionData, setQuestionData] = useState({
     jobTitle: "",
     company: "",
@@ -64,7 +66,7 @@ const QuestionnairesPage = (props) => {
 
   const loadQuestionnaires = async () => {
     try {
-      const { data, lastVisible: last, total } = await fetchPaginatedQuestionnaires(pageSize, null, userId);
+      const { data, lastVisible: last, total } = await (activeTab === 0 ? fetchPaginatedQuestionnaires : fetchPaginatedGeneralQuestions)(pageSize, null, userId);
       setQuestionnaires(data);
       setLastVisible(last);
       setHasMore(data.length < total);
@@ -80,7 +82,7 @@ const QuestionnairesPage = (props) => {
     
     setLoadingQuestionnaires(true);
     try {
-      const { data, lastVisible: last, total } = await fetchPaginatedQuestionnaires(
+      const { data, lastVisible: last, total } = await (activeTab === 0 ? fetchPaginatedQuestionnaires : fetchPaginatedGeneralQuestions)(
         pageSize,
         lastVisible,
         userId
@@ -111,7 +113,7 @@ const QuestionnairesPage = (props) => {
     }
     try {
       setLoadingQuestionnaires(true);
-      const data = await searchQuestionnaires(searchQuery, userId);
+      const data = await (activeTab === 0 ? searchQuestionnaires : searchGeneralQuestions)(searchQuery, userId);
       setQuestionnaires(data);
       setHasMore(false);
     } catch (error) {
@@ -402,10 +404,17 @@ const QuestionnairesPage = (props) => {
 
   return (
     <div className="questionnaires-container">
-      <div style={{minHeight: 200}} className="candidates card">
+      <div style={{minHeight: 200, maxHeight: "100vh"}} className="candidates card">
         <div className="title-container">
           <div className="card-title">All Questionnaires ({questionnairesCount})</div>
           <div className="flex">
+            <button 
+              onClick={() => setAddModalOpen(true)} 
+              style={{marginLeft: 'auto', width: 'max-content'}} 
+              className="primary-button"
+            >
+              Add Question
+            </button>
             <Select
               id="select-input"
               sx={{ width: 100 }}
@@ -437,13 +446,18 @@ const QuestionnairesPage = (props) => {
             </form>
           </div>
         </div>
-        <button 
-          onClick={() => setAddModalOpen(true)} 
-          style={{marginLeft: 'auto', width: 'max-content'}} 
-          className="primary-button"
-        >
-          Add Question
-        </button>
+        {questionnaires.length > 0 &&
+        <div className="tab-container-section">
+          {tabs.map((tab, index) => (
+            <button
+              key={index}
+              className={`tab-button ${activeTab === index ? "selected" : ""}`}
+              onClick={() => setActiveTab(index)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>}
         <table className="candidates-table">
           <thead>
             <tr>
@@ -460,7 +474,8 @@ const QuestionnairesPage = (props) => {
           </thead>
           <tbody>
             {questionnaires.length > 0 ? (
-              questionnaires.map((questionnaire, index) => (
+              (activeTab === 0 &&
+                questionnaires.map((questionnaire, index) => (
                 <tr
                   key={questionnaire.id}
                   ref={index === questionnaires.length - 1 ? lastQuestionnaireElementRef : null}
@@ -488,7 +503,7 @@ const QuestionnairesPage = (props) => {
                     
                   </td>
                 </tr>
-              ))
+              )))
             ) : (
               <tr>
                 <td style={{maxWidth: "100%"}} colSpan={tableHeader.length} className="no-data">
