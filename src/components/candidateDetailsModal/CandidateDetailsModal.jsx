@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import "./CandidateDetailsModal.css";
 import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem, Rating, Divider } from '@mui/material';
-import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon, FileIcon, ShowPassword, LocationIcon, StackDollar, BuildingIcon, CalendarIcon, IndustryIcon } from '../../assets/images';
+import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon, FileIcon, ShowPassword, LocationIcon, StackDollar, BuildingIcon, CalendarIcon, IndustryIcon, CircleX, CircleCheck, CircleCheckMini, SquareCheckMini, CheckMini, XMini, Dumbbell, HandDroplet, School, Book, Crown } from '../../assets/images';
 import { capitalizeFirstLetter, handleRedirectToLinkedIn, scoreColor } from '../../utils/utils';
 import ConfirmModal from '../confirmModal/ConfirmModal';
 import { db } from '../../firebaseConfig';
@@ -10,6 +10,7 @@ import ScoreGauge from '../scoreGauge/ScoreGauge';
 import IntroEmailModal from '../introEmailModal/IntroEmailModal';
 import InterviewPrepModal from '../interviewPrepModal/InterviewPrepModal';
 import { apiBaseUrl } from '../../utils/constants';
+import { getPercentageDifference } from '../../utils/helper';
 
 const CandidateDetailsModal = (props) => {
   const tabs = ["Personal", "Experience", "Education", "Certification", "Projects"];
@@ -203,18 +204,18 @@ const CandidateDetailsModal = (props) => {
               <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>{candidate.status}
             </div>}
           </div>}
-          <div className='contact-section'>
+          {/* <div className='contact-section'>
             <div className='section-title'>Detailed Scores</div>
             <div className='score-row' style={{marginBottom: 20, gap: 25}}>
             <div><span className='light-label'>Overall Match: </span><span>{Math.round(candidate.scores?.overall)}%</span></div>
             <div><span className='light-label'>Job Match: </span><span>{candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}%</span></div>
-              {/* <div><span className='light-label'>Skills Match: </span><span>{candidate.jobMatchScore.tagScore.finalScore}%</span></div> */}
+              <div><span className='light-label'>Skills Match: </span><span>{candidate.jobMatchScore.tagScore.finalScore}%</span></div>
             </div>
             <div className='metric-section'>
               <ScoreGauge title={"Overall Match"} value={Math.round(candidate.scores?.overall)}/>
               <ScoreGauge title={"Job Match"} value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}/>
               <div className='action-button-container'>
-                {/* {isEditable && 
+                {isEditable && 
                 <button onClick={() => handleGenerateLink(candidate)} disabled={generating} className='action-button'>
                   {generating ? 
                     <>
@@ -225,7 +226,7 @@ const CandidateDetailsModal = (props) => {
                       {candidate.questionnaireData?.isAnswered ? 'View Assesment' : 'Generate Questionnaire Link'}
                     </>
                   }
-                </button>} */}
+                </button>}
                 <div style={{display: 'flex', gap: 8}}>
                   <button disabled={loading} onClick={handleInterviewPrep} className='action-button'>
                     {loading ? 
@@ -254,13 +255,123 @@ const CandidateDetailsModal = (props) => {
                 </div>}
               </div>
             </div>
+          </div> */}
+          <div className='contact-section'>
+            <div className="tab-container-section">
+              {tabs.map((tab, index) => (
+                <button
+                  key={index}
+                  className={`tab-button ${activeTab === index ? "selected" : ""}`}
+                  onClick={() => setActiveTab(index)}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            {activeTab === 0 ?
+            <div className='flex'>
+              <div className='section-info'>
+                <div className='section-label'>Name: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.name)}</span></div>
+                <div className='section-label'>Email: <a href={`mailto:${email}?subject=${emailSubject}&body=${emailBody}`} className='linkedin-link'>{email}</a></div>
+                <div className='section-label'>Phone: <span style={{fontWeight: 400}}>{candidate.contact?.phone}</span></div>
+                <div className='section-label'>Location: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.location)}</span></div>
+                <div className='section-label'>LinkedIn: <a 
+                    onClick={() => handleRedirectToLinkedIn(candidate.contact?.linkedin)} 
+                    className='linkedin-link' 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    {capitalizeFirstLetter(candidate.contact?.name)}
+                  </a>
+                </div>
+              </div>
+              <div className='action-button-container'>
+                {isEditable && 
+                <button onClick={() => handleGenerateLink(candidate)} disabled={generating} className='action-button'>
+                  {generating ? 
+                    <>
+                      <CircularProgress thickness={5} size={10} color='black'/>Generating...
+                    </> : 
+                    <>
+                      <img width={16} height={16} src={candidate.questionnaireData?.isAnswered ? ShowPassword : FileIcon}/>
+                      {candidate.questionnaireData?.isAnswered ? 'View Assesment' : 'Generate Questionnaire Link'}
+                    </>
+                  }
+                </button>}
+                <div style={{display: 'flex', gap: 8}}>
+                  <button disabled={loading} onClick={handleInterviewPrep} className='action-button'>
+                    {loading ? 
+                      <>
+                        <CircularProgress thickness={5} size={10} color='black'/>Generating...
+                      </> : 
+                      <>
+                        <img src={InterviewIcon}/>Interview Prep
+                      </>
+                    }
+                  </button>
+                  <button onClick={() => setShowGeneratedEmail(true)} className='action-button'><img src={EmailIcon}/>Generate Intro Email</button>
+                </div>
+                {isEditable &&
+                <div className='checkbox-container'>
+                  <Tooltip title={!questionnaireLink && 'Generate questionnaire link to enable'}>
+                    <input 
+                      disabled={!questionnaireLink}
+                      className='input-checkbox' 
+                      type="checkbox"
+                      checked={includeLink}
+                      onChange={(e) => setIncludeLink(e.target.checked)}
+                    />
+                  </Tooltip>
+                  <span>Include questionnaire link in email template</span>
+                </div>}
+              </div>
+            </div> :
+            activeTab === 1 && candidate.contact.work_experience.length > 0 ?
+            candidate.contact.work_experience?.map((experience) => (
+              <div className='section-label'>
+                <div>{experience.title}</div>
+                <div style={{fontWeight: 400, marginTop: 8}}>{experience.company}</div>
+                <div style={{fontWeight: 400, color: '#929292'}}>{experience.duration}</div>
+                {experience.highlights?.map((highlight) => (
+                  <ul style={{fontWeight: 400, margin: 6, paddingLeft: 20}}>
+                    <li>{highlight}</li>
+                  </ul>
+                ))}
+              </div>
+            )) :
+            activeTab === 2 && candidate.contact.education.length > 0 ?
+            candidate.contact.education?.map((educ) => (
+              <div className='section-label'>
+                <div>{educ.degree}</div>
+                <div className='light-label' style={{fontWeight: 400}}>
+                  {educ.institution || 'Institution not provided'} • <span>{educ.year}</span>
+                </div>
+              </div>
+            )) : 
+            activeTab === 3 && candidate.contact.certifications.length > 0 ?
+            candidate.contact.certifications?.map((cert) => (
+              <div className='section-label'>• {cert}</div>
+            )) :
+            activeTab === 4 && (candidate.contact.projects.length > 0 || candidate.contact.projects != 0) ?
+            candidate.contact.projects?.map((project) => (
+              <div className='section-label'>
+                <div>{project.name}</div>
+                <div style={{fontWeight: 400}}>{project.description}</div>
+                {project.technologies?.map((tech) => (
+                  <div className='light-label'> • {tech}</div>
+                ))}
+              </div>
+            )) :
+            <div className='light-label'>No {tabs[activeTab]} found.</div>
+            }
           </div>
           <div className='contact-section'>
             <div>
-              <div className='section-title'>Match Analysis ({Math.round(candidate.scores?.overall)}%)</div>
+              {/* <div className='section-title'>Match Analysis ({Math.round(candidate.scores?.overall)}%)</div> */}
+              <div className='section-title'>Match Analysis</div>
               <div className='light-label'>Match assessment based on available data</div>
             </div>
-            <div style={{padding: '10px 0px'}}>
+            {/* <div style={{padding: '10px 0px'}}>
               <LinearProgress
                 id='score-bar' 
                 variant="determinate" 
@@ -279,11 +390,10 @@ const CandidateDetailsModal = (props) => {
                 <span>75%</span>
                 <span>100%</span>
               </div>
-            </div>
+            </div> */}
             <div className='section-info'>
               <div className='score-label'>
-                <img src={SkillsIcon}/>Skills <Tooltip placement="right" title={candidate.scores?.skill_match.matching_skills.join(', ')}><img src={TooltipIcon}/></Tooltip>
-                {/* <span className='sub-label' style={{alignContent: 'center'}}>{candidate.scores?.skill_match.matching_skills.join(', ')}</span> */}
+                <img src={SkillsIcon}/>Skills <Tooltip placement="right" title="Relevance and depth of skills compared to job requirements"><img src={TooltipIcon}/></Tooltip>
                 <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}%<span className='light-label'>(Weight: 50%)</span></span>
               </div>
               <LinearProgress
@@ -332,7 +442,7 @@ const CandidateDetailsModal = (props) => {
             </div>
             <div className='section-info'>
               <div className='score-label'>
-                <img src={EducationIcon}/>Institution <Tooltip placement="right" title="Reputation and alignment of the candidate's education with the role"><img src={TooltipIcon}/></Tooltip>
+                <img src={School}/>Institution <Tooltip placement="right" title="Reputation and alignment of the candidate's education with the role"><img src={TooltipIcon}/></Tooltip>
                 <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.institutionScore.finalScore}%<span className='light-label'>(Weight: 10%)</span></span>
               </div>
               <LinearProgress
@@ -349,6 +459,7 @@ const CandidateDetailsModal = (props) => {
             <div className='section-info'>
               <div className='score-label'>
                 <img src={StackDollar}/>Salary <Tooltip placement="right" title="Alignment between candidate's salary expectations and the role's budget"><img src={TooltipIcon}/></Tooltip>
+                <span className='sub-label' style={{alignContent: 'center'}}>There is a {getPercentageDifference(candidate.jobMatchScore?.salaryScore.contactSalary, candidate.jobMatchScore?.salaryScore.jobSalary)}% discrepancy between the candidate's salary expectations and the offered salary</span>
                 <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.salaryScore.finalScore}%<span className='light-label'>(Weight: 10%)</span></span>
               </div>
               <LinearProgress
@@ -398,370 +509,87 @@ const CandidateDetailsModal = (props) => {
             <div className='section-info'>
               <div className='score-row'>Score Indicators</div>
               <div style={{display: 'flex'}}>
-                <div style={{display: 'grid', width: '100%', gap: '5px'}} className='light-label'>
+                <div className='tags-label light-label'>
                   <span><div className={`status-badge high`}></div>High (80-100%): Strong alignment with ideal criteria</span>
                   <span><div className={`status-badge medium`}></div>Medium (50-79%): Meets key requirements with minor gap</span>
                 </div>
-                <div style={{display: 'grid', width: '100%', gap: '5px'}} className='light-label'>
+                <div className='tags-label light-label'>
                   <span><div className={`status-badge low`}></div>Low (30-49%): Partial match; further review recommended</span>
                   <span><div className={`status-badge very-low`}></div>Very Low (0-29%): Significant deviations or missing data</span>
                 </div>
               </div>
             </div>
           </div>
-          {/* <div className='contact-section'>
-            <div className='section-title'>Match Analysis</div>
-            <div className='section-info'>
-              <div className='score-label'>
-                <img src={SkillsIcon}/>Skills
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.skills.score}%<span className='light-label'>(Weight: 40%)</span></span>
-              </div>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.scores?.skills.score}
-                sx={{
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
-                  },
-                }}
-              />
-            </div>
-            <div className='section-info'>
-              <div className='score-label'>
-                <img src={ExperienceIcon}/>Experience
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.experience.score}%<span className='light-label'>(Weight: 30%)</span></span>
-              </div>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.scores?.experience.score}
-                sx={{
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
-                  },
-                }}
-              />
-            </div>
-            <div className='section-info'>
-              <div className='score-label'>
-                <img src={EducationIcon}/>Education
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.education.score}%<span className='light-label'>(Weight: 15%)</span></span>
-              </div>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.scores?.education.score}
-                sx={{
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
-                  },
-                }}
-              />
-            </div>
-            <div className='section-info'>
-              <div className='score-label'>
-                <img src={DatabaseIcon}/>Domain Expertise
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.skill_match?.score}%<span className='light-label'>(Weight: 15%)</span></span>
-              </div>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.skill_match?.score}
-                sx={{
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
-                  },
-                }}
-              />
-            </div>
-            <div className='section-info'>
-              <div className='score-row'>Overall Match Assesment</div>
-              <div className='light-label'>{candidate.detailedAnalysis?.overall_match_fitness}</div>
-            </div>
-            <div className='section-info'>
-              <div className='score-row'>Key Strengths</div>
-              <div>
-                {candidate.detailedAnalysis?.strengths_alignment.map((strength) => (
-                  <li className='light-label'>{strength}</li>
-                ))}
-              </div>
-            </div>
-            <div className='section-info'>
-              <div className='score-row'>Areas for Development</div>
-              <div>
-                {candidate.detailedAnalysis?.gap_analysis.map((area) => (
-                  <li className='light-label'>{area}</li>
-                ))}
-              </div>
-            </div>
-            <div className='section-info'>
-              <div className='score-row'>Growth Potential</div>
-              <div className='light-label'>{candidate.detailedAnalysis?.growth_potential}</div>
-            </div>
-          </div> */}
-          {/* <div className='contact-section'>
-            <div>
-              <div className='section-title'>Match Confidence ({candidate.scores?.overall}%)</div>
-              <div className='light-label'>Confidence level in the match assessment based on available data</div>
-            </div>
-            <div style={{padding: '10px 0px'}}>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.scores?.overall}
-                sx={{
-                  height: '12px !important',
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
-                  },
-                }}
-              />
-              <div className='score-sublabel'>
-                <span>0%</span>
-                <span>25%</span>
-                <span>50%</span>
-                <span>75%</span>
-                <span>100%</span>
-              </div>
-            </div>
-            <div className='section-info'>
-              <div className='score-row'>
-                Data Completeness 
-                <Tooltip title='How complete and detailed the resume information is'><img src={TooltipIcon}/></Tooltip>
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.presentation.score}%<span className='light-label'>(Weight: 30%)</span></span>
-              </div>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.scores?.presentation.score}
-                sx={{
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: scoreColor(candidate.scores?.presentation.score),
-                  },
-                }}
-              />
-            </div>
-            <div className='section-info'>
-              <div className='score-row'>
-                Skills Match Accuracy 
-                <Tooltip title='Confidence in the skills matching assessment'><img src={TooltipIcon}/></Tooltip>
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.skill_match?.score}%<span className='light-label'>(Weight: 25%)</span></span>
-              </div>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.skill_match?.score}
-                sx={{
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: scoreColor(candidate.skill_match?.score),
-                  },
-                }}
-              />
-            </div>
-            <div className='section-info'>
-              <div className='score-row'>
-                Experience Validation
-                <Tooltip title='Confidence in validating past experience and achievements'><img src={TooltipIcon}/></Tooltip>
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.experience.score}%<span className='light-label'>(Weight: 25%)</span></span>
-              </div>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.scores?.experience.score}
-                sx={{
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: scoreColor(candidate.scores?.experience.score),
-                  },
-                }}
-              />
-            </div>
-            <div className='section-info'>
-              <div className='score-row'>
-                Education Verification
-                <Tooltip title='Confidence in education history validation'><img src={TooltipIcon}/></Tooltip>
-                <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.scores?.education.score}%<span className='light-label'>(Weight: 20%)</span></span>
-              </div>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={candidate.scores?.education.score}
-                sx={{
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: scoreColor(candidate.scores?.education.score),
-                  },
-                }}
-              />
-            </div>
-            <Divider style={{padding: '5px 0px'}}/>
-            <div className='section-info'>
-              <div className='score-row'>Confidence Indicators</div>
-              <div style={{display: 'flex'}}>
-                <div style={{display: 'grid', width: '100%', gap: '5px'}} className='light-label'>
-                  <span><div className={`status-badge high`}></div>High (80-100%): Strong data correlation</span>
-                  <span><div className={`status-badge medium`}></div>Medium (50-79%): Moderate confidence</span>
-                </div>
-                <div style={{display: 'grid', width: '100%', gap: '5px'}} className='light-label'>
-                  <span><div className={`status-badge low`}></div>Low (30-49%): Limited data available</span>
-                  <span><div className={`status-badge very-low`}></div>Very Low (0-29%): Insufficient data</span>
-                </div>
-              </div>
-            </div>
-          </div> */}
           <div className='contact-section'>
-            <div className='section-title'>Personality Insights</div>
+            <div className='section-title'>Detailed Analysis</div>
             <div className='section-info'>
-              <div className='light-label'>{candidate.personality_insights?.summary}</div>
+              <div className='light-label'>{candidate.detailedAnalysis?.fit_narrative}</div>
             </div>
             <div className='insight-card-container'>
               <div className='contact-section' style={{width: '100%'}}>
                 <div className='score-label'>
-                  <img src={SkillsIcon}/>Personality Traits
+                  <img src={CircleCheck}/>Matched Skills
                 </div>
-                {candidate.personality_insights?.traits.map((trait) => (
-                  <div className='section-info'>
-                    <div className='score-row'>
-                      {trait.name}
-                      <Rating sx={{marginLeft: 'auto', color: '#0A66C2'}} value={(trait.score / 20)} size='small' readOnly precision={0.5}/>
+                {candidate.detailedAnalysis?.job_requirements_analysis.matched.length > 0 ?
+                candidate.detailedAnalysis?.job_requirements_analysis.matched.map((skill) => (
+                  <div style={{alignItems: 'start'}} className='score-label'>
+                    <img style={{marginTop: 3}} src={CheckMini}/>
+                    <div className='tag-label'>
+                      <span>{capitalizeFirstLetter(skill.requirement)}: </span>
+                      <span className='sub-label'>{skill.comment}</span>
                     </div>
-                    <LinearProgress
-                      id='score-bar' 
-                      variant="determinate" 
-                      value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}
-                      sx={{
-                        "& .MuiLinearProgress-bar": {
-                          backgroundColor: "#0A66C2",
-                        },
-                      }}
-                    />
-                    <div className='light-label'>{trait.description}</div>
                   </div>
-                ))}
+                )) :
+                <div className='light-label'>No skills found.</div>}
               </div>
               <div className='contact-section' style={{width: '100%'}}>
                 <div className='score-label'>
-                  <img src={PeopleIcon}/>Communication Style
+                  <img src={CircleX}/>Missing Skills
                 </div>
-                {candidate.personality_insights?.communication_style.map((style) => (
-                  <div className='section-info'>
-                    <div className='score-row'>
-                      {style.name}
-                      <Rating sx={{marginLeft: 'auto', color: '#0A66C2'}} value={(style.score / 20)} size='small' readOnly precision={0.5}/>
+                {candidate.detailedAnalysis?.job_requirements_analysis.no_matched.length > 0 ?
+                candidate.detailedAnalysis?.job_requirements_analysis.no_matched.map((skill) => (
+                  <div style={{alignItems: 'start'}} className='score-label'>
+                    <img style={{marginTop: 2}} src={XMini}/>
+                    <div className='tag-label'>
+                      <span>{capitalizeFirstLetter(skill.requirement)}: </span>
+                      <span className='sub-label'>{skill.comment}</span>
                     </div>
-                    <LinearProgress
-                      id='score-bar' 
-                      variant="determinate" 
-                      value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}
-                      sx={{
-                        "& .MuiLinearProgress-bar": {
-                          backgroundColor: "#0A66C2",
-                        },
-                      }}
-                    />
-                    <div className='light-label'>{style.description}</div>
                   </div>
-                ))}
+                )) :
+                <div className='light-label'>No skills found.</div>}
               </div>
             </div>
             <div className='insight-card-container'>
               <div className='contact-section' style={{width: '100%'}}>
                 <div className='section-info'>
-                  <div className='score-row'>Work Preferences</div>
-                  <div>
-                    {candidate.personality_insights?.work_preferences.map((pref) => (
-                      <li className='light-label'>{pref}</li>
-                    ))}
-                  </div>
+                  <div className='score-row'><img src={Dumbbell}/>Key Strengths</div>
+                  <div className='light-label'>{candidate.detailedAnalysis?.summary.strengths}</div>
                 </div>
               </div>
               <div className='contact-section' style={{width: '100%'}}>
                 <div className='section-info'>
-                  <div className='score-row'>Key Strengths</div>
-                  <div>
-                    {candidate.personality_insights?.strengths.map((strength) => (
-                      <li className='light-label'>{strength}</li>
-                    ))}
-                  </div>
+                  <div className='score-row'><img src={HandDroplet}/>Growth Areas</div>
+                  <div className='light-label'>{candidate.detailedAnalysis?.summary.weaknesses}</div>
                 </div>                
+              </div>
+            </div>
+            <div className='insight-card-container'>
+              <div className='contact-section' style={{width: '100%'}}>
+                <div className='section-info'>
+                  <div className='score-row'>
+                    <img src={Crown}/>Professional Commitment: 
+                    <span style={{fontWeight: 600}} className='sub-label'>({candidate.detailedAnalysis?.job_requirements_analysis.commitment.year}+ years)</span>
+                  </div>
+                  <div className='light-label'>{candidate.detailedAnalysis?.job_requirements_analysis.commitment.details}</div>
+                </div>
               </div>
               <div className='contact-section' style={{width: '100%'}}>
                 <div className='section-info'>
-                  <div className='score-row'>Growth Areas</div>
-                  <div>
-                    {candidate.personality_insights?.areas_for_growth.map((area) => (
-                      <li className='light-label'>{area}</li>
-                    ))}
-                  </div>
+                  <div className='score-row'><img src={Book}/>Recommendation</div>
+                  <div className='light-label'>{candidate.detailedAnalysis?.recommendation}</div>
                 </div>                
               </div>
             </div>
-          </div>
-          <div className='contact-section'>
-            <div className="tab-container-section">
-              {tabs.map((tab, index) => (
-                <button
-                  key={index}
-                  className={`tab-button ${activeTab === index ? "selected" : ""}`}
-                  onClick={() => setActiveTab(index)}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            {activeTab === 0 ?
-            <div className='section-info'>
-              <div className='section-label'>Name: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.name)}</span></div>
-              <div className='section-label'>Email: <a href={`mailto:${email}?subject=${emailSubject}&body=${emailBody}`} className='linkedin-link'>{email}</a></div>
-              <div className='section-label'>Phone: <span style={{fontWeight: 400}}>{candidate.contact?.phone}</span></div>
-              <div className='section-label'>Location: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.location)}</span></div>
-              <div className='section-label'>LinkedIn: <a 
-                  onClick={() => handleRedirectToLinkedIn(candidate.contact?.linkedin)} 
-                  className='linkedin-link' 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  {capitalizeFirstLetter(candidate.contact?.name)}
-                </a>
-              </div>
-            </div> :
-            activeTab === 1 && candidate.contact.work_experience.length > 0 ?
-            candidate.contact.work_experience?.map((experience) => (
-              <div className='section-label'>
-                <div>{experience.title}</div>
-                <div style={{fontWeight: 400, marginTop: 8}}>{experience.company}</div>
-                <div style={{fontWeight: 400, color: '#929292'}}>{experience.duration}</div>
-                {experience.highlights?.map((highlight) => (
-                  <ul style={{fontWeight: 400, margin: 6, paddingLeft: 20}}>
-                    <li>{highlight}</li>
-                  </ul>
-                ))}
-              </div>
-            )) :
-            activeTab === 2 && candidate.contact.education.length > 0 ?
-            candidate.contact.education?.map((educ) => (
-              <div className='section-label'>
-                <div>{educ.degree}</div>
-                <div className='light-label' style={{fontWeight: 400}}>
-                  {educ.institution || 'Institution not provided'} • <span>{educ.year}</span>
-                </div>
-              </div>
-            )) : 
-            activeTab === 3 && candidate.contact.certifications.length > 0 ?
-            candidate.contact.certifications?.map((cert) => (
-              <div className='section-label'>• {cert}</div>
-            )) :
-            activeTab === 4 && (candidate.contact.projects.length > 0 || candidate.contact.projects != 0) ?
-            candidate.contact.projects?.map((project) => (
-              <div className='section-label'>
-                <div>{project.name}</div>
-                <div style={{fontWeight: 400}}>{project.description}</div>
-                {project.technologies?.map((tech) => (
-                  <div className='light-label'> • {tech}</div>
-                ))}
-              </div>
-            )) :
-            <div className='light-label'>No {tabs[activeTab]} found.</div>
-            }
           </div>
         </div>
         <div className='candidate-modal-row1'>

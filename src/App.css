@@ -319,6 +319,7 @@ img {
   font-weight: 400;
   font-family: Inter;
   width: 100%;
+  /* max-width: 270px; */
 } & .MuiSvgIcon-root-MuiSelect-icon {
   right: unset;
 }

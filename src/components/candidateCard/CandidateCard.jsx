@@ -47,7 +47,7 @@ const CandidateCard = (props) => {
         <div className='candidate-years'>Experience: <span style={{fontWeight: 600}}>{candidate.total_experience_years} years</span></div>
       </div>
       <div className='candidate-card-row3'>
-        <div>
+        {/* <div>
           <div>Overall Match</div>
           <div className='score-row'>
             <LinearProgress
@@ -62,7 +62,7 @@ const CandidateCard = (props) => {
             />
             <span>{Math.round(candidate.scores?.overall)}%</span>
           </div>
-        </div>
+        </div> */}
         <div>
           <div>Job Match</div>
           <div className='score-row'>
@@ -72,7 +72,7 @@ const CandidateCard = (props) => {
               value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}
               sx={{
                 "& .MuiLinearProgress-bar": {
-                  backgroundColor: (candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)) < 85 ? "#FFB20D" : "#22c55e",
+                  backgroundColor: (candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)) < 70 ? "#FFB20D" : "#22c55e",
                 },
               }}
             />
@@ -83,7 +83,8 @@ const CandidateCard = (props) => {
       <div className='candidate-card-row3'>
         <div>Matched Job: <span style={{fontWeight: 600}}>{matchedJob}</span></div>
         <div style={{display: 'flex', flexWrap: 'wrap'}}>
-          {candidate.scores.skill_match.matching_skills.map((tag, index) => (
+          {(candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.matchedTags : candidate.scores.skill_match.matching_skills)
+          .map((tag, index) => (
             <Chip key={index} style={{ marginLeft: 0}} id='tags' label={tag} />
           ))}
         </div>

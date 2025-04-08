@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, CircularProgress } from '@mui/material';
+import { Modal, CircularProgress, Select, MenuItem } from '@mui/material';
 import './EditContactModal.css';
+import { workSetupList } from '../../utils/constants';
 
 const EditContactModal = (props) => {
   const isOpen = props.open;
@@ -62,8 +63,42 @@ const EditContactModal = (props) => {
               />
             </div>
           </div>
+          <div className="input-row">
+            <div className="card-row">
+              <div className="row-title">Work setup:&nbsp;&nbsp;</div>
+              <Select
+                id="select-input"
+                sx={{width: '100%'}}
+                displayEmpty
+                name="workSetup"
+                value={contact.workSetup}
+                onChange={(e) => handleEditInputChange(e)}
+                renderValue={() =>
+                  contact.workSetup ? contact.workSetup : "Select setup"
+                }
+              >
+                {workSetupList
+                  .map((work, index) => (
+                    <MenuItem id="options" key={index} value={work}>
+                      {work}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </div>
+            <div className="card-row">
+              <div className="row-title">Salary:</div>
+              <input 
+                placeholder="Enter salary"
+                className="job-info-input"
+                type='number'
+                name="salary"
+                value={contact.salary}
+                onChange={handleEditInputChange}
+              />
+            </div>
+          </div>
         </div>
-        <div className='button-container'>
+        <div style={{marginTop: 20}} className='button-container'>
           <button className='cancel-button' onClick={handleClose}>Cancel</button>
           <button className='save-button' onClick={() => updateContact(contact)} disabled={isLoading}>
             {isLoading && 

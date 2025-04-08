@@ -24,7 +24,7 @@ const ScoreGauge = (props) => {
           value={value}
           thickness={5}
           size={100}
-          sx={{ color: value < 85 ? "#eab308" : "#22c55e", position: "absolute" }} // Customize the color
+          sx={{ color: value < 70 ? "#eab308" : "#22c55e", position: "absolute" }} // Customize the color
         />
       </div>
     </div>

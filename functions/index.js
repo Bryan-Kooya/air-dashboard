@@ -267,20 +267,50 @@ app.post("/ai-generate-job", async (req, res) => {
       Original Description:
       ${description}`;
 
-    // Step 3: Generate the improved description first
-    const descriptionResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: descriptionPrompt[language] || descriptionPrompt.en, // Fallback to English if language not supported
-        },
-        { role: "user", content: context },
-      ],
-      temperature: 0.0,
-    });
+    // Step 3: Parallel processing for description improvement and salary extraction
+    const [descriptionResponse, salaryExtractionResponse] = await Promise.all([
+      // Improved description generation
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: descriptionPrompt[language] || descriptionPrompt.en,
+          },
+          { role: "user", content: context },
+        ],
+        temperature: 0.0,
+      }),
+      // Salary extraction
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `Extract the salary from this job description. Follow these rules:
+              1. Return JSON format: {"salary": number}
+              2. Convert ranges to highest value (e.g., $50k-60k → 60000)
+              3. Convert formats: "50k" → 50000, "€75,000" → 75000
+              4. If no salary or unclear, return {"salary": 0}
+              5. Ignore benefits other than direct monetary compensation`
+          },
+          { role: "user", content: description }
+        ],
+        temperature: 0.0,
+        response_format: { type: "json_object" },
+      }),
+    ]);
 
     const improvedDescription = descriptionResponse.choices[0].message.content || "";
+
+    // Process salary data with error handling
+    let salary = 0;
+    try {
+      const salaryData = JSON.parse(salaryExtractionResponse.choices[0].message.content || "{}");
+      salary = Number.isFinite(salaryData.salary) ? Math.floor(salaryData.salary) : 0;
+    } catch (error) {
+      console.error("Salary extraction error:", error);
+    }
 
     // Step 4: Define prompts for tags, mandatory tags, and job title tags
     const jobTitleTagsPrompt = {
@@ -363,6 +393,7 @@ app.post("/ai-generate-job", async (req, res) => {
     // Step 7: Structure the response
     res.json({
       description: improvedDescription,
+      salary: salary,
       mandatory_tags: {
         mandatory_tags: mandatoryTags,
         alternative_mandatory_tags_en: alternativeMandatoryTagsEn,
@@ -1819,52 +1850,61 @@ app.post("/mistralai-analyze-resume", async (req, res) => {
 });
 
 app.post("/ai-match-resume", async (req, res) => {
-  const { resumeText, tags, jobTitle, language } = req.body;
+  const { resumeText, tags, jobTitle, language, candidateName, companyName, jobDescription } = req.body;
 
   if (!resumeText || !tags || !Array.isArray(tags)) {
     return res.status(400).json({ error: "Invalid input. Ensure resumeText and requiredTags are provided." });
   }
 
   const systemMessage = `
-  You are a highly skilled resume analyzer and matcher. Your task is to evaluate the resume based on the provided job title, required skills, and extract detailed information. Respond in ${languageMap[language] || 'English'} language.
+  You are a highly skilled resume analyzer and matcher. Your task is to evaluate the resume based on the provided job title, required skills, and extract detailed information. Respond in ${languageMap[language] || 'English'}.
 
   Follow these steps:
   1. **Extract Key Information:**
-    - Total years of work experience related to ${jobTitle}
-    - Skills: List all technical/soft skills from the resume relevant to ${jobTitle}
+    - Determine the total years of work experience relevant to ${jobTitle}.
+    - Identify all technical and soft skills from the resume related to ${jobTitle}.
 
   2. **Calculate Skill Match:**
-    - Required Skills: ${tags.join(", ")} (Total ${tags.length} skills)
-    - For each required skills:
-      * Check if it exists in resume skills
-      * Add to matching_skills if present
-      * Add to missing_skills if absent
-    - Skill Match Score = (matching_skills.length / ${tags.length}) * 100
+    - Required Skills: ${tags.join(", ")} (Total ${tags.length} skills).
+    - For each required skill:
+        * Check if it exists in the resume skills.
+        * Add to matching_skills if present.
+        * Add to missing_skills if absent.
+    - Compute Skill Match Score as (matching_skills.length / ${tags.length}) * 100.
 
   3. **Provide Scores and Feedback:**
-    - Overall Quality (0-100): Resume completeness/relevance
-    - Presentation (0-100): Structure/clarity/professionalism
-    - Skill Match Score: Calculated score from step 2
+    - Overall Quality (0-100): Evaluate the resume’s overall completeness and relevance.
+    - Presentation (0-100): Assess the structure, clarity, and professionalism.
+    - Skill Match Score: Use the calculation from step 2.
 
   4. **Detailed Analysis:**
-    - Overall Match Fitness: Provide a concise statement summarizing how well the candidate fits the job requirements.
-    - Strengths Alignment: List the candidate's strengths that align with the job requirements.
-    - Gap Analysis: List areas where the candidate falls short of the job requirements.
-    - Growth Potential: Provide a statement on the candidate's potential for growth in the role.
+    - **Fit Analysis Narrative:** Provide a concise narrative summarizing the candidate's overall fit. For example: "Tal Ugashi is a strong candidate, but there are some gaps relative to the job requirements."
+    - **Job Requirements Analysis:** Create an object with three fields:
+        * "matched": An array of objects. Each object should include:
+            - "requirement": The name of a job requirement that is met.
+            - "comment": A brief explanation of how the candidate meets this requirement.
+        * "no_matched": An array of objects. Each object should include:
+            - "requirement": The name of a job requirement that is not met.
+            - "comment": A brief explanation of why the candidate does not meet this requirement.
+        * "commitment": An object with:
+            - "year": The number of years required for long-term commitment.
+            - "details": A brief explanation regarding the candidate's history of long-term employment.
+    - **Summary:** Provide an object with:
+        * "strengths": A summary of the candidate's strengths.
+        * "weaknesses": A summary of the candidate's weaknesses.
+    - **Recommendation:** Provide a statement on whether the candidate is a good fit for the role and note any conditions.
 
   5. **Personality Insights Analysis:**
-    - A brief summary of the candidate's professional personality.
-    - Analysis of traits in these categories:
-      * Personality traits (adaptability, creativity, attention to detail, etc.)
-      * Communication style (collaborative, direct, diplomatic, etc.)
-      * Learning approach (analytical, practical, innovative, etc.)
-      * Motivation factors (challenges, recognition, growth, etc.)
-    - Work style preferences.
-    - Key strengths.
-    - Growth areas.
+    - Include a brief summary of the candidate's professional personality.
+    - Analyze traits including:
+        * Personality traits (e.g., adaptability, creativity, attention to detail).
+        * Communication style (e.g., collaborative, direct, diplomatic).
+        * Learning approach (e.g., analytical, practical, innovative).
+        * Motivation factors (e.g., challenges, recognition, growth).
+    - List work style preferences, key strengths, and areas for growth.
 
   6. **Improvement Suggestions:**
-    - Provide actionable suggestions to improve the resume, such as adding missing skills, quantifying achievements, or improving presentation.
+    - Provide actionable recommendations to improve the resume, such as adding missing skills, quantifying achievements, or enhancing presentation.
 
   7. **Output Format:**
     - Respond with ONLY valid JSON. Do not include any explanations or markdown.
@@ -1881,16 +1921,44 @@ app.post("/ai-match-resume", async (req, res) => {
         "feedback": "Well-structured resume with clear sections"
       },
       "skill_match": {
-        "score": 50, // Calculated using (matching_skills.length / ${tags.length}) * 100
+        "score": 50,
         "matching_skills": ["tag1", "tag2"],
         "missing_skills": ["tag3", "tag4"]
       }
     },
     "detailedAnalysis": {
-      "overall_match_fitness": "Strong match with the position requirements",
-      "strengths_alignment": ["Technical expertise", "Project experience"],
-      "gap_analysis": ["Leadership experience"],
-      "growth_potential": "High potential for growth in technical leadership"
+      "fit_narrative": "${candidateName} is a strong candidate, but there are some gaps relative to the job requirements.",
+      "job_requirements_analysis": {
+         "matched": [
+           {
+             "requirement": "ETL Development Experience",
+             "comment": "Significant experience in ETL/ELT development with Python/PySpark and Airflow."
+           },
+           {
+             "requirement": "System Analysis and Problem-Solving Skills",
+             "comment": "Demonstrates deep involvement in data architecture, CI/CD, and cloud work (AWS)."
+           }
+         ],
+         "no_matched": [
+           {
+             "requirement": "DataStage Experience",
+             "comment": "No direct experience with DataStage is mentioned, though potential for quick learning exists."
+           },
+           {
+             "requirement": ".NET and Java Development Experience",
+             "comment": "No mention of experience with .NET or Java, representing a critical gap."
+           }
+         ],
+         "commitment": {
+           "year": 5,
+           "details": "Explain here if the candidate has a history of working with a company for a long time or not."
+         }
+      },
+      "summary": {
+        "strengths": "Significant ETL/Big Data development experience, cloud work (AWS), REST API development, CI/CD, and expertise in distributed/Linux environments.",
+        "weaknesses": "Lacks experience in DataStage, Java, and .NET."
+      },
+      "recommendation": "If the ${companyName} values a Python/PySpark background and is willing to invest in learning DataStage and .NET, the candidate is a viable fit. Otherwise, alignment challenges may arise."
     },
     "personality_insights": {
       "summary": "Brief summary of the candidate's professional personality",
@@ -1926,7 +1994,7 @@ app.post("/ai-match-resume", async (req, res) => {
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: `Resume Text:\n${resumeText}` },
+        { role: "user", content: `Resume Text:\n${resumeText}\n\nJob description:${jobDescription}` },
       ],
       temperature: 0.7,
     });

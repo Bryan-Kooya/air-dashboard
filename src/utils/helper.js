@@ -26,7 +26,7 @@ const toRadians = (degrees) => degrees * (Math.PI / 180);
 
 // Helper: Calculate distance in kilometers using the Haversine formula
 const calculateDistance = (loc1, loc2) => {
-  console.log('loc1, loc2', loc1, loc2)
+  // console.log('loc1, loc2', loc1, loc2)
   const R = 6371; // Radius of the Earth in km
   const dLat = toRadians(loc2.lat - loc1.lat);
   const dLon = toRadians(loc2.lng - loc1.lng);
@@ -49,6 +49,28 @@ const getLocationScore = (distance) => {
   if (distance <= 30) return 6;
   if (distance <= 40) return 5;
   if (distance <= 50) return 2.5;
+  return 0;
+};
+
+export const getPercentageDifference = (contactSalary, jobSalary) => {
+  if (jobSalary <= 0) return 0;
+  if (contactSalary <= 0) return 0;
+
+  // Calculate percentage difference (absolute value)
+  const percentage = Math.abs(((contactSalary - jobSalary) / jobSalary) * 100);
+  return Math.round(percentage);
+};
+
+let percentageDifference = 0;
+const getSalaryScore = (contactSalary, jobSalary) => {
+
+  // Calculate percentage difference (absolute value)
+  percentageDifference = getPercentageDifference(contactSalary, jobSalary);
+
+  // Determine score based on ranges
+  if (percentageDifference <= 5) return 10;
+  if (percentageDifference <= 10) return 7.5;
+  if (percentageDifference <= 20) return 5;
   return 0;
 };
 
@@ -201,7 +223,7 @@ export const formatTimestamp = (timestamp) => {
   }
 };
 
-export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jobIndustry, filtersData, jobTags) => {
+export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jobIndustry, filtersData, jobTags, requiredTags, enableTags) => {
   // Calculate tag matching score (max 50)
   const updatedJobTags = Array.from(new Set([...jobTitleTags, ...jobTags]));
   const scorePerTag = jobTags.length > 0 ? (50 / jobTags.length) : 0;
@@ -231,7 +253,8 @@ export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jo
   });
 
   // Tag score breakdown
-  const finalTagScore = Math.min(tagTotalScore, 50);
+  const requiredTagsCount = enableTags ? requiredTags.filter(tag => matchedTags.includes(tag)).length : 0;
+  const finalTagScore = Math.min((tagTotalScore + (requiredTagsCount * scorePerTag)), 50);
   const tagScoreFinal = Math.round(finalTagScore * 2);
 
   // Location score breakdown
@@ -253,7 +276,7 @@ export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jo
 
   // Institution score breakdown
   let institutionScore = 10;
-  let institutionName = null;
+  let institutionName = "";
   if (filtersData?.institution) {
     institutionScore = 0;
     const getInstitutionScore = (name) => {
@@ -280,7 +303,7 @@ export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jo
 
   // Industry score breakdown
   let industryScore = 10;
-  let industryName = null;
+  let industryName = "";
   if (filtersData?.industry) {
     industryScore = 0;
     const getIndustryScore = (name) => {
@@ -327,55 +350,72 @@ export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jo
   const institutionScoreFinal = Math.round(institutionScore * 10);
   const industryScoreFinal = Math.round(industryScore * 10);
 
+  // Salary score breakdown
+  let salaryScore = 10;
+  if (filtersData.salary) {
+    salaryScore = getSalaryScore(contact.salary, filtersData.salary);
+  }
+  const salaryScoreFinal = Math.round(salaryScore * 10);
+
+  // Work setup score breakdown
+  let workSetupScore = 5;
+  if (filtersData.workSetup) {
+    if (filtersData.workSetup === contact.workSetup) workSetupScore = getSalaryScore(contact.salary, filtersData.salary);
+    else workSetupScore = 0
+  }
+  const workSetupScoreFinal = Math.round(workSetupScore * 20);
+
   // Other scores (to be implemented)
-  const salaryBase = 10;
-  const workSetupBase = 5;
   const workShiftBase = 5;
 
-  const baseOverallScore = finalTagScore + locationBaseScore + institutionScore + industryScore + salaryBase + workSetupBase + workShiftBase;
+  const baseOverallScore = finalTagScore + locationBaseScore + institutionScore + industryScore + salaryScore + workSetupScore + workShiftBase;
   const finalOverallScore = Math.round(baseOverallScore);
 
   return {
     tagScore: {
+      isOn: filtersData.tags,
       baseScore: tagTotalScore,
       maxPossible: 50,
       cappedScore: finalTagScore,
       finalScore: tagScoreFinal,
       matchedTags,
-      calculation: `min(${tagTotalScore}, 50) × 2`
     },
     locationScore: {
+      isOn: filtersData.location,
       baseScore: locationBaseScore,
       distanceKm: distance,
       finalScore: locationScoreFinal,
-      calculation: `${locationBaseScore} × 10`
     },
     institutionScore: {
+      isOn: filtersData.institution,
       baseScore: institutionScore,
       institutionName: institutionName,
       finalScore: institutionScoreFinal,
-      calculation: `${institutionScore} × 10`
     },
     industryScore: {
+      isOn: filtersData.industry,
       baseScore: industryScore,
       finalScore: industryScoreFinal,
       industryName: industryName,
-      calculation: `${industryScore} × 10`
     },
     salaryScore: {
-      baseScore: salaryBase,
-      finalScore: Math.round(salaryBase * 10),
-      calculation: "Base score (to be implemented)"
+      percentageDifference: percentageDifference,
+      baseScore: salaryScore,
+      finalScore: salaryScoreFinal,
+      jobSalary: filtersData.salary,
+      contactSalary: contact.salary,
     },
     workSetupScore: {
-      baseScore: workSetupBase,
-      finalScore: Math.round(workSetupBase * 20),
-      calculation: "Base score (to be implemented)"
+      selectedSetup: filtersData.workSetup,
+      baseScore: workSetupScore,
+      finalScore: workSetupScoreFinal,
+      jobWorkSetup: filtersData.workSetup,
+      contactWorkSetup: contact.workSetup
     },
     workShiftScore: {
+      selectedShift: filtersData.workShift,
       baseScore: workShiftBase,
       finalScore: Math.round(workShiftBase * 20),
-      calculation: "Base score (to be implemented)"
     },
     overallScore: {
       baseScore: baseOverallScore,

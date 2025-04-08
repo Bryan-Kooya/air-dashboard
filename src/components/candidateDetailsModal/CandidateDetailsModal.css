@@ -8,7 +8,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 1000px;
+  width: 1100px;
   height: 90%;
 }
 
@@ -124,4 +124,15 @@
   color: #78716c;
   display: flex;
   justify-content: space-between;
+}
+
+.tags-label {
+  display: grid;
+  width: 100%;
+  gap: 5px;
+}
+
+.tag-label {
+  font-size: 14px;
+  font-weight: 500;
 }

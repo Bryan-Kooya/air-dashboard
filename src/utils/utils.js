@@ -38,9 +38,30 @@ export const handleRedirectToLinkedIn = (link) => {
 };
 
 export const convertDateFormat = (dateString) => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', { month: 'numeric', day: '2-digit', year: 'numeric' }).format(date);
-};
+  // Return a default value if dateString is null or empty
+  if (!dateString) {
+    return "N/A"; // or simply return an empty string ""
+  }
+  
+  // Handle both YYYY-MM-DD (from input) and DD-MM-YYYY (from storage)
+  const [first, second, third] = dateString.split("-");
+  
+  // Detect format: if first segment is 4 digits, it's YYYY-MM-DD
+  if (first.length === 4) { 
+    return new Intl.DateTimeFormat("en-US", { 
+      month: "short", 
+      day: "2-digit", 
+      year: "numeric" 
+    }).format(new Date(dateString));
+  }
+  
+  // Assume format is DD-MM-YYYY
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric"
+  }).format(new Date(`${third}-${second}-${first}`));
+};  
 
 export const formatDate = (dateString) => {
   const date = new Date(dateString);
@@ -69,4 +90,16 @@ export const scoreColor = (score) => {
   } else {
     return '#0A66C2';
   }
+};
+
+export const formatDisplayDate = (date) => {
+  const day = ("0" + date.getDate()).slice(-2);
+  const month = ("0" + (date.getMonth() + 1)).slice(-2);
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+export const parseDateDDMMYYYY = (dateString) => {
+  const [day, month, year] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day); // month is zero-indexed in JavaScript Date
 };

@@ -1,7 +1,7 @@
 import React from 'react';
 import "./MessageModal.css";
 import { Modal, Divider } from '@mui/material';
-import { formatDate } from '../../utils/utils';
+import { convertDateFormat, formatDate, parseDateDDMMYYYY } from '../../utils/utils';
 
 const MessageModal = (props) => {
   const isOpen = props.open;
@@ -21,7 +21,7 @@ const MessageModal = (props) => {
 
   // Sort dates in ascending order
   const sortedDates = Object.keys(conversation.messagesByDate).sort(
-    (a, b) => new Date(a) - new Date(b)
+    (a, b) => parseDateDDMMYYYY(a) - parseDateDDMMYYYY(b)
   );
 
   const handleMessageContact = () => {
@@ -35,7 +35,7 @@ const MessageModal = (props) => {
         <div className='conversation-container'>
           {sortedDates.map((date) => (
             <div key={date} className="message-container">
-              <Divider className="message-date">&nbsp;{formatDate(date)}&nbsp;</Divider>
+              <Divider className="message-date">&nbsp;{convertDateFormat(date)}&nbsp;</Divider>
               {conversation.messagesByDate[date].map((message, index) => (
                 <div key={index} className="message-row">
                   <div className={`${conversation.connection !== message.sender ? `user` : ``} name`}>

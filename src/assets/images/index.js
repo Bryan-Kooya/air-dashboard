@@ -54,6 +54,18 @@ import StackDollar from "./StackDollar.svg";
 import BuildingIcon from "./BuildingIcon.svg";
 import CalendarIcon from "./CalendarIcon.svg";
 import IndustryIcon from "./IndustryIcon.svg";
+import CircleX from "./CircleX.svg";
+import CircleCheck from "./CircleCheck.svg";
+import CircleXMini from "./CircleXMini.svg";
+import CircleCheckMini from "./CircleCheckMini.svg";
+import SquareCheckMini from "./SquareCheckMini.svg";
+import CheckMini from "./CheckMini.svg";
+import XMini from "./XMini.svg";
+import Dumbbell from "./Dumbbell.svg";
+import HandDroplet from "./HandDroplet.svg";
+import Crown from "./Crown.svg";
+import School from "./School.svg";
+import Book from "./Book.svg";
 
 export {
   Apple,
@@ -112,4 +124,16 @@ export {
   BuildingIcon,
   CalendarIcon,
   IndustryIcon,
+  CircleX,
+  CircleCheck,
+  CircleXMini,
+  CircleCheckMini,
+  SquareCheckMini,
+  CheckMini,
+  XMini,
+  Dumbbell,
+  HandDroplet,
+  Crown,
+  School,
+  Book,
 };

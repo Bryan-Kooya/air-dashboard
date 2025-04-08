@@ -45,6 +45,7 @@ const JobPostingsPage = (props) => {
   const [requiredTags, setRequiredTags] = useState([]);
   const [mandatoryTags, setMandatoryTags] = useState([]);
   const [jobTitleTags, setJobTitleTags] = useState([]);
+  const [salary, setSalary] = useState(0);
   const [alternativeMandatoryTagsEn, setAlternativeMandatoryTagsEn] = useState([]);
   const [alternativeMandatoryTagsHe, setAlternativeMandatoryTagsHe] = useState([]);
   const [alternativeJobTitleTagsEn, setAlternativeJobTitleTagsEn] = useState([]);
@@ -233,6 +234,7 @@ const JobPostingsPage = (props) => {
       setAlternativeMandatoryTagsHe(convertArrayToLowercase(mandatoryTagsData.alternative_mandatory_tags_he) || []);
       setAlternativeJobTitleTagsEn(convertArrayToLowercase(jobTitleTagsData.alternative_job_title_tags_en) || []);
       setAlternativeJobTitleTagsHe(convertArrayToLowercase(jobTitleTagsData.alternative_job_title_tags_he) || []);
+      setSalary(data.salary);
       // setJobTitleTag(jobTitleTagData.job_title_tag || []);
     } catch (error) {
       console.error('Error:', error);
@@ -261,7 +263,8 @@ const JobPostingsPage = (props) => {
         job_title_tags: jobTitleTags,
         alternative_job_title_tags_en: alternativeJobTitleTagsEn,
         alternative_job_title_tags_he: alternativeJobTitleTagsHe,
-        enableMandatory: false,
+        enableMandatory: true,
+        salary,
         language,
         userId: userId,
         timestamp: serverTimestamp(),
@@ -313,6 +316,7 @@ const JobPostingsPage = (props) => {
       setAlternativeMandatoryTagsHe([]);
       setAlternativeJobTitleTagsEn([]);
       setAlternativeJobTitleTagsHe([]);
+      setSalary(0);
       // setTags([]);
       // setJobTitleTag('');
       setLanguage('en');

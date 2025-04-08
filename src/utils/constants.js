@@ -1,5 +1,7 @@
 const apiBaseUrl = "https://api-3piee3qgbq-uc.a.run.app";
 const googleApiKey = 'AIzaSyBpiGRjYvgayUj1sOg7XGj010vZanq6ZO8';
+const workSetupList = ['On-site', 'Hybrid', 'WFH'];
+const workShiftList = ['Regular shift', 'Mid shift', 'Night shift'];
 
 const israeli_universities = [
   { name: 'האוניברסיטה העברית בירושלים', score: 10},
@@ -476,4 +478,6 @@ export {
   israeli_insurance_institutions,
   industries,
   generalQuestions,
+  workSetupList,
+  workShiftList,
 };

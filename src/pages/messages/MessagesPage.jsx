@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import "./MessagesPage.css";
 import { Select, MenuItem, Snackbar, Slide, Alert, Tooltip } from '@mui/material';
-import { truncateText, convertDateFormat } from "../../utils/utils";
+import { truncateText, convertDateFormat, parseDateDDMMYYYY } from "../../utils/utils";
 import { db } from "../../firebaseConfig";
 import { doc, updateDoc } from "firebase/firestore";
 import { fetchPaginatedConversations, searchConversations, deleteConversation } from "../../utils/firebaseService";
@@ -128,12 +128,15 @@ const MessagesPage = (props) => {
       return { date: null, messageText: null, messageTime: null };
     }
 
-    const sortedDates = Object.keys(messagesByDate).sort((a, b) => new Date(b) - new Date(a));
+    const sortedDates = Object.keys(messagesByDate).sort((a, b) => parseDateDDMMYYYY(b) - parseDateDDMMYYYY(a));
 
     for (const date of sortedDates) {
       const messages = messagesByDate[date];
       for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i];
+        if (messages.length === 1) {
+          return { date, messageText: message.messageText, messageTime: message.messageTime };
+        }
         if (message.messageText) {
           return { date, messageText: message.messageText, messageTime: message.messageTime };
         }
