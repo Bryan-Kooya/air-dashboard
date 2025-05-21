@@ -7,7 +7,7 @@ import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion, query, where, 
 import CandidateCard from "../../components/candidateCard/CandidateCard";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { TooltipIcon } from "../../assets/images";
-import { customJobMatchScore, translateToEnglish, translateToHebrew } from "../../utils/helper";
+import { customJobMatchScore, translateToEnglish, translateToHebrew, areArraysEqual } from "../../utils/helper";
 import { apiBaseUrl, workSetupList, workShiftList } from "../../utils/constants";
 
 const MatchCandidatesPage = (props) => {
@@ -26,8 +26,7 @@ const MatchCandidatesPage = (props) => {
   const [tags, setTags] = useState([]);
   const [mandatoryTags, setMandatoryTags] = useState([]);
   const [requiredTags, setRequiredTags] = useState([]);
-  const [jobTitleTags, setJobTitleTags] = useState('');
-  const [jobTitleTag, setJobTitleTag] = useState('');
+  const [jobTags, setJobTags] = useState([]);
   const [enableTags, setEnableTags] = useState(false);
   const [jobDescription, setJobDescription] = useState('');
   const [generatedDescription, setGeneratedDescription] = useState('');
@@ -166,11 +165,6 @@ const MatchCandidatesPage = (props) => {
     }
   };
 
-  const areArraysEqual = (arr1, arr2) => {
-    if (arr1.length !== arr2.length) return false;
-    return arr1.every((item, index) => item === arr2[index]);
-  };
-
   const handleMatchCandidates = async (isRejected) => {
     console.log("Starting candidate matching process...");
     setLoading(true);
@@ -199,6 +193,7 @@ const MatchCandidatesPage = (props) => {
       const jobTitleTags = generateUpdatedTags(baseJobTitleTags);
       const baseJobTags = enableTags ? [...mandatoryTags, ...requiredTags] : [...mandatoryTags];
       const jobTags =  Array.from(new Set(baseJobTags.map(tag => tag.toLowerCase())));
+      setJobTags(jobTags);
       
       // Step 2: Fetch all active contacts
       let allContacts = await fetchActiveContacts(userId);
@@ -735,7 +730,8 @@ const MatchCandidatesPage = (props) => {
         location: jobLocation,
         searchKeywords,
         jobId: selectedJob,
-        timestamp: serverTimestamp(), // Add server-side timestamp
+        timestamp: serverTimestamp(),
+        accurateScore: true,
       };
   
       // Generate a unique ID for the candidate in Firestore
@@ -767,6 +763,48 @@ const MatchCandidatesPage = (props) => {
     } catch (error) {
       console.error("Error saving candidate:", error);
       updateMessage("An error occurred while saving the candidate.", "error", true);
+    }
+  };
+
+  const handleAccurateScore = async (candidate, accurate) => {
+    try {
+      const contactsRef = collection(db, "contacts");
+      const querySnapshot = await getDocs(
+        query(
+          contactsRef,
+          where("name", "==", candidate.contact.name),
+          where("userId", "==", userId)
+        )
+      );
+  
+      if (querySnapshot.empty) {
+        console.error("Contact not found.");
+        return;
+      }
+  
+      const contactDoc = querySnapshot.docs[0];
+      const contactDocRef = contactDoc.ref;
+      const existingJobs = contactDoc.data().jobs || [];
+  
+      const jobIndex = existingJobs.findIndex(
+        (job) =>
+          job.jobTitle === selectedJobTitle &&
+          job.company === company &&
+          areArraysEqual(job.jobTags || [], jobTags)
+      );
+  
+      if (jobIndex >= 0) {
+        existingJobs[jobIndex].accurateScore = accurate;
+        await updateDoc(contactDocRef, {
+          jobs: existingJobs,
+        });
+        updateMessage(`Score marked as ${accurate ? 'accurate' : 'inaccurate'}!`, "success", true);
+      } else {
+        console.log("Job not found in contact's jobs.");
+      }
+    } catch (error) {
+      console.error("Error updating accurateScore:", error);
+      updateMessage("Failed to update score accuracy.", "error", true);
     }
   };
 
@@ -1018,10 +1056,12 @@ const MatchCandidatesPage = (props) => {
             handleViewDetails={() => handleViewDetails(candidate)}
             handleRejectCandidate={() => handleRejectCandidate(candidate)}
             saveCandidate={handleSaveCandidate}
+            handleAccurateScore={handleAccurateScore}
           />
         ))}
       </div>}
       <CandidateDetailsModal 
+        tabIndex={0}
         candidateId={candidateId}
         open={viewDetails} 
         close={() => setViewDetails(false)}

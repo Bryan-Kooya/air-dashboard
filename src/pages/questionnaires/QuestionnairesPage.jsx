@@ -4,7 +4,7 @@ import './QuestionnairesPage.css';
 import { doc, updateDoc, getDocs, collection, where, query, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { Select, MenuItem, Tooltip, Snackbar, Alert, Slide, CircularProgress } from "@mui/material";
-import { SearchIcon, EditIcon, Delete, TooltipIcon, Link } from "../../assets/images";
+import { SearchIcon, EditIcon, Delete, TooltipIcon, Link, Job, Company, PlusCircle } from "../../assets/images";
 import { fetchPaginatedQuestionnaires, searchQuestionnaires, deleteQuestionnaire, fetchPaginatedGeneralQuestions, searchGeneralQuestions } from "../../utils/firebaseService";
 import { formatTimestamp } from "../../utils/helper";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
@@ -15,7 +15,6 @@ import { apiBaseUrl } from "../../utils/constants";
 const QuestionnairesPage = (props) => {
   const userId = props.userId;
   const userInfo = props.userInfo;
-  const tabs = ["Companies", "Jobs"];
   const tableHeader = ["Job", "Company", "Status", "Version", "Date", "Actions"];
   const sortOptions = ["Newest", "Oldest"];
 
@@ -36,6 +35,8 @@ const QuestionnairesPage = (props) => {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [jobsCount, setJobsCount] = useState(0);
+  const [companiesCount, setCompaniesCount] = useState(0);
   const [questionData, setQuestionData] = useState({
     jobTitle: "",
     company: "",
@@ -46,6 +47,10 @@ const QuestionnairesPage = (props) => {
     answer: "",
     explanation: "",
   });
+  const tabs = [
+    { name: "Jobs", icon: Job, count: jobsCount }, 
+    { name: "Companies", icon: Company, count: companiesCount }
+  ];
 
   const observer = useRef();
   const navigate = useNavigate()
@@ -71,6 +76,7 @@ const QuestionnairesPage = (props) => {
       setLastVisible(last);
       setHasMore(data.length < total);
       setQuestionnairesCount(total);
+      setJobsCount(total);
     } catch (error) {
       console.error("Error fetching questionnaires:", error);
       updateMessage("An error occurred while loading job", "error", true);
@@ -385,6 +391,11 @@ const QuestionnairesPage = (props) => {
     });
   };
 
+  const handleChangeTab = (index) => {
+    setActiveTab(index);
+    setSearchQuery("");
+  };
+
   // Watch for changes in searchQuery
   useEffect(() => {
     if (searchQuery === "" || searchQuery.length >= 3) {
@@ -404,17 +415,24 @@ const QuestionnairesPage = (props) => {
 
   return (
     <div className="questionnaires-container">
-      <div style={{minHeight: 200, maxHeight: "100vh"}} className="candidates card">
-        <div className="title-container">
-          <div className="card-title">All Questionnaires ({questionnairesCount})</div>
-          <div className="flex">
-            <button 
-              onClick={() => setAddModalOpen(true)} 
-              style={{marginLeft: 'auto', width: 'max-content'}} 
-              className="primary-button"
-            >
-              Add Question
+      <div className="candidates card">
+        <div className="card-title flex" style={{justifyContent: 'space-between'}}>
+          All Questionnaires
+          <button onClick={() => setAddModalOpen(true)} className="primary-button with-icon">
+            <img src={PlusCircle} alt="Add"/>Add Question
+          </button>
+        </div>
+        <div className="table-tab-container">
+          {tabs.map((tab, index) => (
+            <button className={`table-tab ${activeTab === index ? "active" : ""}`} onClick={() => handleChangeTab(index)}>
+              <img className="menu-icon" src={tab.icon}/>
+              <span>{tab.name}</span>
+              <div className={`tab-count ${activeTab === index ? "active" : ""}`}>{tab.count}</div>
             </button>
+          ))}
+        </div>
+        <div  style={{marginLeft: 'auto'}}>
+          <div className="flex">
             <Select
               id="select-input"
               sx={{ width: 100 }}
@@ -446,18 +464,6 @@ const QuestionnairesPage = (props) => {
             </form>
           </div>
         </div>
-        {questionnaires.length > 0 &&
-        <div className="tab-container-section">
-          {tabs.map((tab, index) => (
-            <button
-              key={index}
-              className={`tab-button ${activeTab === index ? "selected" : ""}`}
-              onClick={() => setActiveTab(index)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>}
         <table className="candidates-table">
           <thead>
             <tr>

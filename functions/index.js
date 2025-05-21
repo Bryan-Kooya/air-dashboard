@@ -1677,6 +1677,24 @@ app.post("/ai-analyze-text", async (req, res) => {
     // Retrieve the Mistral API key and create the client.
     const mistralApiKey = await getMistralAIApiKey();
     const mistralai = new Mistral({ apiKey: mistralApiKey });
+    
+    // Enhanced system prompt with specific criteria
+    const systemPrompt = `
+    Analyze the text to determine if it represents a personal resume/CV. Consider these criteria:
+    1. Contains personal information (name, contact details, email)
+    2. Includes work experience in first-person perspective
+    3. Lists educational background with dates
+    4. Shows skills section with technical/professional abilities
+    5. Contains objective/summary about the candidate
+    
+    Job descriptions typically:
+    - Describe company/position requirements
+    - Use terms like "we're looking for", "requirements", "responsibilities"
+    - Mention salary ranges or benefits
+    - Describe company culture/team
+    
+    Respond with valid JSON format: {"isResume": boolean}
+    Only output JSON without commentary.`;
 
     // Use Mistral to determine if the provided text is a resume.
     const extractionResponse = await mistralai.chat.complete({
@@ -1684,7 +1702,7 @@ app.post("/ai-analyze-text", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `Determine if the following text is a resume. Respond with valid JSON in the exact format: {"isResume": boolean}. ONLY output valid JSON without additional commentary.`,
+          content: systemPrompt,
         },
         {
           role: "user",
@@ -1692,6 +1710,7 @@ app.post("/ai-analyze-text", async (req, res) => {
         },
       ],
       response_format: { type: "json_object" },
+      temperature: 0.2
     });
 
     // Validate the API response structure.

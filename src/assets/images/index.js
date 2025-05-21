@@ -66,6 +66,21 @@ import HandDroplet from "./HandDroplet.svg";
 import Crown from "./Crown.svg";
 import School from "./School.svg";
 import Book from "./Book.svg";
+import ThumbsUp from "./ThumbsUp.svg";
+import ThumbsDown from "./ThumbsDown.svg";
+import ThumbsUpSolid from "./ThumbsUpSolid.svg";
+import ThumbsDownSolid from "./ThumbsDownSolid.svg";
+import Location from "./Location.svg";
+import Briefcase from "./Briefcase.svg";
+import CheckCircle from "./CheckCircle.svg";
+import ViewIcon from "./ViewIcon.svg";
+import Users from "./Users.svg";
+import UsersGear from "./UsersGear.svg";
+import WandSparkle from "./WandSparkle.svg";
+import Job from "./Job.svg";
+import Company from "./Company.svg";
+import PlusCircle from "./PlusCircle.svg";
+
 
 export {
   Apple,
@@ -136,4 +151,18 @@ export {
   Crown,
   School,
   Book,
+  ThumbsUp,
+  ThumbsDown,
+  Location,
+  Briefcase,
+  CheckCircle,
+  ViewIcon,
+  ThumbsUpSolid,
+  ThumbsDownSolid,
+  Users,
+  UsersGear,
+  WandSparkle,
+  Job,
+  Company,
+  PlusCircle,
 };

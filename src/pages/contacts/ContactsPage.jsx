@@ -2,13 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./ContactsPage.css";
 import { Select, MenuItem, Snackbar, Slide, Alert, Tooltip } from '@mui/material';
 import { useDropzone } from "react-dropzone";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, where, doc, updateDoc } from "firebase/firestore";
+import { getFirestore, doc, updateDoc } from "firebase/firestore";
 import { searchContacts, fetchPaginatedContacts, deleteContact } from "../../utils/firebaseService";
-import { extractTextFromPDF, extractTextFromDocx } from "../../utils/helper";
-import { capitalizeFirstLetter, convertArrayToLowercase } from "../../utils/utils";
-import { UploadIcon, SearchIcon, Delete, EditIcon } from "../../assets/images";
-import { apiBaseUrl } from "../../utils/constants";
+import { UploadIcon, SearchIcon, Delete, EditIcon, } from "../../assets/images";
 import EditContactModal from "../../components/editContactModal/EditContactModal";
 import ConfirmModal from "../../components/confirmModal/ConfirmModal";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
@@ -17,19 +13,12 @@ const ContactsPage = (props) => {
   const tableHeader = ["Name", "Phone Number", "Email", "Resume", "Status", 'Actions'];
   const sortOptions = ["Newest", "Oldest"];
   const userId = props.userId;
-  const userInfo = props.userInfo;
   const files = props.files;
-  const uploadStatus = props.uploadStatus;
-  const uploadLoading = props.uploadLoading;
   const setFiles = props.setFiles;
   const onFileUpload = props.onFileUpload;
   const contacts = props.contacts;
   const setContacts = props.setContacts;
-  const storage = getStorage();
   const db = getFirestore();
-  // const [files, setFiles] = useState([]);
-  // const [uploadStatus, setUploadStatus] = useState({});
-  // const [contacts, setContacts] = useState([]);
   const [contactsCount, setContactsCount] = useState(0);
   const [sortedBy, setSortedBy] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -132,179 +121,6 @@ const ContactsPage = (props) => {
       setLoadingMessages(false);
     }
   };
-
-  // const uploadFiles = async (filesToUpload) => {
-  //   setLoading(true);
-  //   if (filesToUpload.length === 0) {
-  //     updateMessage("No files selected for upload.", "warning", true);
-  //     setLoading(false);
-  //     return;
-  //   }
-  
-  //   const updatedStatus = { ...uploadStatus };
-  
-  //   try {
-  //     // Filter out unsupported files
-  //     const validFiles = filesToUpload.filter((file) => {
-  //       const fileType = file.name.split(".").pop().toLowerCase();
-  //       if (!["pdf", "docx"].includes(fileType)) {
-  //         updateMessage(`Skipping ${file.name} file. Only PDF and DOCX files are allowed.`, "warning", true);
-  //         updatedStatus[file.name] = "Failed";
-  //         setUploadStatus({ ...updatedStatus });
-  //         return false; // Exclude this file
-  //       }
-  //       return true; // Include this file
-  //     });
-  
-  //     if (validFiles.length === 0) {
-  //       updateMessage("No valid files to upload. Only PDF and DOCX files are allowed.", "warning", true);
-  //       setLoading(false);
-  //       return;
-  //     }
-  
-  //     const uploadPromises = validFiles.map(async (file) => {
-  //       const fileType = file.name.split(".").pop().toLowerCase();
-  //       const storageRef = ref(storage, `resumes/${userInfo.name}/${file.name}`);
-  //       const metadata = { customMetadata: { userId } };
-  //       const uploadTask = uploadBytesResumable(storageRef, file, metadata);
-  
-  //       return new Promise((resolve, reject) => {
-  //         uploadTask.on(
-  //           "state_changed",
-  //           (snapshot) => {
-  //             const progress = Math.round(
-  //               (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-  //             );
-  //             updatedStatus[file.name] = progress;
-  //             setUploadStatus({ ...updatedStatus });
-  //           },
-  //           (error) => {
-  //             console.error("Upload failed for", file.name, error);
-  //             updatedStatus[file.name] = "Failed";
-  //             setUploadStatus({ ...updatedStatus });
-  //             reject(error);
-  //           },
-  //           async () => {
-  //             try {
-  //               const downloadUrl = await getDownloadURL(storageRef);
-  //               let resumeText = "";
-  
-  //               if (fileType === "pdf") {
-  //                 resumeText = await extractTextFromPDF(downloadUrl);
-  //               } else if (fileType === "docx") {
-  //                 resumeText = await extractTextFromDocx(downloadUrl);
-  //               }
-  
-  //               const response = await fetch(`${apiBaseUrl}/mistralai-process-resume`, {
-  //                 method: "POST",
-  //                 headers: { "Content-Type": "application/json" },
-  //                 body: JSON.stringify({ documentUrl: downloadUrl }),
-  //               });
-  
-  //               if (!response.ok) {
-  //                 throw new Error("Failed to process resume");
-  //               }
-  
-  //               const apiData = await response.json();
-  //               const contactsRef = collection(db, "contacts");
-  //               const querySnapshot = await getDocs(
-  //                 query(
-  //                   contactsRef,
-  //                   where("name", "==", capitalizeFirstLetter(apiData.contact.name)),
-  //                   where("userId", "==", userId)
-  //                 )
-  //               );
-  
-  //               if (!querySnapshot.empty) {
-  //                 const existingContactDoc = querySnapshot.docs[0];
-  //                 const existingContactRef = doc(db, "contacts", existingContactDoc.id);
-  //                 await updateDoc(existingContactRef, {
-  //                   email: apiData.contact.email?.toLowerCase() || existingContactDoc.data().email?.toLowerCase(),
-  //                   phone: apiData.contact.phone || existingContactDoc.data().phone,
-  //                   location: apiData.contact.location || existingContactDoc.data().location,
-  //                   linkedin: apiData.contact.linkedin || existingContactDoc.data().linkedin,
-  //                   job_title_tags: convertArrayToLowercase(apiData.job_title_tags) || convertArrayToLowercase(existingContactDoc.data().job_title_tags),
-  //                   mandatory_tags: convertArrayToLowercase(apiData.mandatory_tags) || convertArrayToLowercase(existingContactDoc.data().mandatory_tags),
-  //                   alternative_job_title_tags_en: convertArrayToLowercase(apiData.alternative_job_title_tags_en) || convertArrayToLowercase(existingContactDoc.data().alternative_job_title_tags_en),
-  //                   alternative_job_title_tags_he: convertArrayToLowercase(apiData.alternative_job_title_tags_he) || convertArrayToLowercase(existingContactDoc.data().alternative_job_title_tags_he),
-  //                   alternative_mandatory_tags_en: convertArrayToLowercase(apiData.alternative_mandatory_tags_en) || convertArrayToLowercase(existingContactDoc.data().alternative_mandatory_tags_en),
-  //                   alternative_mandatory_tags_he: convertArrayToLowercase(apiData.alternative_mandatory_tags_he) || convertArrayToLowercase(existingContactDoc.data().alternative_mandatory_tags_he),
-  //                   fileName: file.name,
-  //                   language: apiData.language || "en",
-  //                   introduction: apiData.introduction || [],
-  //                   url: downloadUrl,
-  //                   resumeText: resumeText,
-  //                   status: "Active",
-  //                   timestamp: serverTimestamp(),
-  //                 });
-  //                 console.log("Contact updated in Firestore:", existingContactDoc.id);
-  //                 // Update the local contacts state
-  //                 setContacts((prevContacts) =>
-  //                   prevContacts.map((contact) =>
-  //                     contact.name === existingContactDoc.data().name
-  //                       ? { ...contact, ...apiData, fileName: file.name, url: downloadUrl, resumeText }
-  //                       : contact
-  //                   )
-  //                 );  
-  //               } else {
-  //                 const formattedName = file.name
-  //                   .replace(/\.[^/.]+$/, "")
-  //                   .replace(/[_-]+/g, " ")
-  //                   .replace(/\b(resume|cv|curriculum vitae)\b/gi, "")
-  //                   .trim();
-  
-  //                 const newContact = {
-  //                   name: capitalizeFirstLetter(apiData.contact.name) || capitalizeFirstLetter(formattedName),
-  //                   email: apiData.contact.email?.toLowerCase() || "",
-  //                   phone: apiData.contact.phone || "",
-  //                   location: apiData.contact.location || "N/A",
-  //                   linkedin: apiData.contact.linkedin || "",
-  //                   job_title_tags: convertArrayToLowercase(apiData.job_title_tags) || [],
-  //                   mandatory_tags: convertArrayToLowercase(apiData.mandatory_tags) || [],
-  //                   alternative_job_title_tags_en: convertArrayToLowercase(apiData.alternative_job_title_tags_en) || [],
-  //                   alternative_job_title_tags_he: convertArrayToLowercase(apiData.alternative_job_title_tags_he) || [],
-  //                   alternative_mandatory_tags_en: convertArrayToLowercase(apiData.alternative_mandatory_tags_en) || [],
-  //                   alternative_mandatory_tags_he: convertArrayToLowercase(apiData.alternative_mandatory_tags_he) || [],
-  //                   fileName: file.name,
-  //                   language: apiData.language || "en",
-  //                   introduction: apiData.introduction || [],
-  //                   url: downloadUrl,
-  //                   jobs: [],
-  //                   resumeText: resumeText,
-  //                   status: "Active",
-  //                   userId: userId,
-  //                   timestamp: serverTimestamp(),
-  //                 };
-  
-  //                 await addDoc(collection(db, "contacts"), newContact);
-  //                 // Update the local contacts state
-  //                 setContacts((prevContacts) => [newContact, ...prevContacts]);
-  //                 console.log("Contact added to Firestore:", newContact);
-  //               }
-  
-  //               updatedStatus[file.name] = "Complete";
-  //               setUploadStatus({ ...updatedStatus });
-  //               resolve();
-  //             } catch (error) {
-  //               console.error("Error processing and saving contact:", error);
-  //               updatedStatus[file.name] = "Failed";
-  //               setUploadStatus({ ...updatedStatus });
-  //               reject(error);
-  //             }
-  //           }
-  //         );
-  //       });
-  //     });
-  
-  //     await Promise.all(uploadPromises);
-  //     updateMessage("All valid files uploaded and processed successfully!", "success", true);
-  //   } catch (error) {
-  //     console.error("Error in uploadFiles:", error);
-  //     updateMessage(`Error: ${error.message}`, "error", true);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
   const handleDeleteContact = async () => {
     setConfirming(true);
@@ -442,15 +258,6 @@ const ContactsPage = (props) => {
             style={{ display: "none" }} // Hide the input element
           />
         </div>
-        {/* {files.length > 0 && (
-          <div className="file-list">
-            {files.map((file, index) => (
-              <div key={index} className="file-item">
-                {file.name} - {uploadStatus[file.name] || "Pending"}
-              </div>
-            ))}
-          </div>
-        )} */}
       </div>
       <div className="candidates card">
         <div className="title-container">

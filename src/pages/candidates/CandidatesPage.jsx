@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CandidatesPage.css";
-import { Select, Menu, MenuItem, Snackbar, Alert, Slide, Tooltip, CircularProgress } from "@mui/material";
+import { Select, Menu, MenuItem, Snackbar, Alert, Slide, Tooltip, LinearProgress, Chip } from "@mui/material";
 import CandidateDetailsModal from "../../components/candidateDetailsModal/CandidateDetailsModal";
 import { db } from '../../firebaseConfig';
 import { doc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
-import { fetchPaginatedCandidates, searchCandidates, fetchJobQuestionnaire } from "../../utils/firebaseService";
-import { SearchIcon, FilterIcon, EditIcon, EyeIcon } from "../../assets/images";
+import { fetchPaginatedCandidates, searchCandidates, fetchJobQuestionnaire, fetchPaginatedProcessedContacts, searchProcessedContacts, getTotalProcessedContacts } from "../../utils/firebaseService";
+import { SearchIcon, FilterIcon, EyeIcon, ThumbsUpSolid, ThumbsDownSolid, Users, UsersGear, ThumbsUp, ThumbsDown, Question } from "../../assets/images";
 import { capitalizeFirstLetter } from "../../utils/utils";
-import { getStatus } from "../../utils/helper";
+import { getStatus, areArraysEqual } from "../../utils/helper";
 import CircularLoading from "../../components/circularLoading/CircularLoading";
-import { apiBaseUrl } from "../../utils/constants";
 
 const CandidatesPage = (props) => {
-  const tableHeader = ["Candidate", "Status", "Job", "Company", "Location", "Experience", "Attachments", "Score", "Action"];
-  const filterOptions = ["Job", "Status", "Experience"];
+  const tableHeader = [
+    [ "Name", "Status", "Job", "Company", "Location", "Score", "Actions" ],
+    [ "Accuracy", "Name", "Status", "Score", "Job", "Company", "Actions" ],
+  ];
   const sortOptions = ["Newest", "Oldest"];
   const userId = props.userId;
   const userInfo = props.userInfo;
@@ -26,7 +27,9 @@ const CandidatesPage = (props) => {
   const [viewDetails, setViewDetails] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState({});
   const [candidates, setCandidates] = useState([]);
+  const [processedCandidates, setProcessedCandidates] = useState([]);
   const [candidatesCount, setCandidatesCount] = useState(0);
+  const [matchedCandidatesCount, setMatchedCandidatesCount] = useState(0);
   const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortedBy, setSortedBy] = useState("");
@@ -40,6 +43,21 @@ const CandidatesPage = (props) => {
   const [lastVisible, setLastVisible] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [questionnaireLink, setQuestionnaireLink] = useState("");
+  const [activeTab, setActiveTab] = useState(0);
+  const tabs = [
+    { name: "Selected", icon: Users, count: candidatesCount }, 
+    { name: "Matched", icon: UsersGear, count: matchedCandidatesCount }
+  ];
+  const filterOptions = activeTab === 1 ? ["Accurate", "Inaccurate", "No Feedback"] : ["Job", "Status", "Experience"];
+  const statusOrder = {
+    'Selected': 1,
+    'Pending': 2,
+    'Rejected': 3,
+    'Irrelevant': 4,
+    'Waiting for approval': 5,
+    'Interviewed': 6,
+    'Salary draft': 7
+  };
 
   const lastCandidateElementRef = useCallback(node => {
     if (loadingMessages) return;
@@ -52,39 +70,70 @@ const CandidatesPage = (props) => {
     }, { threshold: 0.5 });
 
     if (node) observer.current.observe(node);
-  }, [loadingMessages, hasMore]);
+  }, [loadingMessages, hasMore, filterBy]);
 
-  // Load candidates with pagination
   const loadCandidates = async () => {
     try {
-      const { data, lastVisible: last, total } = await fetchPaginatedCandidates(pageSize, null, userId);
-      setCandidates(data);
-      setFilteredCandidates(data);
+      const fetchFunction = activeTab === 0 
+        ? fetchPaginatedCandidates 
+        : fetchPaginatedProcessedContacts;
+  
+      const { data, lastVisible: last, total } = await fetchFunction(
+        pageSize, 
+        null, 
+        userId
+      );
+  
+      // Apply default sorting for Matched tab
+      if (activeTab === 1) {
+        const sortedData = data.sort((a, b) => {
+          return statusOrder[a.status] - statusOrder[b.status];
+        });
+        setCandidates(sortedData);
+        setFilteredCandidates(sortedData);
+      } else {
+        setCandidates(data);
+        setFilteredCandidates(data);
+      }
+  
       setLastVisible(last);
       setHasMore(data.length < total);
-      setCandidatesCount(total);
+      
+      if (activeTab === 0) {
+        setCandidatesCount(total);
+      } else {
+        setMatchedCandidatesCount(total);
+      }
     } catch (error) {
       console.error("Error fetching candidates:", error);
       updateMessage("Error loading candidates", "error", true);
     }
-  };
-
-  // console.log('Candidates: ', candidates)
+  };  
 
   const loadMoreCandidates = async () => {
     if (!hasMore || loadingMessages) return;
     
     setLoadingMessages(true);
     try {
-      const { data, lastVisible: last, total } = await fetchPaginatedCandidates(
+      const fetchFunction = activeTab === 0
+        ? fetchPaginatedCandidates
+        : fetchPaginatedProcessedContacts;
+  
+      const { data, lastVisible: last, total } = await fetchFunction(
         pageSize,
         lastVisible,
         userId
       );
-      
+  
       if (data.length > 0) {
-        setCandidates([...candidates, ...data]);
-        setFilteredCandidates([...filteredCandidates, ...data]);
+        setCandidates(prev => [...prev, ...data]);
+        const newlyFiltered = data.filter(candidate => {
+          if (filterBy === "Accurate") return candidate.accurateScore === true;
+          if (filterBy === "Inaccurate") return candidate.accurateScore === false;
+          if (filterBy === "No Feedback") return candidate.accurateScore === undefined;
+          return true;
+        });
+        setFilteredCandidates(prev => [...prev, ...newlyFiltered]);
         setLastVisible(last);
         setHasMore(candidates.length + data.length < total);
       } else {
@@ -98,7 +147,6 @@ const CandidatesPage = (props) => {
     }
   };
 
-  // Search candidates based on query
   const searchAndLoadCandidates = async () => {
     if (!searchQuery) {
       setCandidates([]);
@@ -110,7 +158,14 @@ const CandidatesPage = (props) => {
     }
     try {
       setLoadingMessages(true);
-      const data = await searchCandidates(searchQuery, userId);
+      let data;
+      
+      if (activeTab === 0) {
+        data = await searchCandidates(searchQuery, userId);
+      } else {
+        data = await searchProcessedContacts(searchQuery, userId);
+      }
+  
       setCandidates(data);
       setFilteredCandidates(data);
       setHasMore(false);
@@ -141,7 +196,7 @@ const CandidatesPage = (props) => {
       const querySnapshot = await getDocs(
         query(
           contactsRef,
-          where("name", "==", candidate.contact.name),
+          where("name", "==", candidate.contact?.name),
           where("userId", "==", userId)
         )
       );
@@ -176,26 +231,42 @@ const CandidatesPage = (props) => {
   // Filter and sort candidates
   const applyFilterAndSort = (filter, sort) => {
     let updatedCandidates = [...candidates];
-
+  
     // Apply filter
     if (filter) {
-      updatedCandidates = updatedCandidates.sort((a, b) => {
-        if (filter === "Job") return (a.job || "").localeCompare(b.job || "");
-        if (filter === "Status") return (a.status || "").localeCompare(b.status || "");
-        if (filter === "Experience") return (b.total_experience_years || 0) - (a.total_experience_years || 0);
-        return 0;
-      });
+      if (activeTab === 1) {
+        updatedCandidates = updatedCandidates.filter(candidate => {
+          if (filter === "Accurate") return candidate.accurateScore === true;
+          if (filter === "Inaccurate") return candidate.accurateScore === false;
+          if (filter === "No Feedback") return candidate.accurateScore === undefined;
+          else return true;
+        });
+      } else {
+        // Original filter logic for other tabs
+        updatedCandidates = updatedCandidates.sort((a, b) => {
+          if (filter === "Job") return (a.job || "").localeCompare(b.job || "");
+          if (filter === "Status") return (a.status || "").localeCompare(b.status || "");
+          if (filter === "Experience") return (b.total_experience_years || 0) - (a.total_experience_years || 0);
+          return 0;
+        });
+      }
     }
-
+  
     // Apply sort
-    if (sort) {
+    if (activeTab === 1) {
+      // Default sorting by status for Matched tab
+      updatedCandidates = updatedCandidates.sort((a, b) => {
+        return statusOrder[a.status] - statusOrder[b.status];
+      });
+    } else if (sort) {
+      // Original sorting logic for other tabs
       updatedCandidates = updatedCandidates.sort((a, b) => {
         const dateA = a.timestamp ? a.timestamp.toDate() : new Date(0);
         const dateB = b.timestamp ? b.timestamp.toDate() : new Date(0);
         return sort === "Newest" ? dateB - dateA : dateA - dateB;
       });
     }
-
+  
     setFilteredCandidates(updatedCandidates);
   };
 
@@ -220,9 +291,11 @@ const CandidatesPage = (props) => {
     await searchAndLoadCandidates();
   };
 
-  const handleViewDetails = async (index) => {
-    const {data} = await fetchJobQuestionnaire(filteredCandidates[index]?.jobId);
-    setQuestionnaireLink(data?.link);
+  const handleViewDetails = async (index, tabIndex) => {
+    if (tabIndex === 0) {
+      const {data} = await fetchJobQuestionnaire(filteredCandidates[index]?.jobId);
+      setQuestionnaireLink(data?.link);
+    }
     setSelectedCandidate(filteredCandidates[index]);
     setViewDetails(true);
   };
@@ -234,54 +307,6 @@ const CandidatesPage = (props) => {
     setOpen(false);
   };
 
-  const generateLink = async (candidate) => {
-    setGenerating(true);
-    try {
-      if(candidate.questionnaireData && candidate.questionnaireData.questions.length > 0) {
-        navigator.clipboard.writeText(candidate.questionnaireData.link);
-        console.log("Using existing questionnaire data link.");
-      } else {
-        const response = await fetch(`${apiBaseUrl}/questionnaire/generate-link`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            jobTitle: candidate.jobTitle,
-            jobDescription: candidate.generatedDescription,
-            candidateId: candidate.id,
-            language: candidate.language,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-      
-        const data = await response.json();
-        console.log('Data: ', data);
-
-        const candidateDoc = doc(db, "candidates", candidate.id);
-        await updateDoc(candidateDoc, { questionnaireData: data });
-        setCandidates((prevCandidates) =>
-          prevCandidates.map((c) =>
-            c.id === candidate.id
-              ? { ...c, questionnaireData: data } // Update the specific candidate
-              : c // Keep other candidates unchanged
-          )
-        );
-        // selectedCandidate.questionnaireData = data;
-        navigator.clipboard.writeText(data.link);
-        updateMessage("Questionnaire link has been copied to clipboard.", "success", true);
-      }
-    } catch (error) {
-      console.error("Error generating questionnaire data:", error);
-      updateMessage("Failed to generate questionnaire data. Please try again later.", "error", true);
-    } finally {
-      setTimeout(() => setGenerating(false), 500);
-    }
-  };
-
   const handleGenerateLink = async (candidate) => {
     if (candidate.questionnaireData?.isAnswered) {
       navigate(`/questionnaire/${candidate.id}`);
@@ -290,24 +315,99 @@ const CandidatesPage = (props) => {
     }
   };
 
+  const handleChangeTab = (index) => {
+    setActiveTab(index);
+    setSearchQuery("");
+    setFilterBy("");
+  };
+
+  const getCandidateScore = (candidate) => {
+    return candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)
+  };
+
+  const handleAccurateScore = async (candidate, accurate) => {
+    try {
+      const contactsRef = collection(db, "contacts");
+      const querySnapshot = await getDocs(
+        query(
+          contactsRef,
+          where("name", "==", candidate.name),
+          where("userId", "==", userId)
+        )
+      );
+  
+      if (querySnapshot.empty) {
+        console.error("Contact not found.");
+        return;
+      }
+  
+      const contactDoc = querySnapshot.docs[0];
+      const contactDocRef = contactDoc.ref;
+      const existingJobs = contactDoc.data().jobs || [];
+  
+      const jobIndex = existingJobs.findIndex(
+        (job) =>
+          job.jobTitle === candidate.jobTitle &&
+          job.company === candidate.company &&
+          areArraysEqual(job.jobTags || [], candidate.jobTags)
+      );
+  
+      if (jobIndex >= 0) {
+        existingJobs[jobIndex].accurateScore = accurate;
+        await updateDoc(contactDocRef, {
+          jobs: existingJobs,
+        });
+
+        setCandidates(prev =>
+          prev.map(c =>
+            (c.name === candidate.name && c.jobTitle === candidate.jobTitle && c.company === candidate.jobTitle) ? { ...c, accurateScore: accurate } : c
+          )
+        );
+        setFilteredCandidates(prev =>
+          prev.map(c =>
+            (c.name === candidate.name && c.jobTitle === candidate.jobTitle && c.company === candidate.jobTitle) ? { ...c, accurateScore: accurate } : c
+          )
+        );
+        updateMessage(`Score marked as ${accurate ? 'accurate' : 'inaccurate'}!`, "success", true);
+      } else {
+        console.log("Job not found in contact's jobs.");
+      }
+    } catch (error) {
+      console.error("Error updating accurateScore:", error);
+      updateMessage("Failed to update score accuracy.", "error", true);
+    }
+  };
+
   // Watch for changes in searchQuery
   useEffect(() => {
     if (searchQuery === "" || searchQuery.length >= 3) {
       handleSearchSubmit({ preventDefault: () => {} }); // Simulate form submission
     }
-  }, [searchQuery]);
+  }, [searchQuery, activeTab]);
 
-  (function setHeaderTitle() {
+  (async function setHeaderTitle() {
     props.title("Candidates");
     props.subtitle("Centralized page to view and manage all candidates");
+    const count = await getTotalProcessedContacts(userId);
+    setMatchedCandidatesCount(count);
   })();
 
   return (
     <div className="candidates-container">
       <div className="candidates card">
-        <div className="title-container">
-          <div className="card-title">All Candidates ({candidatesCount})</div>
+        <div className="card-title">All Candidates</div>
+        <div className="table-tab-container">
+          {tabs.map((tab, index) => (
+            <button className={`table-tab ${activeTab === index ? "active" : ""}`} onClick={() => handleChangeTab(index)}>
+              <img className="menu-icon" src={tab.icon}/>
+              <span>{tab.name}</span>
+              <div className={`tab-count ${activeTab === index ? "active" : ""}`}>{tab.count}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{marginLeft: 'auto'}}>
           <div className="flex">
+            {activeTab === 1 && filterBy && <Chip id='tags' label={filterBy} onDelete={() => handleFilterChange("")}/>}
             <button onClick={handleFilterMenuOpen} className="filter-button">
               <img src={FilterIcon} alt="Filter" /> Filter
             </button>
@@ -323,6 +423,7 @@ const CandidatesPage = (props) => {
                 </MenuItem>
               ))}
             </Menu>
+            {activeTab === 0 &&
             <Select
               id="select-input"
               sx={{ width: 100 }}
@@ -336,7 +437,7 @@ const CandidatesPage = (props) => {
                   {option}
                 </MenuItem>
               ))}
-            </Select>
+            </Select>}
             <form className="search-container" onSubmit={handleSearchSubmit}>
               <div className="search-wrapper">
                 <img src={SearchIcon} alt="Search Icon" className="search-icon" onClick={handleSearchSubmit} />
@@ -357,53 +458,93 @@ const CandidatesPage = (props) => {
         <table className="candidates-table">
           <thead>
             <tr>
-              {tableHeader.map((header, index) => (
-                <th key={index}>{header}</th>
+              {tableHeader[activeTab].map((header, index) => (
+                <th style={header === "Accuracy" ? {width: 1} : {}} key={index}>{header}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filteredCandidates.length > 0 ? (
-              filteredCandidates.map((candidate, index) => (
-                <tr 
-                  key={index}
-                  ref={index === candidates.length - 1 ? lastCandidateElementRef : null}
-                >
-                  <td>{capitalizeFirstLetter(candidate.contact?.name)}</td>
-                  <td>
-                    <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
-                    {candidate.status}
-                  </td>
-                  <td>{candidate.jobTitle}</td>
-                  <td>{candidate.company}</td>
-                  <td>{candidate.location}</td>
-                  <td>{candidate.total_experience_years} year(s)</td>
-                  <td className="cv-link">
-                    <a href={candidate.contact?.url} target="_blank" rel="noopener noreferrer">
-                      {candidate.contact?.fileName || "Attachment"}
-                    </a>
-                  </td>
-                  <td
-                    style={{textAlign: 'center'}}
-                    className={`status-color ${getStatus(candidate.questionnaireData?.totalScore)}`}
+              filteredCandidates.map((candidate, index) => {
+                const isLastRow = index === filteredCandidates.length - 1;
+                return (
+                  activeTab === 0 ?
+                  <tr 
+                    key={index}
+                    ref={isLastRow ? lastCandidateElementRef : null}
                   >
-                    {candidate.questionnaireData?.totalScore || 'NA'}
-                  </td>
-                  <td className="action-column">
-                    <Tooltip title="Edit">
-                      <img onClick={() => handleViewDetails(index)} src={EditIcon} alt="Edit" />
-                    </Tooltip>
-                    <Tooltip title='View assesment'>
-                      <img 
-                        width={16} height={16}
-                        onClick={() => handleGenerateLink(candidate)} 
-                        src={EyeIcon} 
-                        alt={`View`} 
+                    <td>{capitalizeFirstLetter(candidate.contact?.name)}</td>
+                    <td>
+                      <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
+                      {candidate.status}
+                    </td>
+                    <td>{candidate.jobTitle}</td>
+                    <td>{candidate.company}</td>
+                    <td>{candidate.location}</td>
+                    <td className={`status-color ${getStatus(candidate.questionnaireData?.totalScore)}`}>
+                      {candidate.questionnaireData?.totalScore || 'NA'}
+                    </td>
+                    <td className="action-column">
+                      <Tooltip title='View assesment'>
+                        <img 
+                          width={16} height={16}
+                          onClick={() => handleGenerateLink(candidate)} 
+                          src={Question} 
+                          alt={`View`} 
+                        />
+                      </Tooltip>
+                      <Tooltip title="View Details">
+                        <img onClick={() => handleViewDetails(index, activeTab)} src={EyeIcon} alt="View" />
+                      </Tooltip>
+                    </td>
+                  </tr> :
+                  <tr 
+                    key={index}
+                    ref={isLastRow ? lastCandidateElementRef : null}
+                  >
+                    <td style={{textAlign: 'center'}}>
+                      <Tooltip title="Accurate">
+                        <img
+                          style={{marginRight: 16}} 
+                          src={candidate.accurateScore ? ThumbsUpSolid : ThumbsUp}
+                          onClick={() => handleAccurateScore(candidate, true)}
+                        /> 
+                      </Tooltip>
+                      <Tooltip title="Inaccurate">
+                        <img 
+                          src={candidate.accurateScore === undefined || candidate.accurateScore ? ThumbsDown : ThumbsDownSolid}
+                          onClick={() => handleAccurateScore(candidate, false)}
+                        />
+                      </Tooltip>
+                    </td>
+                    <td>{capitalizeFirstLetter(candidate.name)}</td>
+                    <td>
+                      <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>
+                      {candidate.status}
+                    </td>
+                    <td>
+                      <span>{getCandidateScore(candidate)}%</span>
+                      <LinearProgress 
+                        id='score-bar' 
+                        variant="determinate" 
+                        value={getCandidateScore(candidate)}
+                        sx={{
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: (getCandidateScore(candidate)) < 70 ? "#FFB20D" : "#22c55e",
+                          },
+                        }}
                       />
-                    </Tooltip>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td>{candidate.jobTitle}</td>
+                    <td>{candidate.company}</td>
+                    <td style={{textAlign: 'center'}}>
+                      <Tooltip title="View Details">
+                        <img onClick={() => handleViewDetails(index, activeTab)} src={EyeIcon} alt="View" />
+                      </Tooltip>
+                    </td>
+                  </tr> 
+                )
+              })
             ) : (
               <tr>
                 <td style={{maxWidth: "100%"}} className="no-data" colSpan={tableHeader.length}>
@@ -413,9 +554,10 @@ const CandidatesPage = (props) => {
             )}
           </tbody>
         </table>
-        {loadingMessages && <CircularLoading/>}
+        {loadingMessages && filteredCandidates.length !== 0 && <CircularLoading/>}
       </div>
       <CandidateDetailsModal
+        tabIndex={activeTab}
         open={viewDetails}
         close={() => setViewDetails(false)}
         candidate={selectedCandidate}

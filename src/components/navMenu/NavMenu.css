@@ -22,7 +22,7 @@
   display: flex;
   gap: 12px;
   padding: 12px 0px 12px 12px;
-  margin: 0px 24px;
+  margin: 0px 24px 0px 12px;
   align-items: center;
   cursor: pointer;
   font-size: 18px;
@@ -80,11 +80,39 @@
   pointer-events: none; /* Prevent clicks */
 }
 
+.nav-menu-container.minimized {
+  min-width: 80px;
+}
+
+.nav-menu-container.minimized .menu-container > div:not(.menu-icon):not(.message-count):not(.active-indicator),
+.nav-menu-container.minimized .animated-div span {
+  display: none;
+}
+
+.nav-menu-container.minimized .message-count {
+  display: none;
+}
+
+.nav-menu-container.minimized .menu-container {
+  justify-content: center;
+  padding: 12px;
+  margin: 0;
+}
+
+.nav-menu-container.minimized .animated-div {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.nav-menu-container.minimized .active-indicator {
+  right: 0;
+}
+
 .animated-div {
   display: flex;
   align-items: center;
   padding: 12px 0px 12px 12px;
-  margin: 0px 24px;
+  margin: 0 12px;
   gap: 10px;
   font-weight: 700;
   font-size: 1.5rem;

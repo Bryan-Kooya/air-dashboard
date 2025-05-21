@@ -7,8 +7,8 @@
 
 .candidates {
   width: -webkit-fill-available;
-  min-height: 147px;
-  max-height: 440px;
+  min-height: 235px;
+  max-height: calc(100vh - 180px);
   overflow-y: auto;
 }
 
@@ -46,6 +46,7 @@
 .candidates-table th:last-child {
   border-radius: 0px 8px 8px 0px;
   text-align: center;
+  width: 1;
 }
 
 .candidates-table tbody tr td:first-child {

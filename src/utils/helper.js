@@ -223,6 +223,11 @@ export const formatTimestamp = (timestamp) => {
   }
 };
 
+export const areArraysEqual = (arr1, arr2) => {
+  if (arr1.length !== arr2.length) return false;
+  return arr1.every((item, index) => item === arr2[index]);
+};
+
 export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jobIndustry, filtersData, jobTags, requiredTags, enableTags) => {
   // Calculate tag matching score (max 50)
   const updatedJobTags = Array.from(new Set([...jobTitleTags, ...jobTags]));
@@ -410,7 +415,7 @@ export const customJobMatchScore = async (contact, jobTitleTags, jobLocation, jo
       baseScore: workSetupScore,
       finalScore: workSetupScoreFinal,
       jobWorkSetup: filtersData.workSetup,
-      contactWorkSetup: contact.workSetup
+      contactWorkSetup: contact.workSetup || ""
     },
     workShiftScore: {
       selectedShift: filtersData.workShift,

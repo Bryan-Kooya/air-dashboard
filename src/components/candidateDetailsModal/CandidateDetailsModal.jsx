@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import "./CandidateDetailsModal.css";
 import { Modal, Select, CircularProgress, LinearProgress, Tooltip, MenuItem, Rating, Divider } from '@mui/material';
-import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon, FileIcon, ShowPassword, LocationIcon, StackDollar, BuildingIcon, CalendarIcon, IndustryIcon, CircleX, CircleCheck, CircleCheckMini, SquareCheckMini, CheckMini, XMini, Dumbbell, HandDroplet, School, Book, Crown } from '../../assets/images';
+import { Close, Bookmark, DeleteIcon, InterviewIcon, EmailIcon, SkillsIcon, ExperienceIcon, EducationIcon, DatabaseIcon, PeopleIcon, TooltipIcon, FileIcon, ShowPassword, LocationIcon, StackDollar, BuildingIcon, CalendarIcon, IndustryIcon, CircleX, CircleCheck, CircleCheckMini, SquareCheckMini, CheckMini, XMini, Dumbbell, HandDroplet, School, Book, Crown, WandSparkle } from '../../assets/images';
 import { capitalizeFirstLetter, handleRedirectToLinkedIn, scoreColor } from '../../utils/utils';
 import ConfirmModal from '../confirmModal/ConfirmModal';
 import { db } from '../../firebaseConfig';
@@ -15,6 +15,7 @@ import { getPercentageDifference } from '../../utils/helper';
 const CandidateDetailsModal = (props) => {
   const tabs = ["Personal", "Experience", "Education", "Certification", "Projects"];
   const statusList = ['Selected', 'Irrelevant', 'Waiting for approval', 'Interviewed', 'Salary draft'];
+  const tabIndex = props.tabIndex;
   const open = props.open;
   const close = props.close;
   const candidate = props.candidate;
@@ -28,7 +29,7 @@ const CandidateDetailsModal = (props) => {
   const updateTable = props.updateTable;
   const handleGenerateLink = props.handleGenerateLink;
   const generating = props.generating;
-  const email = candidate.contact?.email?.toLowerCase();
+  const email = tabIndex === 0 ? candidate.contact?.email?.toLowerCase() : candidate.email?.toLowerCase();
   const questionnaireLink = props.questionnaireLink;
 
   const [showSelectStatus, setShowSelectStatus] = useState(false);
@@ -177,11 +178,11 @@ const CandidateDetailsModal = (props) => {
     <Modal open={open} onClose={handleClose}>
       <div className='candidate-modal-container'>
         <div className='candidate-modal-row1'>
-          <div className='card-title'>{capitalizeFirstLetter(candidate.contact?.name)}</div>
+          <div className='card-title'>{capitalizeFirstLetter(tabIndex === 0 ? candidate.contact?.name : candidate.name)}</div>
           <img onClick={handleClose} src={Close} alt='Close'/>
         </div>
         <div className='candidate-modal-row2'>
-          {isEditable &&
+          {isEditable && tabIndex === 0 &&
           <div className='contact-section'>
             <div className='section-title'>Status</div>
             {showSelectStatus ?
@@ -204,58 +205,6 @@ const CandidateDetailsModal = (props) => {
               <div className={`status-badge ${candidate.status?.toLowerCase().replace(/\s/g, "-")}`}></div>{candidate.status}
             </div>}
           </div>}
-          {/* <div className='contact-section'>
-            <div className='section-title'>Detailed Scores</div>
-            <div className='score-row' style={{marginBottom: 20, gap: 25}}>
-            <div><span className='light-label'>Overall Match: </span><span>{Math.round(candidate.scores?.overall)}%</span></div>
-            <div><span className='light-label'>Job Match: </span><span>{candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}%</span></div>
-              <div><span className='light-label'>Skills Match: </span><span>{candidate.jobMatchScore.tagScore.finalScore}%</span></div>
-            </div>
-            <div className='metric-section'>
-              <ScoreGauge title={"Overall Match"} value={Math.round(candidate.scores?.overall)}/>
-              <ScoreGauge title={"Job Match"} value={candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}/>
-              <div className='action-button-container'>
-                {isEditable && 
-                <button onClick={() => handleGenerateLink(candidate)} disabled={generating} className='action-button'>
-                  {generating ? 
-                    <>
-                      <CircularProgress thickness={5} size={10} color='black'/>Generating...
-                    </> : 
-                    <>
-                      <img width={16} height={16} src={candidate.questionnaireData?.isAnswered ? ShowPassword : FileIcon}/>
-                      {candidate.questionnaireData?.isAnswered ? 'View Assesment' : 'Generate Questionnaire Link'}
-                    </>
-                  }
-                </button>}
-                <div style={{display: 'flex', gap: 8}}>
-                  <button disabled={loading} onClick={handleInterviewPrep} className='action-button'>
-                    {loading ? 
-                      <>
-                        <CircularProgress thickness={5} size={10} color='black'/>Generating...
-                      </> : 
-                      <>
-                        <img src={InterviewIcon}/>Interview Prep
-                      </>
-                    }
-                  </button>
-                  <button onClick={() => setShowGeneratedEmail(true)} className='action-button'><img src={EmailIcon}/>Generate Intro Email</button>
-                </div>
-                {isEditable &&
-                <div className='checkbox-container'>
-                  <Tooltip title={!questionnaireLink && 'Generate questionnaire link to enable'}>
-                    <input 
-                      disabled={!questionnaireLink}
-                      className='input-checkbox' 
-                      type="checkbox"
-                      checked={includeLink}
-                      onChange={(e) => setIncludeLink(e.target.checked)}
-                    />
-                  </Tooltip>
-                  <span>Include questionnaire link in email template</span>
-                </div>}
-              </div>
-            </div>
-          </div> */}
           <div className='contact-section'>
             <div className="tab-container-section">
               {tabs.map((tab, index) => (
@@ -271,20 +220,21 @@ const CandidateDetailsModal = (props) => {
             {activeTab === 0 ?
             <div className='flex'>
               <div className='section-info'>
-                <div className='section-label'>Name: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.name)}</span></div>
+                <div className='section-label'>Name: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(tabIndex === 0 ? candidate.contact?.name : candidate.name)}</span></div>
                 <div className='section-label'>Email: <a href={`mailto:${email}?subject=${emailSubject}&body=${emailBody}`} className='linkedin-link'>{email}</a></div>
-                <div className='section-label'>Phone: <span style={{fontWeight: 400}}>{candidate.contact?.phone}</span></div>
-                <div className='section-label'>Location: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(candidate.contact?.location)}</span></div>
+                <div className='section-label'>Phone: <span style={{fontWeight: 400}}>{tabIndex === 0 ? candidate.contact?.phone : candidate.phone}</span></div>
+                <div className='section-label'>Location: <span style={{fontWeight: 400}}>{capitalizeFirstLetter(tabIndex === 0 ? candidate.contact?.location : candidate.location)}</span></div>
                 <div className='section-label'>LinkedIn: <a 
-                    onClick={() => handleRedirectToLinkedIn(candidate.contact?.linkedin)} 
+                    onClick={() => handleRedirectToLinkedIn(tabIndex === 0 ? candidate.contact?.linkedin : candidate.linkedin)} 
                     className='linkedin-link' 
                     target="_blank" 
                     rel="noopener noreferrer"
                   >
-                    {capitalizeFirstLetter(candidate.contact?.name)}
+                    {capitalizeFirstLetter(tabIndex === 0 ? candidate.contact?.name : candidate.name)}
                   </a>
                 </div>
               </div>
+              {tabIndex === 0 &&
               <div className='action-button-container'>
                 {isEditable && 
                 <button onClick={() => handleGenerateLink(candidate)} disabled={generating} className='action-button'>
@@ -324,10 +274,10 @@ const CandidateDetailsModal = (props) => {
                   </Tooltip>
                   <span>Include questionnaire link in email template</span>
                 </div>}
-              </div>
+              </div>}
             </div> :
-            activeTab === 1 && candidate.contact.work_experience.length > 0 ?
-            candidate.contact.work_experience?.map((experience) => (
+            activeTab === 1 && (tabIndex === 0 ? candidate.contact?.work_experience.length : candidate.work_experience?.length) > 0 ?
+            (tabIndex === 0 ? candidate.contact?.work_experience : candidate.work_experience)?.map((experience) => (
               <div className='section-label'>
                 <div>{experience.title}</div>
                 <div style={{fontWeight: 400, marginTop: 8}}>{experience.company}</div>
@@ -339,8 +289,8 @@ const CandidateDetailsModal = (props) => {
                 ))}
               </div>
             )) :
-            activeTab === 2 && candidate.contact.education.length > 0 ?
-            candidate.contact.education?.map((educ) => (
+            activeTab === 2 && (tabIndex === 0 ? candidate.contact?.education.length : candidate.education?.length) > 0 ?
+            (tabIndex === 0 ? candidate.contact?.education : candidate.education)?.map((educ) => (
               <div className='section-label'>
                 <div>{educ.degree}</div>
                 <div className='light-label' style={{fontWeight: 400}}>
@@ -348,12 +298,12 @@ const CandidateDetailsModal = (props) => {
                 </div>
               </div>
             )) : 
-            activeTab === 3 && candidate.contact.certifications.length > 0 ?
-            candidate.contact.certifications?.map((cert) => (
+            activeTab === 3 && (tabIndex === 0 ? candidate.contact?.certifications.length : candidate.certifications?.length) > 0 ?
+            (tabIndex === 0 ? candidate.contact?.certifications : candidate.certifications)?.map((cert) => (
               <div className='section-label'>• {cert}</div>
             )) :
-            activeTab === 4 && (candidate.contact.projects.length > 0 || candidate.contact.projects != 0) ?
-            candidate.contact.projects?.map((project) => (
+            activeTab === 4 && (tabIndex === 0 ? candidate.contact?.projects.length : candidate.projects?.length) ?
+            (tabIndex === 0 ? candidate.contact?.projects : candidate.projects)?.map((project) => (
               <div className='section-label'>
                 <div>{project.name}</div>
                 <div style={{fontWeight: 400}}>{project.description}</div>
@@ -371,29 +321,9 @@ const CandidateDetailsModal = (props) => {
               <div className='section-title'>Match Analysis</div>
               <div className='light-label'>Match assessment based on available data</div>
             </div>
-            {/* <div style={{padding: '10px 0px'}}>
-              <LinearProgress
-                id='score-bar' 
-                variant="determinate" 
-                value={Math.round(candidate.scores?.overall)}
-                sx={{
-                  height: '12px !important',
-                  "& .MuiLinearProgress-bar": {
-                    backgroundColor: "#0A66C2",
-                  },
-                }}
-              />
-              <div className='score-sublabel'>
-                <span>0%</span>
-                <span>25%</span>
-                <span>50%</span>
-                <span>75%</span>
-                <span>100%</span>
-              </div>
-            </div> */}
             <div className='section-info'>
               <div className='score-label'>
-                <img src={SkillsIcon}/>Skills <Tooltip placement="right" title="Relevance and depth of skills compared to job requirements"><img src={TooltipIcon}/></Tooltip>
+                <img src={WandSparkle}/>Skills <Tooltip placement="right" title="Relevance and depth of skills compared to job requirements"><img src={TooltipIcon}/></Tooltip>
                 <span style={{marginLeft: 'auto'}} className='score-row'>{candidate.jobMatchScore?.tagScore.finalScore > Math.round(candidate.scores?.skill_match.score) ? candidate.jobMatchScore?.tagScore.finalScore : Math.round(candidate.scores?.skill_match.score)}%<span className='light-label'>(Weight: 50%)</span></span>
               </div>
               <LinearProgress
@@ -592,6 +522,7 @@ const CandidateDetailsModal = (props) => {
             </div>
           </div>
         </div>
+        {tabIndex == 0 &&
         <div className='candidate-modal-row1'>
           <button 
             disabled={!isEditable && candidate.status == "Selected"}
@@ -615,7 +546,7 @@ const CandidateDetailsModal = (props) => {
               src={isEditable ? DeleteIcon : Bookmark} 
               alt="Bookmark" />}
           </Tooltip>
-        </div>
+        </div>}
         <ConfirmModal
           open={showConfirm}
           close={() => setShowConfirm(false)}

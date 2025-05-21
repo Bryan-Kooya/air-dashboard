@@ -372,7 +372,7 @@ const App = () => {
                   element={<MessagesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} />}
                 />
                 <Route
-                  path="/candidates-status"
+                  path="/candidates"
                   element={<CandidatesPage title={getHeaderTitle} subtitle={getHeaderSubtitle} userId={userId} userInfo={userInfo}/>}
                 />
                 <Route

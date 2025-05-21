@@ -264,6 +264,124 @@ export const fetchPaginatedContacts = async (pageSize, lastVisibleDoc, userId) =
   }
 };
 
+export const searchProcessedContacts = async (searchQuery, userId) => {
+  const contactsCollection = collection(db, "contacts");
+  const q = query(contactsCollection, where("userId", "==", userId));
+  const snapshot = await getDocs(q);
+
+  // Flatten the data into individual job entries
+  const processedData = snapshot.docs.flatMap(doc => {
+    const contactData = doc.data();
+    const { name, email, phone, location, jobs = [] } = contactData;
+    return jobs.map(job => ({
+      contactId: doc.id,
+      name,
+      email,
+      phone,
+      location,
+      ...job
+    }));
+  });
+
+  // Filter across both contact and job fields
+  const filteredData = processedData.filter((entry) => {
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Search these fields
+    const searchFields = [
+      entry.name,
+      entry.email,
+      entry.phone,
+      entry.location,
+      entry.jobTitle,
+      entry.company,
+      entry.status,
+      entry.fileName
+    ].join(' ').toLowerCase();
+
+    return searchFields.includes(searchLower);
+  });
+
+  return filteredData;
+};
+
+export const fetchPaginatedProcessedContacts = async (pageSize, lastVisibleDoc, userId) => {
+  try {
+    const contactsCollection = collection(db, "contacts");
+
+    const totalDocuments = await getTotalProcessedContacts(userId);
+
+    // Query for paginated data
+    let q = query(
+      contactsCollection, 
+      where("userId", "==", userId), 
+      orderBy("timestamp", "desc"),
+      limit(pageSize)
+    );
+
+    if (lastVisibleDoc) {
+      q = query(
+        contactsCollection,
+        where("userId", "==", userId),
+        orderBy("timestamp", "desc"),
+        startAfter(lastVisibleDoc),
+        limit(pageSize)
+      );
+    }
+
+    // Fetch paginated data
+    const snapshot = await getDocs(q);
+    const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    // Map and flatten the data to create new contacts for each job
+    const data = snapshot.docs.flatMap(doc => {
+      const contactData = doc.data();
+      const { name, email, phone, location, jobs, work_experience, education, certifications, projects, linkedin = [] } = contactData;
+      return jobs.map(job => ({
+        name,
+        email,
+        phone,
+        location,
+        work_experience,
+        education,
+        certifications,
+        projects,
+        linkedin,
+        ...job
+      }));
+    });
+
+    return { 
+      data, 
+      lastVisible, 
+      total: totalDocuments 
+    };
+  } catch (error) {
+    console.error("Error fetching paginated processed contacts:", error);
+    throw new Error("Unable to fetch paginated processed contacts.");
+  }
+};
+
+export const getTotalProcessedContacts = async (userId) => {
+  try {
+    const contactsCollection = collection(db, "contacts");
+    
+    const querySnapshot = await getDocs(
+      query(contactsCollection, where("userId", "==", userId))
+    );
+
+    // Calculate total jobs across all contacts
+    const totalJobs = querySnapshot.docs.reduce((acc, doc) => {
+      return acc + (doc.data().jobs?.length || 0);
+    }, 0);
+
+    return totalJobs;
+  } catch (error) {
+    console.error("Error getting total processed contacts:", error);
+    throw new Error("Unable to get total processed contacts count");
+  }
+};
+
 export const deleteContact = async (contactId) => {
   try {
     const conversationRef = doc(db, "contacts", contactId);
