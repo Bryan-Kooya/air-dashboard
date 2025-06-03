@@ -544,6 +544,7 @@ const JobPostingsPage = (props) => {
         loading={loading}
         handleRequiredTags={handleRequiredTags}
         updateMessage={updateMessage}
+        userId={userId}
       />
       <div className="jobs card">
         <div className="title-container">

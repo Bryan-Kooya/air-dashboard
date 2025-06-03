@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import "./EditJobModal.css";
-import { Modal, Chip, CircularProgress, Menu, MenuItem, Select } from '@mui/material';
+import { Modal, Chip, CircularProgress, Menu, MenuItem, Select, TextField, Autocomplete } from '@mui/material';
 import { CirclePlus } from '../../assets/images';
+import { collection, getDocs, query, where, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../../firebaseConfig';
 
 const EditJobModal = (props) => {
   const years = ["<1 year", "2-4 years", "5-7 years", "8-10 years", "11+ years"]
@@ -19,15 +21,50 @@ const EditJobModal = (props) => {
 
   // Local state for MandatoryTags
   const [localRequiredTags, setLocalRequiredTags] = useState(selectedJob.required_tags || []);
+  const [localMandatoryTags, setLocalMandatoryTags] = useState(selectedJob.mandatory_tags || []);
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [searchValue, setSearchValue] = useState('');
 
-  // Update localRequiredTags when selectedJob.required_tags changes
+  // Update local states when selectedJob changes
   useEffect(() => {
     setLocalRequiredTags(selectedJob.required_tags || []);
+    setLocalMandatoryTags(selectedJob.mandatory_tags || []);
     if(selectedJob.required_tags?.length === 0 && selectedJob.enableMandatory) {
       selectedJob.enableMandatory = false;
     }
-  }, [selectedJob.required_tags]);
+  }, [selectedJob.required_tags, selectedJob.mandatory_tags]);
+
+  // Fetch all available tags from database
+  useEffect(() => {
+    const fetchAvailableTags = async () => {
+      try {
+        const jobsCollection = collection(db, "jobs");
+        const q = query(jobsCollection, where("userId", "==", selectedJob.userId || props.userId));
+        const snapshot = await getDocs(q);
+        
+        const allTags = new Set();
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          // Collect tags from mandatory_tags, job_title_tags, and alternative tags
+          if (data.mandatory_tags) data.mandatory_tags.forEach(tag => allTags.add(tag));
+          if (data.job_title_tags) data.job_title_tags.forEach(tag => allTags.add(tag));
+          if (data.alternative_mandatory_tags_en) data.alternative_mandatory_tags_en.forEach(tag => allTags.add(tag));
+          if (data.alternative_mandatory_tags_he) data.alternative_mandatory_tags_he.forEach(tag => allTags.add(tag));
+          if (data.alternative_job_title_tags_en) data.alternative_job_title_tags_en.forEach(tag => allTags.add(tag));
+          if (data.alternative_job_title_tags_he) data.alternative_job_title_tags_he.forEach(tag => allTags.add(tag));
+        });
+        
+        setAvailableTags(Array.from(allTags).sort());
+      } catch (error) {
+        console.error('Error fetching available tags:', error);
+      }
+    };
+
+    if (isOpen && (selectedJob.userId || props.userId)) {
+      fetchAvailableTags();
+    }
+  }, [isOpen, selectedJob.userId, props.userId]);
 
   const hasYearTag = () => {
     return tags?.some(tag => /\d+-\d+\s*(year|years|שנה|שנים)/i.test(tag));
@@ -59,6 +96,55 @@ const EditJobModal = (props) => {
     }
   };
 
+  // Function to handle mandatory tag removal
+  const handleRemoveMandatoryTag = async (tagToRemove) => {
+    if (selectedJob.id) {
+      try {
+        const updatedTags = localMandatoryTags.filter((tag) => tag !== tagToRemove);
+        
+        // Update in Firebase
+        const jobDoc = doc(db, "jobs", selectedJob.id);
+        await updateDoc(jobDoc, { mandatory_tags: updatedTags });
+        
+        // Update local state and selectedJob
+        setLocalMandatoryTags(updatedTags);
+        selectedJob.mandatory_tags = updatedTags;
+        
+        updateMessage("Tag removed successfully!", "success", true);
+      } catch (error) {
+        console.error("Error removing tag:", error);
+        updateMessage("An error occurred while removing tag.", "error", true);
+      }
+    }
+  };
+
+  // Function to add new tag from search
+  const handleAddTagFromSearch = async (newTag) => {
+    if (!newTag || localMandatoryTags.includes(newTag)) {
+      return;
+    }
+    
+    if (selectedJob.id) {
+      try {
+        const updatedTags = [...localMandatoryTags, newTag];
+        
+        // Update in Firebase
+        const jobDoc = doc(db, "jobs", selectedJob.id);
+        await updateDoc(jobDoc, { mandatory_tags: updatedTags });
+        
+        // Update local state and selectedJob
+        setLocalMandatoryTags(updatedTags);
+        selectedJob.mandatory_tags = updatedTags;
+        setSearchValue('');
+        
+        updateMessage("Tag added successfully!", "success", true);
+      } catch (error) {
+        console.error("Error adding tag:", error);
+        updateMessage("An error occurred while adding tag.", "error", true);
+      }
+    }
+  };
+
   const handleClose = async (job) => {
     // await updateJob(job);
     isClose();
@@ -71,6 +157,12 @@ const EditJobModal = (props) => {
   const handleMenuClose = () => {
     setFilterAnchorEl(null);
   };
+
+  // Filter available tags based on search and exclude already added tags
+  const filteredAvailableTags = availableTags.filter(tag => 
+    !localMandatoryTags.includes(tag) && 
+    tag.toLowerCase().includes(searchValue.toLowerCase())
+  );
 
   return (
     <Modal open={isOpen} onClose={() => handleClose(selectedJob)}>
@@ -188,16 +280,49 @@ const EditJobModal = (props) => {
             </div>
           </div>
           <div className='card-row'>
-            <div className='row-title'>Tags:</div>
+            <div className='flex row-title' style={{alignItems: 'center'}}>Tags: 
+            <Autocomplete
+                freeSolo
+                options={filteredAvailableTags}
+                value={searchValue}
+                onInputChange={(event, newInputValue) => {
+                  setSearchValue(newInputValue);
+                }}
+                onChange={(event, newValue) => {
+                  if (newValue) {
+                    handleAddTagFromSearch(newValue);
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Search and add tags..."
+                    variant="outlined"
+                    size="small"
+                    onKeyPress={(event) => {
+                      if (event.key === 'Enter' && searchValue.trim()) {
+                        handleAddTagFromSearch(searchValue.trim());
+                      }
+                    }}
+                  />
+                )}
+                style={{ width: '50%' }}
+                noOptionsText="No matching tags found"
+              />
+            </div>
             <div>
-              {tags?.map((tag, index) => (
-                <Chip
-                  onClick={() => handleTagClick(tag)}
-                  id='tags'
-                  key={index}
-                  label={tag}
-                />
-              ))}
+              <div style={{display: 'flex', flexWrap: 'wrap', marginBottom: '10px'}}>
+                {localMandatoryTags?.map((tag, index) => (
+                  <Chip
+                    onClick={() => handleTagClick(tag)}
+                    id='tags'
+                    key={index}
+                    label={tag}
+                    onDelete={() => handleRemoveMandatoryTag(tag)}
+                    style={{ margin: '2px' }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
           <div className="card-row">
